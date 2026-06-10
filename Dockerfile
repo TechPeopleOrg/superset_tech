@@ -150,6 +150,11 @@ RUN if [ "${BUILD_TRANSLATIONS}" = "true" ]; then \
 ######################################################################
 FROM python-base AS python-common
 
+# [TECHPEOPLE] Expose the build version (git/docker tag) so we always know what
+# is deployed. Passed in via --build-arg BUILD_VERSION at build time.
+ARG BUILD_VERSION=dev
+ENV TECHPEOPLE_FRONTEND_VERSION=${BUILD_VERSION}
+
 ENV SUPERSET_HOME="/app/superset_home" \
     HOME="/app/superset_home" \
     SUPERSET_ENV="production" \
