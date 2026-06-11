@@ -57,8 +57,20 @@ GitHub Actions ([.github/workflows/techpeople-build.yml](../.github/workflows/te
 
 ## Шаг 4. Выкатить на сервер
 
+Сначала логинимся в ghcr.io (разово на сервере). Логин — GitHub-ник, пароль —
+Personal Access Token (classic) со scope `read:packages`:
+
 ```bash
-docker login ghcr.io              # тем же GitHub-токеном (разово)
+echo <ТВОЙ_ТОКЕН> | docker login ghcr.io -u <твой-github-логин> --password-stdin
+```
+
+`--password-stdin` берёт токен из потока, а не из аргумента, чтобы он не попал в
+историю команд. Где взять токен: GitHub → Settings → Developer settings →
+Personal access tokens → Tokens (classic) → Generate, scope `read:packages`.
+
+Затем выкатываем:
+
+```bash
 docker compose pull
 docker compose up -d
 ```
@@ -71,6 +83,31 @@ image: ghcr.io/techpeopleorg/superset_tech:4.1.1-techpeople.1
 ```
 
 При выкате новой версии меняешь тег в compose и повторяешь Шаг 4.
+
+### Откуда берётся имя образа
+
+Имя не выдумывается — оно складывается из трёх частей:
+
+```
+ghcr.io / techpeopleorg / superset_tech : 4.1.1-techpeople.1
+└─реестр─┘ └──владелец──┘ └─имя пакета──┘ └──────тег───────┘
+```
+
+| Часть | Откуда берётся |
+| --- | --- |
+| `ghcr.io` | реестр (фиксирован — мы используем GitHub Container Registry) |
+| `techpeopleorg` | организация из URL репозитория, в нижнем регистре (`github.com/TechPeopleOrg/...`) |
+| `superset_tech` | имя репозитория (в workflow задаётся как `IMAGE_NAME=${GITHUB_REPOSITORY,,}`) |
+| тег | git-тег, который ты сам поставил (правило: git-тег = docker-тег) |
+
+Три способа узнать готовое имя для `docker pull`, от простого к ручному:
+
+1. **GitHub → Packages** (`github.com/orgs/TechPeopleOrg/packages` → пакет `superset_tech`) —
+   показывает готовую строку `docker pull ...` и список всех доступных тегов. Самый надёжный
+   способ, особенно на сервере, где образа ещё нет локально.
+2. **`docker images "ghcr.io/techpeopleorg/*"`** — если образ уже скачан, колонки
+   `Repository:Tag` и есть имя для pull.
+3. **Собрать вручную**: `ghcr.io` / организация (lowercase) / репозиторий / твой тег.
 
 ## Проверить, что задеплоено
 
