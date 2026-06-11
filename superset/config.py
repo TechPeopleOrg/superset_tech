@@ -375,7 +375,7 @@ AUTH_RATE_LIMIT = "5 per second"
 APP_NAME = "Superset"
 
 # Specify the App icon
-APP_ICON = "/static/assets/images/superset-logo-horiz.png"
+APP_ICON = "/static/assets/images/techpeople-superset-logo-horiz.png"
 
 # Specify where clicking the logo would take the user'
 # Default value of None will take you to '/superset/welcome'
@@ -387,7 +387,7 @@ LOGO_TARGET_PATH = None
 LOGO_TOOLTIP = ""
 
 # Specify any text that should appear to the right of the logo
-LOGO_RIGHT_TEXT: Callable[[], str] | str = ""
+LOGO_RIGHT_TEXT: Callable[[], str] | str = "TechPeople"
 
 # Enables SWAGGER UI for superset openapi spec
 # ex: http://localhost:8080/swagger/v1
