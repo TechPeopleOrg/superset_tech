@@ -19,11 +19,11 @@ git-тег запускает сборку. Образ собирается на
 Версия upstream + наш суффикс:
 
 ```
-4.1.1-techpeople.1 → 4.1.1-techpeople.2 → ...
+0.0.1-techpeople.1 → 0.0.1-techpeople.2 → ...
 ```
 
-Читается как «база Superset 4.1.1, наша фронт-итерация N». При апгрейде Superset →
-`4.2.0-techpeople.1`.
+Читается как «база Superset 0.0.1, наша фронт-итерация N» →
+`0.0.2-techpeople.1`.
 
 ## Шаг 1. Влить фичу
 
@@ -38,8 +38,8 @@ git pull origin techpeople_master      # подтянуть актуальное
 ## Шаг 2. Поставить тег
 
 ```bash
-git tag 4.1.1-techpeople.1
-git push origin 4.1.1-techpeople.1
+git tag 0.0.1-techpeople.1
+git push origin 0.0.1-techpeople.1
 ```
 
 Тег должен матчить `*-techpeople.*` — иначе сборка не запустится.
@@ -79,7 +79,7 @@ docker compose up -d
 непонятно, что задеплоено):
 
 ```yaml
-image: ghcr.io/techpeopleorg/superset_tech:4.1.1-techpeople.1
+image: ghcr.io/techpeopleorg/superset_tech:0.0.1-techpeople.1
 ```
 
 При выкате новой версии меняешь тег в compose и повторяешь Шаг 4.
@@ -89,7 +89,7 @@ image: ghcr.io/techpeopleorg/superset_tech:4.1.1-techpeople.1
 Имя не выдумывается — оно складывается из трёх частей:
 
 ```
-ghcr.io / techpeopleorg / superset_tech : 4.1.1-techpeople.1
+ghcr.io / techpeopleorg / superset_tech : 0.0.1-techpeople.1
 └─реестр─┘ └──владелец──┘ └─имя пакета──┘ └──────тег───────┘
 ```
 
