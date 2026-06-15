@@ -24,6 +24,8 @@ export enum VizType {
   BigNumberPeriodOverPeriod = 'pop_kpi',
   BoxPlot = 'box_plot',
   Bubble = 'bubble_v2',
+  CamelAi = 'camel_ai',
+  OpenClawAi = 'openclaw_ai',
   Bullet = 'bullet',
   Calendar = 'cal_heatmap',
   Cartodiagram = 'cartodiagram',

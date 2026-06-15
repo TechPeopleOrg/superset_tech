@@ -2231,6 +2231,7 @@ TALISMAN_CONFIG = {
             "https://tiles.versatiles.org",
             "https://*.protomaps.com",
             "https://*.maplibre.org",
+            "http://212.57.126.191",
         ],
         "object-src": "'none'",
         "style-src": [
@@ -2278,6 +2279,7 @@ TALISMAN_DEV_CONFIG = {
             "https://tiles.versatiles.org",
             "https://*.protomaps.com",
             "https://*.maplibre.org",
+            "http://212.57.126.191",
         ],
         "object-src": "'none'",
         "style-src": [

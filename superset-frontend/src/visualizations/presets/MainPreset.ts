@@ -69,6 +69,8 @@ import {
   BigNumberPeriodOverPeriodChartPlugin,
   EchartsHeatmapChartPlugin,
   EchartsGanttChartPlugin,
+  EchartsCamelAIChartPlugin,
+  EchartsOpenClawAIChartPlugin,
 } from '@superset-ui/plugin-chart-echarts';
 import {
   SelectFilterPlugin,
@@ -124,6 +126,10 @@ export default class MainPreset extends Preset {
         new EchartsSankeyChartPlugin().configure({ key: VizType.Sankey }),
         new EchartsTreemapChartPlugin().configure({ key: VizType.Treemap }),
         new EchartsGanttChartPlugin().configure({ key: VizType.Gantt }),
+        new EchartsCamelAIChartPlugin().configure({ key: VizType.CamelAi }),
+        new EchartsOpenClawAIChartPlugin().configure({
+          key: VizType.OpenClawAi,
+        }),
         new EchartsGaugeChartPlugin().configure({ key: VizType.Gauge }),
         new EchartsGraphChartPlugin().configure({ key: VizType.Graph }),
         new EchartsRadarChartPlugin().configure({ key: VizType.Radar }),
