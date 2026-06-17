@@ -1,0 +1,5 @@
+# The repo-wide `**/lib/*` rule (superset-frontend/.gitignore) is meant for
+# compiled package output, but it also catches this plugin's hand-written
+# `src/lib/` sources (the bundled SVGCore library). Keep those tracked.
+!src/lib/
+!src/lib/**
