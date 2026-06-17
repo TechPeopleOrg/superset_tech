@@ -51,14 +51,13 @@ const BackButton = styled.button`
   }
 `;
 
-
 export default function SvgChart(props: SvgChartProps) {
-  const { width, height, data, formData } = props;
+  const { width, height, data, formData, svgOptions } = props;
   const containerRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useSvgMode(formData.sliceId);
-  const filters = useSvgFilters(['house','entrance','floor']);
+  const filters = useSvgFilters(['house', 'entrance', 'floor']);
 
-  function setFilters (value: string) {
+  function setFilters(value: string) {
     setMode('floor');
     if (value) {
       filters.house.set([value as string]);
@@ -67,7 +66,7 @@ export default function SvgChart(props: SvgChartProps) {
     }
   }
 
-  function clearFilters () {
+  function clearFilters() {
     setMode('house');
     filters.house.set([]);
     filters.entrance.set([]);
@@ -90,7 +89,7 @@ export default function SvgChart(props: SvgChartProps) {
         name: mode === 'house' ? String(item.house) : String(item.name),
         value: item.percent,
         status: item.status,
-      }
+      };
     });
 
     if (!svg) {
@@ -100,53 +99,51 @@ export default function SvgChart(props: SvgChartProps) {
     const instance = new SVGCore(node, svg);
     instance.setOption({
       type: mode === 'house' ? 'range' : 'status',
-      colorRange: '#072cff',
-      colorStatus: [
-        { status: 'Бронь', color: '#20a8c9' },
-        { status: 'Маркетинговая сделка', color: '#5ac28a' },
-        { status: 'Маркетинговый резерв', color: '#e04355' },
-        { status: 'Подбор', color: '#454e7d' },
-        { status: 'Проверка', color: '#e0a448' },
-        { status: 'Сделка в работе', color: '#ff8b48' },
-      ],
+      colorRange: svgOptions.colorRange,
+      colorStatus: svgOptions.colorStatus,
       tooltip: {
-        positionAuto: true,
-        color: 'black',
-        position: 'bottom',
-        borderRadius: 5,
-        borderColor: 'white',
-        fontSize: 14,
-        padding: 5,
-        background: 'white',
-        formatter: (str) => {
-          const target = data.find(item => String(item.house) === str || item.name === str)
+        show: svgOptions.tooltip.show,
+        positionAuto: svgOptions.tooltip.positionAuto,
+        color: svgOptions.tooltip.color,
+        position: svgOptions.tooltip.position,
+        borderRadius: svgOptions.tooltip.borderRadius,
+        borderColor: svgOptions.tooltip.borderColor,
+        fontSize: svgOptions.tooltip.fontSize,
+        fontFamily: svgOptions.tooltip.fontFamily,
+        padding: svgOptions.tooltip.padding,
+        background: svgOptions.tooltip.background,
+        formatter: str => {
+          const target = data.find(
+            item => String(item.house) === str || item.name === str,
+          );
           if (!target) return str;
           if (mode === 'house') {
-            return `<b>ЖК ${target.complex_name}</b><br>Дом №${target.house}<br>Продано: ${target.percent}%`
-          } {
-            return `<b>${target.name}</b><br>Площадь: ${target.square} м²<br>Стоимость: ${target.price} руб.<br>Статус: ${target.status}`
+            return `<b>ЖК ${target.complex_name}</b><br>Дом №${target.house}<br>Продано: ${target.percent}%`;
+          }
+          {
+            return `<b>${target.name}</b><br>Площадь: ${target.square} м²<br>Стоимость: ${target.price} руб.<br>Статус: ${target.status}`;
           }
         },
         className: 'tooltip-custom',
       },
       events: {
-        click: (value) => setFilters(value as string),
-        dblclick: (value) => clearFilters()
+        click: value => setFilters(value as string),
+        dblclick: () => clearFilters(),
       },
       label: {
-        show: false,
-        fontSize: 20,
-        fontFamily: 'Arial',
-        color: 'pink'
+        show: svgOptions.label.show,
+        fontSize: svgOptions.label.fontSize,
+        fontFamily: svgOptions.label.fontFamily,
+        color: svgOptions.label.color,
       },
       // @ts-ignore
       data: transformData,
-    })
+    });
     return () => {
       instance.destroy();
       node.innerHTML = '';
     };
-  }, [width, height, data, mode]);
+  }, [width, height, data, mode, svgOptions]);
 
   return (
     <Container style={{ width, height }}>

@@ -17,23 +17,51 @@
  * under the License.
  */
 import { ChartProps, DataRecord } from '@superset-ui/core';
-import { SvgChartProps, SvgFormData } from './types';
+import { SvgChartProps, SvgConfigurableOptions, SvgFormData } from './types';
+
+function toNumber(value: unknown, fallback: number): number {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
+}
 
 export default function transformProps(chartProps: ChartProps): SvgChartProps {
   const { width, height, formData, queriesData } = chartProps;
+  const fd = formData as SvgFormData;
 
   const queryData = queriesData?.[0];
   const data = (queryData?.data ?? []) as DataRecord[];
   const columns = (queryData?.colnames ?? []) as string[];
 
-  console.log(data);
+  const svgOptions: SvgConfigurableOptions = {
+    colorRange: fd.colorRange ?? '#072cff',
+    colorStatus: fd.colorStatus ?? [],
+    tooltip: {
+      show: fd.tooltipShow ?? true,
+      position: fd.tooltipPosition ?? 'bottom',
+      positionAuto: fd.tooltipPositionAuto ?? true,
+      fontSize: toNumber(fd.tooltipFontSize, 14),
+      fontFamily: fd.tooltipFontFamily,
+      background: fd.tooltipBackground ?? 'white',
+      borderColor: fd.tooltipBorderColor ?? 'white',
+      borderRadius: toNumber(fd.tooltipBorderRadius, 5),
+      color: fd.tooltipColor ?? 'black',
+      padding: toNumber(fd.tooltipPadding, 5),
+    },
+    label: {
+      show: fd.labelShow ?? false,
+      fontSize: toNumber(fd.labelFontSize, 20),
+      fontFamily: fd.labelFontFamily ?? 'Arial',
+      color: fd.labelColor,
+    },
+  };
 
   return {
     width,
     height,
-    formData: formData as SvgFormData,
+    formData: fd,
     data,
     columns,
     svg: '',
+    svgOptions,
   };
 }

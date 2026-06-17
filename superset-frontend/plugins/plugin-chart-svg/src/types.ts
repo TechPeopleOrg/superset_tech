@@ -16,6 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+// The literal colors below are default *data* values (CSS color strings the SVG
+// renderer consumes), not theme styling.
+/* eslint-disable theme-colors/no-literal-colors */
 import { DataRecord, QueryFormData } from '@superset-ui/core';
 
 export interface SvgStylesProps {
@@ -23,7 +26,66 @@ export interface SvgStylesProps {
   width: number;
 }
 
-export type SvgFormData = QueryFormData & SvgStylesProps;
+export interface SvgStatusColor {
+  status: string;
+  color: string;
+}
+
+// Shared default mapping so the control and transformProps stay in sync.
+export const DEFAULT_STATUS_COLORS: SvgStatusColor[] = [
+  { status: 'Бронь', color: '#20a8c9' },
+  { status: 'Маркетинговая сделка', color: '#5ac28a' },
+  { status: 'Маркетинговый резерв', color: '#e04355' },
+  { status: 'Подбор', color: '#454e7d' },
+  { status: 'Проверка', color: '#e0a448' },
+  { status: 'Сделка в работе', color: '#ff8b48' },
+];
+
+// User-configurable SVGCore options surfaced through the control panel.
+// Complex options (`type`, `data`, tooltip/label `formatter`, `events`) stay
+// hardcoded in the chart component because they depend on runtime state.
+export interface SvgConfigurableOptions {
+  colorRange: string;
+  colorStatus: SvgStatusColor[];
+  tooltip: {
+    show: boolean;
+    position: 'top' | 'bottom';
+    positionAuto: boolean;
+    fontSize?: number;
+    fontFamily?: string;
+    background?: string;
+    borderColor?: string;
+    borderRadius?: number;
+    color?: string;
+    padding?: number;
+  };
+  label: {
+    show: boolean;
+    fontSize?: number;
+    fontFamily?: string;
+    color?: string;
+  };
+}
+
+export type SvgFormData = QueryFormData &
+  SvgStylesProps & {
+    color_range?: string;
+    color_status?: SvgStatusColor[];
+    tooltip_show?: boolean;
+    tooltip_position?: 'top' | 'bottom';
+    tooltip_position_auto?: boolean;
+    tooltip_font_size?: number;
+    tooltip_font_family?: string;
+    tooltip_background?: string;
+    tooltip_border_color?: string;
+    tooltip_border_radius?: number;
+    tooltip_color?: string;
+    tooltip_padding?: number;
+    label_show?: boolean;
+    label_font_size?: number;
+    label_font_family?: string;
+    label_color?: string;
+  };
 
 export type SvgChartProps = SvgStylesProps & {
   formData: SvgFormData;
@@ -33,4 +95,6 @@ export type SvgChartProps = SvgStylesProps & {
   columns: string[];
   // The SVG markup to render.
   svg: string;
+  // Resolved option values from the control panel.
+  svgOptions: SvgConfigurableOptions;
 };
