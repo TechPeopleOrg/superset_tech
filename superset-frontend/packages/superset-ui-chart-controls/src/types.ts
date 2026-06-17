@@ -683,6 +683,7 @@ export type TableColumnConfig = {
   visible?: boolean;
   customColumnName?: string;
   displayTypeIcon?: boolean;
+  valueColorMap?: string;
 };
 
 export interface DataColumnMeta {

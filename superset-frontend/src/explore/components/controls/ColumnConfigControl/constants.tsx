@@ -43,6 +43,7 @@ export type SharedColumnConfigProp =
   | 'visible'
   | 'customColumnName'
   | 'displayTypeIcon'
+  | 'valueColorMap'
   | 'currencyFormat';
 
 const d3NumberFormat: ControlFormItemSpec<'Select'> = {
@@ -173,6 +174,18 @@ const currencyFormat: ControlFormItemSpec<'CurrencyControl'> = {
   debounceDelay: 200,
 };
 
+const valueColorMap: ControlFormItemSpec<'Input'> = {
+  controlType: 'Input',
+  label: t('Color cells by value'),
+  description: t(
+    'Paint a cell background when its value matches exactly. ' +
+      'Provide a semicolon-separated list of `value=color` pairs, ' +
+      'e.g. `OK=#52c41a; FAIL=#ff4d4f`. Color may be any CSS color ' +
+      '(hex, rgb, or a named color).',
+  ),
+  debounceDelay: 400,
+};
+
 const visible: ControlFormItemSpec<'Checkbox'> = {
   controlType: 'Checkbox',
   label: t('Display column in the chart'),
@@ -205,6 +218,7 @@ export const SHARED_COLUMN_CONFIG_PROPS = {
   colorPositiveNegative,
   currencyFormat,
   visible,
+  valueColorMap,
 };
 
 export const DEFAULT_CONFIG_FORM_LAYOUT: ColumnConfigFormLayout = {
@@ -214,6 +228,7 @@ export const DEFAULT_CONFIG_FORM_LAYOUT: ColumnConfigFormLayout = {
       { name: 'horizontalAlign', override: { defaultValue: 'left' } },
     ],
     ['truncateLongCells'],
+    ['valueColorMap'],
   ],
   [GenericDataType.Numeric]: [
     {
@@ -226,6 +241,7 @@ export const DEFAULT_CONFIG_FORM_LAYOUT: ColumnConfigFormLayout = {
         ['showCellBars'],
         ['alignPositiveNegative'],
         ['colorPositiveNegative'],
+        ['valueColorMap'],
       ],
     },
     {
@@ -243,11 +259,13 @@ export const DEFAULT_CONFIG_FORM_LAYOUT: ColumnConfigFormLayout = {
       { name: 'horizontalAlign', override: { defaultValue: 'left' } },
     ],
     ['d3TimeFormat'],
+    ['valueColorMap'],
   ],
   [GenericDataType.Boolean]: [
     [
       'columnWidth',
       { name: 'horizontalAlign', override: { defaultValue: 'left' } },
     ],
+    ['valueColorMap'],
   ],
 };

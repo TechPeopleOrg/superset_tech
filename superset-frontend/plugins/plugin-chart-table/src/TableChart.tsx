@@ -128,6 +128,30 @@ function getSortTypeByDataType(dataType: GenericDataType): DefaultSortTypes {
 }
 
 /**
+ * Parse a `valueColorMap` config string into a lookup of exact cell value to
+ * background color. Format: a semicolon-separated list of `value=color` pairs,
+ * e.g. `OK=#52c41a; FAIL=#ff4d4f`. Returns null when nothing is configured.
+ */
+function parseValueColorMap(raw?: string): Map<string, string> | null {
+  if (!raw || typeof raw !== 'string') {
+    return null;
+  }
+  const map = new Map<string, string>();
+  raw.split(';').forEach(pair => {
+    const sep = pair.indexOf('=');
+    if (sep === -1) {
+      return;
+    }
+    const value = pair.slice(0, sep).trim();
+    const color = pair.slice(sep + 1).trim();
+    if (value !== '' && color !== '') {
+      map.set(value, color);
+    }
+  });
+  return map.size > 0 ? map : null;
+}
+
+/**
  * Cell background width calculation for horizontal bar chart
  */
 function cellWidth({
@@ -1000,6 +1024,8 @@ export default function TableChart<D extends DataRecord = DataRecord>(
 
       const { truncateLongCells } = config;
 
+      const valueColorMap = parseValueColorMap(config.valueColorMap);
+
       const hasColumnColorFormatters =
         Array.isArray(columnColorFormatters) &&
         columnColorFormatters.length > 0;
@@ -1125,6 +1151,19 @@ export default function TableChart<D extends DataRecord = DataRecord>(
                 ? basicColorColumnFormatters[row.index][column.key]?.mainArrow
                 : '';
           }
+          // Explicit per-column value->color mapping wins over automatic
+          // formatters. Match against the raw value first, then the formatted
+          // text, so users can map either the underlying value or what is shown.
+          if (valueColorMap) {
+            const rawValueKey = value == null ? '' : String(value).trim();
+            const mappedColor =
+              valueColorMap.get(rawValueKey) ?? valueColorMap.get(text.trim());
+            if (mappedColor) {
+              backgroundColor = mappedColor;
+              valueRangeFlag = false;
+            }
+          }
+
           const rowSurfaceColor =
             row.index % 2 === 0 ? theme.colorBgLayout : theme.colorBgBase;
           const resolvedTextColor = getTextColorForBackground(
