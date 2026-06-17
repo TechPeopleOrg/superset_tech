@@ -31,6 +31,7 @@ import ParallelCoordinatesChartPlugin from '@superset-ui/legacy-plugin-chart-par
 import PartitionChartPlugin from '@superset-ui/legacy-plugin-chart-partition';
 import RoseChartPlugin from '@superset-ui/legacy-plugin-chart-rose';
 import TableChartPlugin from '@superset-ui/plugin-chart-table';
+import SvgChartPlugin from '@superset-ui/plugin-chart-svg';
 import { WordCloudChartPlugin } from '@superset-ui/plugin-chart-word-cloud';
 import WorldMapChartPlugin from '@superset-ui/legacy-plugin-chart-world-map';
 import {
@@ -147,6 +148,7 @@ export default class MainPreset extends Preset {
         new PivotTableChartPluginV2().configure({ key: VizType.PivotTable }),
         new RoseChartPlugin().configure({ key: VizType.Rose }),
         new TableChartPlugin().configure({ key: VizType.Table }),
+        new SvgChartPlugin().configure({ key: VizType.Svg }),
         new TimePivotChartPlugin().configure({ key: VizType.TimePivot }),
         new TimeTableChartPlugin().configure({ key: VizType.TimeTable }),
         new WordCloudChartPlugin().configure({ key: VizType.WordCloud }),

@@ -57,6 +57,7 @@ export enum VizType {
   SmoothLine = 'echarts_timeseries_smooth',
   Step = 'echarts_timeseries_step',
   Sunburst = 'sunburst_v2',
+  Svg = 'svg',
   Table = 'table',
   TableAgGrid = 'ag-grid-table',
   TimePivot = 'time_pivot',
