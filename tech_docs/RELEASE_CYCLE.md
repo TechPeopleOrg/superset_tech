@@ -41,7 +41,7 @@ git pull origin techpeople_master      # подтянуть актуальное
 
 ```bash
 cd superset-frontend
-npm run release:techpeople          # следующий N на текущей базе
+npm run release          # следующий N на текущей базе
 ```
 
 Скрипт [scripts/techpeople-release.sh](../scripts/techpeople-release.sh) сам:
@@ -50,8 +50,8 @@ npm run release:techpeople          # следующий N на текущей �
 вручную больше не нужно.
 
 ```bash
-npm run release:techpeople 0.0.2    # поднять базовую версию (суффикс стартует с .1)
-DRY_RUN=1 npm run release:techpeople # показать, какой тег создастся, ничего не делая
+npm run release 0.0.2    # поднять базовую версию (суффикс стартует с .1)
+DRY_RUN=1 npm run release # показать, какой тег создастся, ничего не делая
 ```
 
 Скрипт **намеренно не трогает** `package.json` / `package-lock.json`: версия
@@ -152,7 +152,7 @@ docker exec <container> printenv TECHPEOPLE_FRONTEND_VERSION
 
 1. [ ] Фича влита в `techpeople_master` через PR, тесты зелёные.
 2. [ ] `git pull` — ветка актуальна.
-3. [ ] Поставлен тег `X.Y.Z-techpeople.N` и запушен (`npm run release:techpeople`).
+3. [ ] Поставлен тег `X.Y.Z-techpeople.N` и запушен (`npm run release`).
 4. [ ] Actions собрал образ (вкладка Actions — зелёный).
 5. [ ] В compose на сервере прописан этот тег (не `latest`).
 6. [ ] `docker compose pull && up -d`.
