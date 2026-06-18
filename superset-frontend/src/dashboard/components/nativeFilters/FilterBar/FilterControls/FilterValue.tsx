@@ -63,6 +63,7 @@ import { FilterControlProps } from './types';
 import { getFormData } from '../../utils';
 import { useFilterDependencies, useTransitiveParentIds } from './state';
 import { useFilterOutlined } from '../useFilterOutlined';
+import { retryOnTransientError } from './retryOnTransientError';
 
 const HEIGHT = 32;
 
@@ -273,11 +274,13 @@ const FilterValue: FC<FilterValueProps> = ({
         return;
       }
       setIsRefreshing(true);
-      getChartDataRequest({
-        formData: newFormData,
-        force: shouldRefresh,
-        ownState: filterOwnState,
-      })
+      retryOnTransientError(() =>
+        getChartDataRequest({
+          formData: newFormData,
+          force: shouldRefresh,
+          ownState: filterOwnState,
+        }),
+      )
         .then(({ response, json }) => {
           if (isFeatureEnabled(FeatureFlag.GlobalAsyncQueries)) {
             // deal with getChartDataRequest transforming the response data
@@ -440,6 +443,14 @@ const FilterValue: FC<FilterValueProps> = ({
   );
 
   if (error) {
+    // When the backend returns a structured error we surface it directly.
+    // Otherwise fall back to the most specific text we have (e.g. a 400 whose
+    // body is a plain message rather than the standard `errors[]` shape),
+    // and only show the generic "Network error" when nothing else is known.
+    const fallbackMessage =
+      error.error ||
+      error.message ||
+      t('Network error while attempting to fetch resource');
     return (
       <ErrorMessageWithStackTrace
         error={error.errors?.[0]}
@@ -447,7 +458,7 @@ const FilterValue: FC<FilterValueProps> = ({
         fallback={
           <ErrorAlert
             errorType={t('Network error')}
-            message={t('Network error while attempting to fetch resource')}
+            message={fallbackMessage}
             type="error"
             compact
           />
