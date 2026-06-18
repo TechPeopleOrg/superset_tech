@@ -37,6 +37,30 @@ git pull origin techpeople_master      # подтянуть актуальное
 
 ## Шаг 2. Поставить тег
 
+### Автоматически (рекомендуется)
+
+```bash
+cd superset-frontend
+npm run release:techpeople          # следующий N на текущей базе
+```
+
+Скрипт [scripts/techpeople-release.sh](../scripts/techpeople-release.sh) сам:
+подтягивает теги с origin, считает следующий `N` по существующим тегам
+`*-techpeople.*`, ставит тег на текущий HEAD и пушит ветку и тег. Номер вести
+вручную больше не нужно.
+
+```bash
+npm run release:techpeople 0.0.2    # поднять базовую версию (суффикс стартует с .1)
+DRY_RUN=1 npm run release:techpeople # показать, какой тег создастся, ничего не делая
+```
+
+Скрипт **намеренно не трогает** `package.json` / `package-lock.json`: версия
+образа берётся из имени git-тега, а правка только `package.json` рассинхронит
+его с `package-lock.json` и уронит `npm ci` внутри Docker-сборки. Требует
+чистого рабочего дерева (всё закоммичено) — иначе остановится.
+
+### Вручную (fallback)
+
 ```bash
 git tag 0.0.1-techpeople.1
 git push origin 0.0.1-techpeople.1
@@ -128,7 +152,7 @@ docker exec <container> printenv TECHPEOPLE_FRONTEND_VERSION
 
 1. [ ] Фича влита в `techpeople_master` через PR, тесты зелёные.
 2. [ ] `git pull` — ветка актуальна.
-3. [ ] Поставлен тег `X.Y.Z-techpeople.N` и запушен.
+3. [ ] Поставлен тег `X.Y.Z-techpeople.N` и запушен (`npm run release:techpeople`).
 4. [ ] Actions собрал образ (вкладка Actions — зелёный).
 5. [ ] В compose на сервере прописан этот тег (не `latest`).
 6. [ ] `docker compose pull && up -d`.
