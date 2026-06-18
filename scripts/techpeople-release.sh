@@ -6,7 +6,7 @@
 # number. The script:
 #   1. fetches tags from origin (so N accounts for releases cut elsewhere),
 #   2. finds the highest existing N for the BASE version and bumps it by one,
-#   3. tags the current HEAD (no release commit — git-tag = docker-tag),
+#   3. creates an empty "[techpeople] release <tag>" marker commit and tags it,
 #   4. pushes the branch and the tag — the tag triggers
 #      .github/workflows/techpeople-build.yml, which builds & pushes the image.
 #
@@ -84,18 +84,23 @@ if [[ -n "$(git status --porcelain)" ]]; then
   exit 1
 fi
 
+RELEASE_MSG="[techpeople] release ${NEW_TAG}"
+
 if [[ "${DRY_RUN:-0}" == "1" ]]; then
-  echo "[dry-run] would tag HEAD ($(git rev-parse --short HEAD)) as ${NEW_TAG}"
+  echo "[dry-run] would create an empty commit: ${RELEASE_MSG}"
+  echo "[dry-run] would tag that commit as ${NEW_TAG}"
   echo "[dry-run] would push the current branch and the tag to origin."
   exit 0
 fi
 
-# --- tag and push -----------------------------------------------------------
-# Push HEAD first so the tag never points at a commit that is missing from the
-# branch on origin, then push the tag to trigger techpeople-build.yml.
+# --- commit, tag and push ---------------------------------------------------
+# Create an empty release-marker commit (no file changes — package.json must
+# stay in sync with package-lock.json), tag it, then push HEAD before the tag
+# so the tag never points at a commit missing from the branch on origin.
+git commit --allow-empty -m "$RELEASE_MSG"
 git tag "$NEW_TAG"
 git push origin HEAD
 git push origin "$NEW_TAG"
 
-echo "Done. Pushed branch + tag ${NEW_TAG}."
+echo "Done. Committed, tagged and pushed ${NEW_TAG}."
 echo "Watch the build: https://github.com/TechPeopleOrg/superset_tech/actions"
