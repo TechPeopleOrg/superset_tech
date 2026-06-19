@@ -48,6 +48,7 @@ import {
 } from 'src/components/MessageToasts/actions';
 import { logEvent } from 'src/logger/actions';
 import { Logger, LOG_ACTIONS_LOAD_CHART } from 'src/logger/LogUtils';
+import { retryOnTransientError } from 'src/utils/retryOnTransientError';
 import { allowCrossDomain as domainShardingEnabled } from 'src/utils/hostNamesConfig';
 import { updateDataMask } from 'src/dataMask/actions';
 import { waitForAsyncData } from 'src/middleware/asyncEvent';
@@ -523,26 +524,34 @@ export async function getChartDataRequest({
     };
   }
   const [useLegacyApi, parseMethod] = getQuerySettings(formData);
+  // Retry transient backend failures (e.g. the "deque mutated during iteration"
+  // race over a shared, cached datasource under multi-threaded workers, or a
+  // dropped connection) for every chart-data request — widgets and native
+  // filters alike — instead of surfacing a non-deterministic 400 to the user.
   if (useLegacyApi) {
-    return legacyChartDataRequest(
+    return retryOnTransientError(() =>
+      legacyChartDataRequest(
+        formData,
+        resultFormat,
+        resultType,
+        force,
+        method,
+        querySettings,
+        parseMethod,
+      ),
+    );
+  }
+  return retryOnTransientError(() =>
+    v1ChartDataRequest(
       formData,
       resultFormat,
       resultType,
       force,
-      method,
       querySettings,
+      setDataMask,
+      ownState,
       parseMethod,
-    );
-  }
-  return v1ChartDataRequest(
-    formData,
-    resultFormat,
-    resultType,
-    force,
-    querySettings,
-    setDataMask,
-    ownState,
-    parseMethod,
+    ),
   );
 }
 

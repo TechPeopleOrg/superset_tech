@@ -18,29 +18,29 @@
  */
 
 import {
-  isTransientFilterError,
+  isTransientChartDataError,
   retryOnTransientError,
 } from './retryOnTransientError';
 
-test('isTransientFilterError detects backend race condition (deque mutated during iteration)', () => {
+test('isTransientChartDataError detects backend race condition (deque mutated during iteration)', () => {
   const response = new Response(
     JSON.stringify({ message: 'Error: deque mutated during iteration' }),
     { status: 400 },
   );
-  return expect(isTransientFilterError(response)).resolves.toBe(true);
+  return expect(isTransientChartDataError(response)).resolves.toBe(true);
 });
 
-test('isTransientFilterError detects network failures (Failed to fetch)', () => {
+test('isTransientChartDataError detects network failures (Failed to fetch)', () => {
   const error = new TypeError('Failed to fetch');
-  return expect(isTransientFilterError(error)).resolves.toBe(true);
+  return expect(isTransientChartDataError(error)).resolves.toBe(true);
 });
 
-test('isTransientFilterError treats a normal validation 400 as non-transient', () => {
+test('isTransientChartDataError treats a normal validation 400 as non-transient', () => {
   const response = new Response(
     JSON.stringify({ message: 'Time column is required' }),
     { status: 400 },
   );
-  return expect(isTransientFilterError(response)).resolves.toBe(false);
+  return expect(isTransientChartDataError(response)).resolves.toBe(false);
 });
 
 test('retryOnTransientError retries the request when it fails with a transient error', async () => {

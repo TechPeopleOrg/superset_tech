@@ -23,10 +23,12 @@ import { getClientErrorObject } from '@superset-ui/core';
 // likely to succeed if retried, rather than a genuine validation error.
 //
 // `deque mutated during iteration` (and the broader `mutated during iteration`)
-// is a Python RuntimeError raised when concurrent filter requests race over a
-// shared, cached dataset object under a multi-threaded gunicorn worker. It is
-// surfaced to the client as an HTTP 400 (see ChartDataQueryFailedError), but it
-// is non-deterministic and a retry almost always succeeds.
+// is a Python RuntimeError raised when concurrent chart-data requests race over
+// a shared, cached datasource object under a multi-threaded gunicorn worker. It
+// is surfaced to the client as an HTTP 400 (see ChartDataQueryFailedError), but
+// it is non-deterministic and a retry almost always succeeds. The same race
+// affects both native filters and regular dashboard charts, so this helper is
+// shared by the common chart-data request path.
 const TRANSIENT_ERROR_SUBSTRINGS = [
   'mutated during iteration',
   'network error',
@@ -51,7 +53,9 @@ const delay = (ms: number) =>
  * failure that is worth retrying (a backend race condition or a dropped
  * connection) as opposed to a genuine, deterministic error.
  */
-export async function isTransientFilterError(error: unknown): Promise<boolean> {
+export async function isTransientChartDataError(
+  error: unknown,
+): Promise<boolean> {
   if (
     error instanceof TypeError &&
     error.message.toLowerCase().includes('failed to fetch')
@@ -96,7 +100,7 @@ export async function retryOnTransientError<T>(
     } catch (error) {
       lastError = error;
       // eslint-disable-next-line no-await-in-loop
-      if (attempt === retries || !(await isTransientFilterError(error))) {
+      if (attempt === retries || !(await isTransientChartDataError(error))) {
         throw error;
       }
       if (delayMs > 0) {

@@ -63,7 +63,6 @@ import { FilterControlProps } from './types';
 import { getFormData } from '../../utils';
 import { useFilterDependencies, useTransitiveParentIds } from './state';
 import { useFilterOutlined } from '../useFilterOutlined';
-import { retryOnTransientError } from './retryOnTransientError';
 
 const HEIGHT = 32;
 
@@ -274,13 +273,14 @@ const FilterValue: FC<FilterValueProps> = ({
         return;
       }
       setIsRefreshing(true);
-      retryOnTransientError(() =>
-        getChartDataRequest({
-          formData: newFormData,
-          force: shouldRefresh,
-          ownState: filterOwnState,
-        }),
-      )
+      // Transient backend failures (e.g. the "deque mutated during iteration"
+      // race) are retried inside getChartDataRequest, so the request below is
+      // already resilient without an extra wrapper here.
+      getChartDataRequest({
+        formData: newFormData,
+        force: shouldRefresh,
+        ownState: filterOwnState,
+      })
         .then(({ response, json }) => {
           if (isFeatureEnabled(FeatureFlag.GlobalAsyncQueries)) {
             // deal with getChartDataRequest transforming the response data
