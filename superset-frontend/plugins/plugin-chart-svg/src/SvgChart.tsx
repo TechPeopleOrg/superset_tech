@@ -58,6 +58,7 @@ export default function SvgChart(props: SvgChartProps) {
   const filters = useSvgFilters(['house', 'entrance', 'floor']);
 
   function setFilters(value: string) {
+    if (value && value.includes('Квартира')) return;
     setMode('floor');
     if (value) {
       filters.house.set([value as string]);
