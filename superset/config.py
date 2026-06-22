@@ -2232,6 +2232,7 @@ TALISMAN_CONFIG = {
             "https://*.protomaps.com",
             "https://*.maplibre.org",
             "https://openclaw.techpeople.ru",
+            "http://localhost:5008",
         ],
         "object-src": "'none'",
         "style-src": [
@@ -2280,6 +2281,7 @@ TALISMAN_DEV_CONFIG = {
             "https://*.protomaps.com",
             "https://*.maplibre.org",
             "https://openclaw.techpeople.ru",
+            "http://localhost:5008",
         ],
         "object-src": "'none'",
         "style-src": [

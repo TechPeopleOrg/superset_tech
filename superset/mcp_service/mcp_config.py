@@ -60,6 +60,11 @@ MCP_DEBUG = False
 # against the FAB security_manager before execution.
 MCP_RBAC_ENABLED = True
 
+# Origins allowed to call the MCP server from a browser (CORS). This is needed
+# for browser-based MCP clients (e.g. an in-app chart). Use specific origins in
+# production; "*" only for trusted dev contours.
+MCP_CORS_ALLOWED_ORIGINS = ["*"]
+
 # MCP Disabled Tools - a set of tool names to remove from the MCP server at
 # startup. Disabled tools are silently omitted from tool discovery, so AI
 # clients never see them. Use this when a Superset-provided tool conflicts with

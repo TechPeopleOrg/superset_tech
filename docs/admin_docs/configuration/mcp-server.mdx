@@ -146,6 +146,21 @@ All operations run as the configured user.
 Never use development mode in production. Always enable authentication for any internet-facing deployment.
 :::
 
+#### Browser-based clients (dev contour)
+
+To call the MCP server directly from a browser (e.g., an in-app chart), enable CORS and allow the Superset origin:
+
+```python
+# superset_config.py
+MCP_AUTH_ENABLED = False
+MCP_DEV_USERNAME = "admin"
+MCP_TOOL_SEARCH_CONFIG = {"enabled": False}
+MCP_RBAC_ENABLED = False
+MCP_CORS_ALLOWED_ORIGINS = ["http://localhost:8088"]  # your Superset origin
+```
+
+Also add the MCP origin (e.g. `http://localhost:5008`) to Superset's CSP `connect-src`.
+
 ### JWT Authentication
 
 For production, enable JWT-based authentication. The MCP server validates a Bearer token on every request.
