@@ -2231,7 +2231,7 @@ TALISMAN_CONFIG = {
             "https://tiles.versatiles.org",
             "https://*.protomaps.com",
             "https://*.maplibre.org",
-            "https://openclaw.techpeople.ru/openclaw/",
+            "https://openclaw.techpeople.ru",
         ],
         "object-src": "'none'",
         "style-src": [
@@ -2279,7 +2279,7 @@ TALISMAN_DEV_CONFIG = {
             "https://tiles.versatiles.org",
             "https://*.protomaps.com",
             "https://*.maplibre.org",
-            "https://openclaw.techpeople.ru/openclaw/",
+            "https://openclaw.techpeople.ru",
         ],
         "object-src": "'none'",
         "style-src": [
