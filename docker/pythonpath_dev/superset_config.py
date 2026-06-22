@@ -123,6 +123,19 @@ SQLLAB_CTAS_NO_LIMIT = True
 log_level_text = os.getenv("SUPERSET_LOG_LEVEL", "INFO")
 LOG_LEVEL = getattr(logging, log_level_text.upper(), logging.INFO)
 
+# --- OpenClaw AI Chart (MCP) dev contour ---------------------------------
+# Dev settings for the browser-based MCP chart. The chart's agent reaches the
+# Superset MCP server (the `mcp` compose service, published on :5008) directly
+# from the browser, so CORS must allow the Superset origin and auth/RBAC are
+# relaxed for local use. Never enable this contour in production.
+MCP_AUTH_ENABLED = False
+MCP_DEV_USERNAME = "admin"
+MCP_RBAC_ENABLED = False
+MCP_TOOL_SEARCH_CONFIG = {"enabled": False}
+# Superset is published on :8088; the browser page served from there calls the
+# MCP server, so that origin must be allowed.
+MCP_CORS_ALLOWED_ORIGINS = ["http://localhost:8088"]
+
 if os.getenv("CYPRESS_CONFIG") == "true":
     # When running the service as a cypress backend, we need to import the config
     # located @ tests/integration_tests/superset_test_config.py
