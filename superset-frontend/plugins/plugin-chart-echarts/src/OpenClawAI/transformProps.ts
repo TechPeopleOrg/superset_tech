@@ -43,7 +43,7 @@ export default function transformProps(chartProps: OpenClawAIChartProps) {
   const componentProps: OpenClawChatComponentProps = {
     width,
     height,
-    baseUrl: (merged.base_url as string) ?? 'http://212.57.126.191/openclaw',
+    baseUrl: (merged.base_url as string) ?? 'https://openclaw.techpeople.ru/openclaw/',
     apiKey: (merged.api_key as string) ?? '',
     model: (merged.model as OpenClawModel) ?? 'openclaw/data-analyst',
     systemPrompt:

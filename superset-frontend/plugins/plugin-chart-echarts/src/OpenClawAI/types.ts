@@ -39,7 +39,7 @@ export interface OpenClawAIChartProps
 }
 
 export const DEFAULT_FORM_DATA: Partial<OpenClawAIFormData> = {
-  base_url: 'http://212.57.126.191/openclaw',
+  base_url: 'https://openclaw.techpeople.ru/openclaw/',
   model: 'openclaw/data-analyst',
   system_prompt: 'You are a helpful assistant.',
   temperature: 1.0,

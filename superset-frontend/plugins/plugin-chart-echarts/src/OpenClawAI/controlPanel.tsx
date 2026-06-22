@@ -37,7 +37,7 @@ const config: ControlPanelConfig = {
               type: 'TextControl',
               label: t('Base URL'),
               renderTrigger: true,
-              default: 'http://212.57.126.191/openclaw',
+              default: 'https://openclaw.techpeople.ru/openclaw/',
               description: t(
                 'Root URL of the OpenClaw gateway. The /v1/chat/completions path is appended automatically.',
               ),
