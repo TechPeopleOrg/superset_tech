@@ -31,6 +31,9 @@ export type OpenClawAIMcpFormData = QueryFormData & {
   system_prompt?: string;
   temperature?: number;
   speed_text?: number;
+  mcp_enabled?: boolean;
+  mcp_url?: string;
+  mcp_token?: string;
 };
 
 export interface OpenClawAIMcpChartProps
@@ -44,4 +47,7 @@ export const DEFAULT_FORM_DATA: Partial<OpenClawAIMcpFormData> = {
   system_prompt: 'You are a helpful assistant.',
   temperature: 1.0,
   speed_text: 30,
+  mcp_enabled: false,
+  mcp_url: 'http://localhost:5008/mcp',
+  mcp_token: '',
 };

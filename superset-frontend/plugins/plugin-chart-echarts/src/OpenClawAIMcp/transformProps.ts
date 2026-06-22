@@ -31,6 +31,9 @@ export interface OpenClawChatComponentProps {
   systemPrompt: string;
   temperature: number;
   speedText: number;
+  mcpEnabled: boolean;
+  mcpUrl: string;
+  mcpToken: string;
 }
 
 export default function transformProps(chartProps: OpenClawAIMcpChartProps) {
@@ -50,6 +53,9 @@ export default function transformProps(chartProps: OpenClawAIMcpChartProps) {
       (merged.system_prompt as string) ?? 'You are a helpful assistant.',
     temperature: (merged.temperature as number) ?? 1.0,
     speedText: (merged.speed_text as number) ?? 30,
+    mcpEnabled: Boolean(merged.mcp_enabled),
+    mcpUrl: (merged.mcp_url as string) ?? 'http://localhost:5008/mcp',
+    mcpToken: (merged.mcp_token as string) ?? '',
   };
 
   return {

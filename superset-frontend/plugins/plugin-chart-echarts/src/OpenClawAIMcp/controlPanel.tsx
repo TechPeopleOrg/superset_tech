@@ -116,6 +116,52 @@ const config: ControlPanelConfig = {
         ],
       ],
     },
+    {
+      label: t('Superset MCP'),
+      expanded: true,
+      controlSetRows: [
+        [
+          {
+            name: 'mcp_enabled',
+            config: {
+              type: 'CheckboxControl',
+              label: t('Enable Superset MCP data access'),
+              renderTrigger: true,
+              default: false,
+              description: t(
+                'When enabled, the agent can call Superset MCP tools to read data.',
+              ),
+            },
+          },
+        ],
+        [
+          {
+            name: 'mcp_url',
+            config: {
+              type: 'TextControl',
+              label: t('MCP URL'),
+              renderTrigger: true,
+              default: 'http://localhost:5008/mcp',
+              description: t('Full URL of the Superset MCP endpoint (…/mcp).'),
+            },
+          },
+        ],
+        [
+          {
+            name: 'mcp_token',
+            config: {
+              type: 'TextControl',
+              label: t('MCP token (optional)'),
+              renderTrigger: true,
+              default: '',
+              description: t(
+                'Bearer token for the MCP server. Leave empty in dev mode.',
+              ),
+            },
+          },
+        ],
+      ],
+    },
   ],
 };
 
