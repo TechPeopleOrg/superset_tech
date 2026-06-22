@@ -25,6 +25,10 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import { OpenClawChatComponentProps } from './transformProps';
+import { runChatLoop } from './orchestrator/runChatLoop';
+import { McpClient } from './mcp/McpClient';
+import { mcpToolsToOpenAI } from './mcp/toolAdapter';
+import { createOpenClawApi } from './openclaw/OpenClawApi';
 
 const { TextArea } = Input;
 const { Paragraph, Text, Title } = Typography;
@@ -38,26 +42,8 @@ interface Message {
   timestamp: Date;
 }
 
-interface OpenClawErrorBody {
-  error?: { message?: string };
-}
-
-interface OpenClawSuccessBody {
-  choices?: Array<{ message?: { content?: string } }>;
-}
-
 const formatTime = (date: Date) =>
   date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-
-const generateId = (): string => {
-  if (
-    typeof crypto !== 'undefined' &&
-    typeof crypto.randomUUID === 'function'
-  ) {
-    return crypto.randomUUID();
-  }
-  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-};
 
 export default function OpenClawChat(props: OpenClawChatComponentProps) {
   const {
@@ -68,6 +54,9 @@ export default function OpenClawChat(props: OpenClawChatComponentProps) {
     systemPrompt,
     temperature,
     speedText,
+    mcpEnabled,
+    mcpUrl,
+    mcpToken,
     // @ts-ignore
     formData,
   } = props;
@@ -80,9 +69,6 @@ export default function OpenClawChat(props: OpenClawChatComponentProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [streamingText, setStreamingText] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
-  const [conversationId, setConversationId] = useState<string>(() =>
-    generateId(),
-  );
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -139,55 +125,53 @@ export default function OpenClawChat(props: OpenClawChatComponentProps) {
     setInputText('');
     setIsLoading(true);
 
-    const endpoint = `${baseUrl.replace(/\/+$/, '')}/v1/chat/completions`;
-
     try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model,
-          user: `conv:${conversationId}`,
-          messages: history,
-          temperature,
-          stream: false,
-        }),
-      });
+      let answer: string;
 
-      if (!response.ok) {
-        let detail = 'Ошибка запроса к OpenClaw';
-        try {
-          const errBody = (await response.json()) as OpenClawErrorBody;
-          if (errBody?.error?.message) detail = errBody.error.message;
-        } catch {
-          // body not JSON — keep the generic message
-        }
-        setMessages(prev => [
-          ...prev,
-          {
-            id: `${Date.now()}-e`,
-            role: 'assistant',
-            content: detail,
-            timestamp: new Date(),
-          },
-        ]);
-        return;
+      const callOpenClaw = createOpenClawApi({ baseUrl, apiKey });
+
+      if (mcpEnabled) {
+        const mcpClient = new McpClient({
+          url: mcpUrl,
+          token: mcpToken || undefined,
+        });
+        await mcpClient.initialize();
+
+        const deps = {
+          callOpenClaw,
+          listTools: async () => mcpToolsToOpenAI(await mcpClient.listTools()),
+          callTool: (name: string, args: Record<string, unknown>) =>
+            mcpClient.callTool(name, args),
+          model,
+          temperature,
+        };
+
+        const { answer: loopAnswer } = await runChatLoop({
+          messages: history,
+          deps,
+        });
+        answer = loopAnswer;
+      } else {
+        const message = await callOpenClaw({
+          messages: history,
+          model,
+          temperature,
+        });
+        answer = message.content ?? '';
       }
 
-      const body = (await response.json()) as OpenClawSuccessBody;
-      const answer = body.choices?.[0]?.message?.content ?? '';
       streamAnswer(answer);
-    } catch {
+    } catch (err) {
+      const detail =
+        err instanceof Error
+          ? err.message
+          : 'Не удалось подключиться к данным Superset (MCP). Проверьте настройки.';
       setMessages(prev => [
         ...prev,
         {
           id: `${Date.now()}-e`,
           role: 'assistant',
-          content:
-            'Извините, произошла ошибка. Пожалуйста, попробуйте еще раз.',
+          content: detail,
           timestamp: new Date(),
         },
       ]);
@@ -200,7 +184,6 @@ export default function OpenClawChat(props: OpenClawChatComponentProps) {
     setMessages([]);
     setStreamingText('');
     setIsStreaming(false);
-    setConversationId(generateId());
   };
 
   const handleKeyPress = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -422,7 +405,13 @@ export default function OpenClawChat(props: OpenClawChatComponentProps) {
                 padding: 20,
               }}
             >
-              <Spin tip="Думаю над ответом..." />
+              <Spin
+                tip={
+                  mcpEnabled
+                    ? 'Выполняю запрос к данным…'
+                    : 'Думаю над ответом...'
+                }
+              />
             </div>
           )}
 
