@@ -52,14 +52,21 @@ test('initialize stores session id from response header', async () => {
 test('listTools returns the tools array from result', async () => {
   const fetchImpl = jest
     .fn()
+    // initialize() issues the rpc then a notifications/initialized notification.
     .mockResolvedValueOnce(
-      jsonResponse({ jsonrpc: '2.0', id: 1, result: {} }, { 'mcp-session-id': 's' }),
+      jsonResponse(
+        { jsonrpc: '2.0', id: 1, result: {} },
+        { 'mcp-session-id': 's' },
+      ),
     )
+    .mockResolvedValueOnce(jsonResponse({}))
     .mockResolvedValueOnce(
       jsonResponse({
         jsonrpc: '2.0',
         id: 2,
-        result: { tools: [{ name: 'list_datasets', inputSchema: { type: 'object' } }] },
+        result: {
+          tools: [{ name: 'list_datasets', inputSchema: { type: 'object' } }],
+        },
       }),
     );
   const client = new McpClient({ url: 'http://h/mcp', fetchImpl });
@@ -71,9 +78,14 @@ test('listTools returns the tools array from result', async () => {
 test('callTool returns structuredContent/content from result', async () => {
   const fetchImpl = jest
     .fn()
+    // initialize() issues the rpc then a notifications/initialized notification.
     .mockResolvedValueOnce(
-      jsonResponse({ jsonrpc: '2.0', id: 1, result: {} }, { 'mcp-session-id': 's' }),
+      jsonResponse(
+        { jsonrpc: '2.0', id: 1, result: {} },
+        { 'mcp-session-id': 's' },
+      ),
     )
+    .mockResolvedValueOnce(jsonResponse({}))
     .mockResolvedValueOnce(
       jsonResponse({
         jsonrpc: '2.0',
@@ -91,19 +103,57 @@ test('sends Authorization header when token provided', async () => {
   const fetchImpl = jest
     .fn()
     .mockResolvedValue(
-      jsonResponse({ jsonrpc: '2.0', id: 1, result: {} }, { 'mcp-session-id': 's' }),
+      jsonResponse(
+        { jsonrpc: '2.0', id: 1, result: {} },
+        { 'mcp-session-id': 's' },
+      ),
     );
-  const client = new McpClient({ url: 'http://h/mcp', token: 'tok', fetchImpl });
+  const client = new McpClient({
+    url: 'http://h/mcp',
+    token: 'tok',
+    fetchImpl,
+  });
   await client.initialize();
   const headers = fetchImpl.mock.calls[0][1].headers as Record<string, string>;
   expect(headers.Authorization).toBe('Bearer tok');
+});
+
+test('parses an SSE (text/event-stream) response body', async () => {
+  const sse =
+    'event: message\n' +
+    'data: {"jsonrpc":"2.0","id":2,' +
+    '"result":{"tools":[{"name":"list_charts","inputSchema":{"type":"object"}}]}}\n\n';
+  const sseResponse = {
+    ok: true,
+    status: 200,
+    headers: { get: () => null },
+    text: async () => sse,
+  } as unknown as Response;
+  const fetchImpl = jest
+    .fn()
+    .mockResolvedValueOnce(
+      jsonResponse(
+        { jsonrpc: '2.0', id: 1, result: {} },
+        { 'mcp-session-id': 's' },
+      ),
+    )
+    .mockResolvedValueOnce(jsonResponse({}))
+    .mockResolvedValueOnce(sseResponse);
+  const client = new McpClient({ url: 'http://h/mcp', fetchImpl });
+  await client.initialize();
+  const tools = await client.listTools();
+  expect(tools[0].name).toBe('list_charts');
 });
 
 test('throws McpError on JSON-RPC error payload', async () => {
   const fetchImpl = jest
     .fn()
     .mockResolvedValue(
-      jsonResponse({ jsonrpc: '2.0', id: 1, error: { code: -32000, message: 'boom' } }),
+      jsonResponse({
+        jsonrpc: '2.0',
+        id: 1,
+        error: { code: -32000, message: 'boom' },
+      }),
     );
   const client = new McpClient({ url: 'http://h/mcp', fetchImpl });
   await expect(client.initialize()).rejects.toBeInstanceOf(McpError);

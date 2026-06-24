@@ -44,7 +44,11 @@ export function createOpenClawApi(opts: {
   apiKey: string;
   fetchImpl?: typeof fetch;
 }): CallOpenClaw {
-  const fetchImpl = opts.fetchImpl ?? fetch;
+  // A bare browser `fetch` reference loses its binding to `window` and throws
+  // "Illegal invocation" when called this way, so bind it.
+  const fetchImpl =
+    opts.fetchImpl ??
+    (typeof window !== 'undefined' ? window.fetch.bind(window) : fetch);
   const endpoint = `${opts.baseUrl.replace(/\/+$/, '')}/v1/chat/completions`;
 
   return async req => {
@@ -65,7 +69,9 @@ export function createOpenClawApi(opts: {
 
     const body = (await response.json()) as OpenClawResponse;
     if (!response.ok) {
-      throw new OpenClawError(body?.error?.message ?? `HTTP ${response.status}`);
+      throw new OpenClawError(
+        body?.error?.message ?? `HTTP ${response.status}`,
+      );
     }
     const message = body.choices?.[0]?.message;
     if (!message) {

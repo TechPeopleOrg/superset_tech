@@ -40,22 +40,41 @@ export default function transformProps(chartProps: OpenClawAIMcpChartProps) {
   const { width, height, formData, hooks } = chartProps;
   const { setDataMask = () => {} } = hooks;
 
-  const merged = { ...DEFAULT_FORM_DATA, ...formData };
+  const merged = { ...DEFAULT_FORM_DATA, ...formData } as Record<
+    string,
+    unknown
+  >;
 
-  // formData uses snake_case (matches control `name`); component props use camelCase.
+  // Superset surfaces control values in BOTH snake_case (the control `name`)
+  // and camelCase. For strings the snake_case copy holds the real value, but
+  // the camelCase copy is authoritative for the MCP toggle. `??` is unsafe for
+  // booleans (a snake_case `false` default would mask a camelCase `true`), so
+  // prefer the camelCase value when either copy is set.
+  const pickString = (snake: string, camel: string): unknown =>
+    merged[snake] ?? merged[camel];
+  const pickBool = (snake: string, camel: string): boolean =>
+    Boolean(merged[camel] ?? merged[snake]);
+
   const componentProps: OpenClawChatComponentProps = {
     width,
     height,
-    baseUrl: (merged.base_url as string) ?? 'https://openclaw.techpeople.ru/openclaw/',
-    apiKey: (merged.api_key as string) ?? '',
-    model: (merged.model as OpenClawModel) ?? 'openclaw/data-analyst',
+    baseUrl:
+      (pickString('base_url', 'baseUrl') as string) ??
+      'https://openclaw.techpeople.ru/openclaw/',
+    apiKey: (pickString('api_key', 'apiKey') as string) ?? '',
+    model:
+      (pickString('model', 'model') as OpenClawModel) ??
+      'openclaw/data-analyst',
     systemPrompt:
-      (merged.system_prompt as string) ?? 'You are a helpful assistant.',
-    temperature: (merged.temperature as number) ?? 1.0,
-    speedText: (merged.speed_text as number) ?? 30,
-    mcpEnabled: Boolean(merged.mcp_enabled),
-    mcpUrl: (merged.mcp_url as string) ?? 'http://localhost:5008/mcp',
-    mcpToken: (merged.mcp_token as string) ?? '',
+      (pickString('system_prompt', 'systemPrompt') as string) ??
+      'You are a helpful assistant.',
+    temperature: (pickString('temperature', 'temperature') as number) ?? 1.0,
+    speedText: (pickString('speed_text', 'speedText') as number) ?? 30,
+    mcpEnabled: pickBool('mcp_enabled', 'mcpEnabled'),
+    mcpUrl:
+      (pickString('mcp_url', 'mcpUrl') as string) ??
+      'http://localhost:5008/mcp',
+    mcpToken: (pickString('mcp_token', 'mcpToken') as string) ?? '',
   };
 
   return {
