@@ -19,7 +19,10 @@
 import { QueryFormData } from '@superset-ui/core';
 import { BaseChartProps } from '../types';
 
-export type OpenClawModel = 'openclaw/data-analyst';
+// Free-form model id sent to the provider. Kept as a named alias (not bare
+// `string`) so call sites stay self-documenting; any OpenAI-compatible model
+// name is valid (e.g. 'openclaw/data-analyst', 'gpt-4o', a local model id).
+export type OpenClawModel = string;
 
 // snake_case keys here match the `name` of each control in controlPanel.tsx.
 // Superset stores control values in formData under their declared `name`,
@@ -36,8 +39,7 @@ export type OpenClawAIMcpFormData = QueryFormData & {
   mcp_token?: string;
 };
 
-export interface OpenClawAIMcpChartProps
-  extends BaseChartProps<OpenClawAIMcpFormData> {
+export interface OpenClawAIMcpChartProps extends BaseChartProps<OpenClawAIMcpFormData> {
   formData: OpenClawAIMcpFormData;
 }
 

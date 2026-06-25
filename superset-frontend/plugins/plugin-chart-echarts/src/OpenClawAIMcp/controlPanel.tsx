@@ -39,7 +39,10 @@ const config: ControlPanelConfig = {
               renderTrigger: true,
               default: 'https://openclaw.techpeople.ru/openclaw/',
               description: t(
-                'Root URL of the OpenClaw gateway. The /v1/chat/completions path is appended automatically.',
+                'Root URL of an OpenAI-compatible chat API (OpenClaw, OpenAI, ' +
+                  'a local LLM, etc.). The /v1/chat/completions path is ' +
+                  'appended automatically. For MCP data access the provider ' +
+                  'must support function calling (tool_calls).',
               ),
             },
           },
@@ -52,7 +55,10 @@ const config: ControlPanelConfig = {
               label: t('API Key'),
               renderTrigger: true,
               default: '',
-              description: t('OpenClaw gateway bearer token'),
+              description: t(
+                'Bearer token for the chat provider (OpenClaw gateway, ' +
+                  'OpenAI key, etc.).',
+              ),
             },
           },
         ],
@@ -60,14 +66,14 @@ const config: ControlPanelConfig = {
           {
             name: 'model',
             config: {
-              type: 'SelectControl',
+              type: 'TextControl',
               label: t('Model'),
               default: 'openclaw/data-analyst',
               renderTrigger: true,
-              choices: [
-                ['openclaw/data-analyst', t('OpenClaw Data Analyst')],
-              ],
-              description: t('Model name routed by the OpenClaw gateway'),
+              description: t(
+                'Model name sent to the provider, e.g. ' +
+                  '"openclaw/data-analyst", "gpt-4o", or a local model id.',
+              ),
             },
           },
         ],
