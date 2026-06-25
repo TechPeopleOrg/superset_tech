@@ -107,8 +107,15 @@ services:
     command: ["/app/docker/docker-bootstrap.sh", "mcp"]
     user: "root"
     restart: unless-stopped
-    ports:
-      - 5008:5008
+    # MCP is reachable inside the compose network (other services use
+    # http://superset-mcp:5008). It is NOT published to the host here, so it is
+    # never exposed to the internet by default — safe even if the lock is off.
+    # To reach it from the host for LOCAL testing, also run the override file:
+    #   docker compose -f docker-compose-non-dev.yml \
+    #                  -f docker-compose.mcp-localtest.yml up
+    # See tech_docs/MCP_PROD_SETUP.md.
+    expose:
+      - "5008"
     depends_on:
       superset-init:
         condition: service_completed_successfully

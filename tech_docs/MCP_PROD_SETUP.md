@@ -83,8 +83,16 @@ MCP_CORS_ALLOWED_ORIGINS = ["https://superset.techpeople.ru"]
 (в репо это режим `mcp` в `docker/docker-bootstrap.sh`). Способ зависит от того,
 чем поднимается прод — возьми подходящий блок.
 
-> Примечание: bootstrap-режим `mcp` запускает с `--debug`. Для прода лучше без него —
-> запускай команду напрямую (см. ниже), либо убери `--debug` из bootstrap.
+> Примечания (уже учтено в репо):
+> - `--debug` включается только при `MCP_DEBUG=true`. На проде не задавай.
+> - В `docker-compose-non-dev.yml` сервис `superset-mcp` порт наружу **НЕ
+>   публикует** (`expose: 5008` — виден только внутри compose-сети). Это второй
+>   рубеж безопасности: даже без замка MCP не торчит в интернет.
+> - Для ЛОКАЛЬНОГО теста (curl/браузер с твоей машины) подними с override:
+>   `docker compose -f docker-compose-non-dev.yml -f docker-compose.mcp-localtest.yml up --build`
+>   (override публикует порт на `127.0.0.1:5008`, только для localhost).
+> - Если MCP и OpenClaw на разных серверах — наружу выставляй через реверс-прокси
+>   с TLS + замком (Шаг 1), а не публикацией :5008 напрямую.
 
 ### Вариант A — docker-compose на сервере
 
