@@ -38,25 +38,29 @@ MCP надо **запустить отдельным процессом** и **�
 
 ---
 
-## Шаг 1. Прод-конфиг MCP (`superset_config.py` на сервере)
+## Шаг 1. Включить прод-контур MCP (одна переменная)
 
-> ⚠️ НЕ копируй dev-флаги из `docker/pythonpath_dev/superset_config.py` — там
-> `MCP_AUTH_ENABLED = False` и CORS на `localhost`. Для прода это дыра.
+Конфиг `docker/pythonpath_dev/superset_config.py` уже умеет два режима,
+переключаемых переменной **`MCP_PROD`** — править Python не нужно:
 
-Добавь в прод-`superset_config.py`:
+| `MCP_PROD` | Что включается |
+|------------|----------------|
+| `false` (по умолчанию) | dev: `MCP_AUTH_ENABLED=False`, localhost — для локального теста |
+| `true` | prod: `FAB_API_KEY_ENABLED`, `MCP_API_KEY_ENABLED`, `MCP_AUTH_ENABLED`, `MCP_RBAC_ENABLED` — замок + ключи |
 
-```python
-# --- Superset MCP (prod) ---
-# Включаем авторизацию. Самый простой способ — API key пользователя Superset.
-FAB_API_KEY_ENABLED = True       # РАЗРЕШИТЬ создание ключей (по умолчанию False!)
-MCP_API_KEY_ENABLED = True       # MCP принимает эти ключи
-MCP_AUTH_ENABLED = True          # замок включён
-MCP_RBAC_ENABLED = True          # инструменты уважают права пользователя ключа
+**На проде выстави переменную** (в `docker/.env-local` или в секретах деплоя):
 
-# Дев-режим без замка (MCP_AUTH_ENABLED=False, MCP_DEV_USERNAME="admin")
-# допустим ТОЛЬКО когда :5008 гарантированно НЕ виден из интернета (одна
-# приватная сеть). Для разных серверов (наш случай) — НЕ использовать.
+```bash
+MCP_PROD=true
+MCP_CORS_ORIGIN=https://superset.techpeople.ru   # если нужен браузерный путь
+# MCP_DEBUG не задавать (verbose-логи только для дева)
 ```
+
+Ничего секретного в git не попадает — сам API-ключ передаётся клиентом как
+bearer-токен (см. ниже), в конфиге его нет.
+
+> 🔴 Не выставляй `MCP_PROD=true` локально без ключа — сломаешь свой тест.
+> И наоборот: не оставляй `MCP_PROD=false` на проде — это дыра (разные серверы).
 
 > 🔴 **Наш случай — Superset и OpenClaw на РАЗНЫХ серверах.** Значит MCP должен
 > быть доступен OpenClaw по сети, то есть публично (или через приватный туннель,

@@ -104,7 +104,12 @@ case "${1}" in
     ;;
   mcp)
     echo "Starting MCP service..."
-    superset mcp run --host 0.0.0.0 --port ${MCP_PORT:-5008} --debug
+    # --debug only when MCP_DEBUG is truthy (keep it off on prod).
+    MCP_DEBUG_FLAG=""
+    case "$(echo "${MCP_DEBUG:-}" | tr '[:upper:]' '[:lower:]')" in
+      1 | true | yes | on) MCP_DEBUG_FLAG="--debug" ;;
+    esac
+    superset mcp run --host 0.0.0.0 --port "${MCP_PORT:-5008}" ${MCP_DEBUG_FLAG}
     ;;
   *)
     echo "Unknown Operation!!!"

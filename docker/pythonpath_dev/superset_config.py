@@ -123,18 +123,50 @@ SQLLAB_CTAS_NO_LIMIT = True
 log_level_text = os.getenv("SUPERSET_LOG_LEVEL", "INFO")
 LOG_LEVEL = getattr(logging, log_level_text.upper(), logging.INFO)
 
-# --- OpenClaw AI Chart (MCP) dev contour ---------------------------------
-# Dev settings for the browser-based MCP chart. The chart's agent reaches the
-# Superset MCP server (the `mcp` compose service, published on :5008) directly
-# from the browser, so CORS must allow the Superset origin and auth/RBAC are
-# relaxed for local use. Never enable this contour in production.
-MCP_AUTH_ENABLED = False
-MCP_DEV_USERNAME = "admin"
-MCP_RBAC_ENABLED = False
+# --- OpenClaw AI Chart (MCP) ---------------------------------------------
+# One file, two contours, switched by the MCP_PROD env var so the same image
+# is safe locally AND on prod. NOTHING secret is hard-coded here — the prod
+# API key comes from the environment (set it in docker/.env-local or your
+# deploy secrets), never committed to git.
+#
+#   Local test (default, MCP_PROD unset/false):
+#       no lock — anyone reaching :5008 acts as admin. Safe ONLY because the
+#       MCP port is not exposed to the internet on a dev machine.
+#
+#   Prod (MCP_PROD=true):
+#       lock ON — API-key auth + RBAC. Required because Superset and OpenClaw
+#       live on SEPARATE servers, so MCP must be reachable over the network.
+#       See tech_docs/MCP_PROD_SETUP.md.
+
+
+def _is_truthy(val: str | None) -> bool:
+    return (val or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+_MCP_PROD = _is_truthy(os.getenv("MCP_PROD"))
+
+# Tool search stays off in both contours (we pass all tools to the agent).
 MCP_TOOL_SEARCH_CONFIG = {"enabled": False}
-# Superset is published on :8088; the browser page served from there calls the
-# MCP server, so that origin must be allowed.
-MCP_CORS_ALLOWED_ORIGINS = ["http://localhost:8088"]
+
+if _MCP_PROD:
+    # Lock ON. The API key itself is NOT stored here — clients send it as a
+    # bearer token; this only requires key auth on the MCP transport.
+    FAB_API_KEY_ENABLED = True
+    MCP_API_KEY_ENABLED = True
+    MCP_AUTH_ENABLED = True
+    MCP_RBAC_ENABLED = True
+    # Browser CORS only matters if the in-browser chart path is used. For the
+    # OpenClaw server-to-server path it is unused. Origin is configurable.
+    MCP_CORS_ALLOWED_ORIGINS = [
+        os.getenv("MCP_CORS_ORIGIN", "https://superset.techpeople.ru"),
+    ]
+else:
+    # Dev contour: relaxed, for localhost testing only. Never reachable
+    # from the internet on a dev machine.
+    MCP_AUTH_ENABLED = False
+    MCP_DEV_USERNAME = "admin"
+    MCP_RBAC_ENABLED = False
+    MCP_CORS_ALLOWED_ORIGINS = ["http://localhost:8088"]
 
 if os.getenv("CYPRESS_CONFIG") == "true":
     # When running the service as a cypress backend, we need to import the config
