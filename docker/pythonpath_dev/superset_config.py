@@ -143,7 +143,11 @@ def _is_truthy(val: str | None) -> bool:
     return (val or "").strip().lower() in {"1", "true", "yes", "on"}
 
 
-_MCP_PROD = _is_truthy(os.getenv("MCP_PROD"))
+# [techpeople] Prod contour is the DEFAULT: when MCP_PROD is unset we still
+# lock the MCP transport (API key + RBAC), because it is network-reachable
+# (OpenClaw and Superset on separate servers). To run the relaxed local-test
+# contour you must OPT OUT explicitly with MCP_PROD=false.
+_MCP_PROD = _is_truthy(os.getenv("MCP_PROD", "true"))
 
 # Tool search stays off in both contours (we pass all tools to the agent).
 MCP_TOOL_SEARCH_CONFIG = {"enabled": False}

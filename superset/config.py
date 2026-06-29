@@ -587,7 +587,9 @@ DEFAULT_FEATURE_FLAGS: dict[str, bool] = {
     # Enable API key authentication via FAB SecurityManager
     # When enabled, users can create/manage API keys in the User Info page
     # @lifecycle: development
-    "FAB_API_KEY_ENABLED": False,
+    # [techpeople] Default ON: the OpenClaw MCP chart needs users to mint
+    # sst_ API keys from /user_info/ for the network-reachable MCP transport.
+    "FAB_API_KEY_ENABLED": True,
     # Enable granular export controls (can_export_data, can_export_image,
     # can_copy_clipboard) instead of the single can_csv permission
     # @lifecycle: development
@@ -1704,7 +1706,10 @@ FAB_ADD_SECURITY_PERMISSION_VIEWS_VIEW = False
 # FAB reads this config directly to register the ApiKeyApi blueprint.
 # The FAB_API_KEY_ENABLED feature flag (in DEFAULT_FEATURE_FLAGS) controls
 # the frontend UI visibility independently.
-FAB_API_KEY_ENABLED = False
+# [techpeople] Default ON so the ApiKey REST blueprint (/api/v1/security/
+# api_keys/) is always registered — the OpenClaw MCP chart relies on sst_
+# keys for the network-reachable MCP transport.
+FAB_API_KEY_ENABLED = True
 FAB_API_KEY_PREFIXES = ["sst_"]
 
 # The link to a page containing common errors and their resolutions
