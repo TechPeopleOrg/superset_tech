@@ -14,5 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# This is a minimal conftest for file_uploader tests
-# It avoids loading the full Flask app that requires all dependencies
