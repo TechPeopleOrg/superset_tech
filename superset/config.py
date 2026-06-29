@@ -2668,6 +2668,17 @@ DISTRIBUTED_LOCK_DEFAULT_TTL = 30
 # Channel prefix for task abort pub/sub messages
 TASKS_ABORT_CHANNEL_PREFIX = "gtf:abort:"
 
+# ---------------------------------------------------------------------
+# File Uploader page — proxy to the standalone file-storage service.
+# The API key is injected server-side and never reaches the browser.
+# ---------------------------------------------------------------------
+STORAGE_BASE_URL = os.environ.get("STORAGE_BASE_URL", "http://file-storage:8000")
+STORAGE_API_KEY = os.environ.get("STORAGE_API_KEY", "change-me-dev-key")
+STORAGE_PROXY_CONNECT_TIMEOUT = float(
+    os.environ.get("STORAGE_PROXY_CONNECT_TIMEOUT", "3")
+)
+STORAGE_PROXY_READ_TIMEOUT = float(os.environ.get("STORAGE_PROXY_READ_TIMEOUT", "30"))
+
 # -------------------------------------------------------------------
 # *                WARNING:  STOP EDITING  HERE                    *
 # -------------------------------------------------------------------
