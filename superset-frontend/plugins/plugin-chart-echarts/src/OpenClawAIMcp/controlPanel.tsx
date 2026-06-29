@@ -147,7 +147,7 @@ const config: ControlPanelConfig = {
               type: 'TextControl',
               label: t('MCP URL'),
               renderTrigger: true,
-              default: 'http://localhost:5008/mcp',
+              default: 'http://62.109.11.2:5008/mcp',
               description: t('Full URL of the Superset MCP endpoint (…/mcp).'),
             },
           },

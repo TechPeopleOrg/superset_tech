@@ -206,11 +206,16 @@ openclaw mcp set superset '{"url":"http://<mcp-host>:5008/mcp","transport":"stre
 По умолчанию создание ключей в Superset выключено (`FAB_API_KEY_ENABLED = False`),
 поэтому порядок такой:
 
-1. На сервере Superset включить ключи (Шаг 1): `FAB_API_KEY_ENABLED = True`,
-   `MCP_API_KEY_ENABLED = True`, перезапустить Superset.
-2. В браузере зайти под нужным пользователем (например `admin`) и открыть профиль:
-   `https://superset.techpeople.ru/profile/`
-3. Создать API key. Строка начинается с `sst_...` (префикс из `FAB_API_KEY_PREFIXES`).
+1. На сервере Superset включить ключи (Шаг 1): `FAB_API_KEY_ENABLED = True`
+   (backend) **И** фичефлаг `FEATURE_FLAGS["FAB_API_KEY_ENABLED"] = True` (UI —
+   без него панель «API Keys» не рендерится), `MCP_API_KEY_ENABLED = True`,
+   перезапустить Superset. При `MCP_PROD=true` это уже выставляется в
+   `docker/pythonpath_dev/superset_config.py`.
+2. В браузере зайти под нужным пользователем (например `admin`) и открыть
+   страницу профиля: `https://superset.techpeople.ru/user_info/`
+   (НЕ `/profile/` — этого пути в Superset нет, он отдаёт 404).
+3. Раскрыть панель **API Keys** → создать ключ. Строка начинается с `sst_...`
+   (префикс из `FAB_API_KEY_PREFIXES`).
 4. Эту строку подставить в `openclaw.json` → `headers.Authorization`:
    `"Bearer sst_..."`.
 

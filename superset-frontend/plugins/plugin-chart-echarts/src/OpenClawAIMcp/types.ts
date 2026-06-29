@@ -50,6 +50,6 @@ export const DEFAULT_FORM_DATA: Partial<OpenClawAIMcpFormData> = {
   temperature: 1.0,
   speed_text: 30,
   mcp_enabled: false,
-  mcp_url: 'http://localhost:5008/mcp',
+  mcp_url: 'http://62.109.11.2:5008/mcp',
   mcp_token: '',
 };

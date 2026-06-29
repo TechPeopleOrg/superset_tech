@@ -151,7 +151,11 @@ MCP_TOOL_SEARCH_CONFIG = {"enabled": False}
 if _MCP_PROD:
     # Lock ON. The API key itself is NOT stored here — clients send it as a
     # bearer token; this only requires key auth on the MCP transport.
-    FAB_API_KEY_ENABLED = True
+    FAB_API_KEY_ENABLED = True  # backend: registers the ApiKey blueprint
+    # Separate frontend feature flag (same name, different setting) — gates the
+    # "API Keys" panel on /user_info/. Without it the page shows user data only
+    # and there is no way to create a key.
+    FEATURE_FLAGS["FAB_API_KEY_ENABLED"] = True
     MCP_API_KEY_ENABLED = True
     MCP_AUTH_ENABLED = True
     MCP_RBAC_ENABLED = True

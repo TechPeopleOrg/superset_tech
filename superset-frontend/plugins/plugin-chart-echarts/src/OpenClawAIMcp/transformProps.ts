@@ -73,7 +73,7 @@ export default function transformProps(chartProps: OpenClawAIMcpChartProps) {
     mcpEnabled: pickBool('mcp_enabled', 'mcpEnabled'),
     mcpUrl:
       (pickString('mcp_url', 'mcpUrl') as string) ??
-      'http://localhost:5008/mcp',
+      'http://62.109.11.2:5008/mcp',
     mcpToken: (pickString('mcp_token', 'mcpToken') as string) ?? '',
   };
 
