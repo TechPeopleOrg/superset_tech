@@ -21,6 +21,7 @@ import { useSelector } from 'react-redux';
 import { t } from '@apache-superset/core/translation';
 import { Alert } from '@apache-superset/core/components';
 import { getClientErrorObject } from '@superset-ui/core';
+import { css, styled } from '@apache-superset/core/theme';
 import {
   Button,
   DeleteModal,
@@ -29,10 +30,13 @@ import {
   Modal,
   Select,
   Table,
+  Tooltip,
   Upload,
   type ColumnsType,
   type UploadFile,
 } from '@superset-ui/core/components';
+import { Icons } from '@superset-ui/core/components/Icons';
+import SubMenu from 'src/features/home/SubMenu';
 import { RootState } from 'src/dashboard/types';
 import { canView, canUpload, canEdit, canDelete } from './permissions';
 import {
@@ -45,9 +49,36 @@ import {
 
 interface EditState {
   id: string;
-  file_name: string;
+  name: string;
   category: string;
 }
+
+const StyledContent = styled.div`
+  ${({ theme }) => css`
+    padding: ${theme.sizeUnit * 4}px;
+  `}
+`;
+
+const StyledToolbar = styled.div`
+  ${({ theme }) => css`
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: ${theme.sizeUnit * 4}px;
+  `}
+`;
+
+const StyledActions = styled.div`
+  .action-button {
+    display: inline-block;
+    height: 100%;
+    color: ${({ theme }) => theme.colorIcon};
+    margin-right: ${({ theme }) => theme.sizeUnit * 2}px;
+
+    &:last-of-type {
+      margin-right: 0;
+    }
+  }
+`;
 
 const UPLOAD_CATEGORY_OPTIONS = [
   { value: 'bim', label: 'bim' },
@@ -211,7 +242,7 @@ export default function FileUploader() {
   const openEditModal = (file: StorageFile) => {
     setEditState({
       id: file.id,
-      file_name: file.file_name,
+      name: file.name ?? file.file_name,
       category: file.category ?? '',
     });
   };
@@ -223,7 +254,7 @@ export default function FileUploader() {
     setSaving(true);
     try {
       await updateFile(editState.id, {
-        file_name: editState.file_name,
+        name: editState.name,
         category: editState.category,
       });
       setEditState(null);
@@ -245,15 +276,23 @@ export default function FileUploader() {
   if (!hasView) {
     return (
       <div data-test="file-uploader-page">
-        <h1>{t('Files')}</h1>
-        <Alert type="error" closable={false}>
-          {t("You don't have permission to view this page.")}
-        </Alert>
+        <SubMenu name={t('Files')} />
+        <StyledContent>
+          <Alert type="error" closable={false}>
+            {t("You don't have permission to view this page.")}
+          </Alert>
+        </StyledContent>
       </div>
     );
   }
 
   const columns: ColumnsType<StorageFile> = [
+    {
+      title: t('Name'),
+      dataIndex: 'name',
+      key: 'name',
+      render: (value: string, file: StorageFile) => value ?? file.file_name,
+    },
     {
       title: t('File name'),
       dataIndex: 'file_name',
@@ -272,67 +311,81 @@ export default function FileUploader() {
       title: t('Actions'),
       key: 'actions',
       render: (_: unknown, file: StorageFile) => (
-        <>
+        <StyledActions className="actions">
           {canEdit(user) && (
-            <Button
-              data-test={`edit-file-${file.id}`}
-              buttonStyle="link"
-              onClick={() => openEditModal(file)}
-            >
-              {t('Edit')}
-            </Button>
+            <Tooltip id="edit-action-tooltip" title={t('Edit')}>
+              <span
+                data-test={`edit-file-${file.id}`}
+                role="button"
+                tabIndex={0}
+                className="action-button"
+                onClick={() => openEditModal(file)}
+              >
+                <Icons.EditOutlined iconSize="l" />
+              </span>
+            </Tooltip>
           )}
           {canDelete(user) && (
-            <Button
-              data-test={`delete-file-${file.id}`}
-              buttonStyle="link"
-              onClick={() => setDeleteTarget(file)}
-            >
-              {t('Delete')}
-            </Button>
+            <Tooltip id="delete-action-tooltip" title={t('Delete')}>
+              <span
+                data-test={`delete-file-${file.id}`}
+                role="button"
+                tabIndex={0}
+                className="action-button"
+                onClick={() => setDeleteTarget(file)}
+              >
+                <Icons.DeleteOutlined iconSize="l" />
+              </span>
+            </Tooltip>
           )}
-        </>
+        </StyledActions>
       ),
     });
   }
 
   return (
     <div data-test="file-uploader-page">
-      <h1>{t('Files')}</h1>
-      {error && (
-        <Alert
-          type="error"
-          closable={false}
-          description={
+      <SubMenu name={t('Files')} />
+      <StyledContent>
+        {error && (
+          <Alert
+            type="error"
+            closable={false}
+            description={
+              <Button
+                data-test="retry-btn"
+                buttonStyle="link"
+                onClick={loadFiles}
+              >
+                {t('Retry')}
+              </Button>
+            }
+          >
+            {t(
+              'File storage is currently unavailable. Please try again later.',
+            )}
+          </Alert>
+        )}
+        {canUpload(user) && (
+          <StyledToolbar>
             <Button
-              data-test="retry-btn"
-              buttonStyle="link"
-              onClick={loadFiles}
+              data-test="upload-btn"
+              buttonStyle="primary"
+              onClick={() => setUploadOpen(true)}
             >
-              {t('Retry')}
+              {t('Upload')}
             </Button>
-          }
-        >
-          {t('File storage is currently unavailable. Please try again later.')}
-        </Alert>
-      )}
-      {canUpload(user) && (
-        <Button
-          data-test="upload-btn"
-          buttonStyle="primary"
-          onClick={() => setUploadOpen(true)}
-        >
-          {t('Upload')}
-        </Button>
-      )}
-      {!error && (
-        <Table<StorageFile>
-          rowKey="id"
-          columns={columns}
-          data={files}
-          loading={loading}
-        />
-      )}
+          </StyledToolbar>
+        )}
+        {!error && (
+          <Table<StorageFile>
+            rowKey="id"
+            columns={columns}
+            data={files}
+            loading={loading}
+          />
+        )}
+      </StyledContent>
       {uploadOpen && (
         <Modal
           name="upload-file"
@@ -422,14 +475,12 @@ export default function FileUploader() {
           primaryButtonName={t('Save')}
           disablePrimaryButton={saving}
         >
-          <FormLabel htmlFor="file_name">{t('File name')}</FormLabel>
+          <FormLabel htmlFor="file_name">{t('Name')}</FormLabel>
           <Input
             data-test="edit-file-name-input"
             id="file_name"
-            value={editState.file_name}
-            onChange={e =>
-              setEditState({ ...editState, file_name: e.target.value })
-            }
+            value={editState.name}
+            onChange={e => setEditState({ ...editState, name: e.target.value })}
           />
           <FormLabel htmlFor="category">{t('Category')}</FormLabel>
           <Input
@@ -450,7 +501,7 @@ export default function FileUploader() {
           title={t('Delete file')}
           description={t(
             'Are you sure you want to delete %s?',
-            deleteTarget.file_name,
+            deleteTarget.name ?? deleteTarget.file_name,
           )}
         />
       )}

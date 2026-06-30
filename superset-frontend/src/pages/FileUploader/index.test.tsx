@@ -51,9 +51,7 @@ test('canDelete reflects can_delete permission', () => {
 });
 
 test('renders the page title', async () => {
-  jest
-    .spyOn(SupersetClient, 'get')
-    .mockResolvedValueOnce({ json: [] } as any);
+  jest.spyOn(SupersetClient, 'get').mockResolvedValueOnce({ json: [] } as any);
   render(<FileUploader />, {
     useRedux: true,
     initialState: { user: roleWith(['can_view']) },
@@ -62,9 +60,7 @@ test('renders the page title', async () => {
 });
 
 test('hides the upload button when user lacks upload permission', async () => {
-  jest
-    .spyOn(SupersetClient, 'get')
-    .mockResolvedValueOnce({ json: [] } as any);
+  jest.spyOn(SupersetClient, 'get').mockResolvedValueOnce({ json: [] } as any);
   render(<FileUploader />, {
     useRedux: true,
     initialState: { user: roleWith(['can_view']) },
@@ -75,9 +71,7 @@ test('hides the upload button when user lacks upload permission', async () => {
 });
 
 test('shows the upload button when user has upload permission', async () => {
-  jest
-    .spyOn(SupersetClient, 'get')
-    .mockResolvedValueOnce({ json: [] } as any);
+  jest.spyOn(SupersetClient, 'get').mockResolvedValueOnce({ json: [] } as any);
   render(<FileUploader />, {
     useRedux: true,
     initialState: { user: roleWith(['can_view', 'can_upload']) },
@@ -91,9 +85,7 @@ test('shows a no-access state when user lacks view permission', async () => {
     useRedux: true,
     initialState: { user: roleWith([]) },
   });
-  expect(
-    await screen.findByText(/don.t have permission/i),
-  ).toBeInTheDocument();
+  expect(await screen.findByText(/don.t have permission/i)).toBeInTheDocument();
   expect(getSpy).not.toHaveBeenCalled();
 });
 
@@ -112,7 +104,9 @@ test('retry re-fetches the file list after a failure', async () => {
     .spyOn(SupersetClient, 'get')
     .mockRejectedValueOnce({ status: 502 })
     .mockResolvedValueOnce({
-      json: [{ id: '1', file_name: 'retry.pdf', category: 'doc' }],
+      json: [
+        { id: '1', name: 'Retry doc', file_name: 'retry.pdf', category: 'doc' },
+      ],
     } as any);
   render(<FileUploader />, {
     useRedux: true,
@@ -125,7 +119,7 @@ test('retry re-fetches the file list after a failure', async () => {
 
 test('renders file list from API', async () => {
   jest.spyOn(SupersetClient, 'get').mockResolvedValueOnce({
-    json: [{ id: '1', file_name: 'a.pdf', category: 'doc' }],
+    json: [{ id: '1', name: 'A doc', file_name: 'a.pdf', category: 'doc' }],
   } as any);
   render(<FileUploader />, {
     useRedux: true,
@@ -136,7 +130,9 @@ test('renders file list from API', async () => {
 
 test('renders file list from API when response is wrapped in items envelope', async () => {
   jest.spyOn(SupersetClient, 'get').mockResolvedValueOnce({
-    json: { items: [{ id: '1', file_name: 'b.pdf', category: 'doc' }] },
+    json: {
+      items: [{ id: '1', name: 'B doc', file_name: 'b.pdf', category: 'doc' }],
+    },
   } as any);
   render(<FileUploader />, {
     useRedux: true,
@@ -145,9 +141,28 @@ test('renders file list from API when response is wrapped in items envelope', as
   expect(await screen.findByText('b.pdf')).toBeInTheDocument();
 });
 
+test('shows the user-entered name, not just the raw file name', async () => {
+  jest.spyOn(SupersetClient, 'get').mockResolvedValueOnce({
+    json: [
+      {
+        id: '1',
+        name: 'My Renamed File',
+        file_name: 'original-upload.pdf',
+        category: 'doc',
+      },
+    ],
+  } as any);
+  render(<FileUploader />, {
+    useRedux: true,
+    initialState: { user: roleWith(['can_view']) },
+  });
+  expect(await screen.findByText('My Renamed File')).toBeInTheDocument();
+  expect(screen.getByText('original-upload.pdf')).toBeInTheDocument();
+});
+
 test('hides edit and delete actions without permission', async () => {
   jest.spyOn(SupersetClient, 'get').mockResolvedValueOnce({
-    json: [{ id: '1', file_name: 'a.pdf', category: 'doc' }],
+    json: [{ id: '1', name: 'A doc', file_name: 'a.pdf', category: 'doc' }],
   } as any);
   render(<FileUploader />, {
     useRedux: true,
@@ -160,7 +175,7 @@ test('hides edit and delete actions without permission', async () => {
 
 test('shows edit and delete actions with permission', async () => {
   jest.spyOn(SupersetClient, 'get').mockResolvedValueOnce({
-    json: [{ id: '1', file_name: 'a.pdf', category: 'doc' }],
+    json: [{ id: '1', name: 'A doc', file_name: 'a.pdf', category: 'doc' }],
   } as any);
   render(<FileUploader />, {
     useRedux: true,
@@ -200,9 +215,7 @@ const selectAFile = async (fileName = 'model.ifc') => {
 };
 
 test('upload primary button is disabled until file, name and category are set', async () => {
-  jest
-    .spyOn(SupersetClient, 'get')
-    .mockResolvedValueOnce({ json: [] } as any);
+  jest.spyOn(SupersetClient, 'get').mockResolvedValueOnce({ json: [] } as any);
   await openUploadModal();
 
   const uploadModalPrimaryBtn = screen.getByTestId('modal-confirm-button');
