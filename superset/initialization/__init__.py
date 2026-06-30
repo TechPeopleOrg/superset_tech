@@ -209,6 +209,7 @@ class SupersetAppInitializer:  # pylint: disable=too-many-public-methods
         from superset.views.dynamic_plugins import DynamicPluginsView
         from superset.views.error_handling import set_app_error_handlers
         from superset.views.explore import ExplorePermalinkView, ExploreView
+        from superset.views.file_uploader import FileUploaderView
         from superset.views.groups import GroupsListView
         from superset.views.log.api import LogRestApi
         from superset.views.logs import ActionLogView
@@ -439,6 +440,15 @@ class SupersetAppInitializer:  # pylint: disable=too-many-public-methods
             menu_cond=lambda: feature_flag_manager.is_feature_enabled(
                 "GLOBAL_TASK_FRAMEWORK"
             ),
+        )
+
+        appbuilder.add_view(
+            FileUploaderView,
+            "Files",
+            label=_("Files"),
+            icon="fa-folder-open",
+            category="Manage",
+            category_label=_("Manage"),
         )
 
         #

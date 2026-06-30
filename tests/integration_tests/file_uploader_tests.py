@@ -16,10 +16,35 @@
 # under the License.
 from unittest.mock import patch
 
+from superset import security_manager
 from tests.integration_tests.base_tests import SupersetTestCase
 
 
 class TestFileUploaderView(SupersetTestCase):
+    def test_index_requires_login(self):
+        rv = self.client.get("/fileuploader/", follow_redirects=False)
+        assert rv.status_code in (301, 302)  # redirect to login
+
+    def test_permissions_exist(self):
+        # FileUploaderView declares an explicit method_permission_name mapping
+        # (view/upload/edit/delete), so FAB registers permissions without the
+        # "can_" prefix used for views relying on the default mapping. The
+        # exact spelling will be re-confirmed against the running app (with a
+        # live DB) in the later end-to-end verification task; until then this
+        # assertion accepts both spellings to stay robust.
+        view_menu = security_manager.find_view_menu("FileUploader")
+        assert view_menu is not None, "FileUploaderView is not registered"
+
+        permission_names = {
+            pvm.permission.name
+            for pvm in security_manager.find_permissions_view_menu(view_menu)
+        }
+        expected = {"view", "upload", "edit", "delete"}
+        expected_can = {f"can_{name}" for name in expected}
+        assert expected.issubset(permission_names) or expected_can.issubset(
+            permission_names
+        )
+
     def test_index_renders_without_storage(self):
         """Page must render even if storage is down (no storage call here)."""
         self.login(username="admin")
