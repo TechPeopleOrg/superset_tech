@@ -74,3 +74,27 @@ class TestFileUploaderView(SupersetTestCase):
         ):
             rv = self.client.get("/fileuploader/api/files")
             assert rv.status_code == 502  # never 500
+
+    def test_upload_denied_without_permission_does_not_reach_storage(self):
+        # We deliberately do NOT rely on the default "gamma" role here: whether
+        # gamma happens to carry FileUploader permissions depends on fixture
+        # setup and could drift over time. Creating a dedicated user with an
+        # explicitly empty role list (no roles at all) guarantees the absence
+        # of the "upload on FileUploader" permission regardless of fixtures,
+        # making this a robust negative test for the @has_access_api gate.
+        self.create_user_with_roles("file_uploader_no_perms_post", roles=[])
+        self.login(username="file_uploader_no_perms_post")
+        with patch("superset.views.file_uploader.proxy_to_storage") as proxy:
+            rv = self.client.post("/fileuploader/api/files", data=b"x")
+            assert rv.status_code in (401, 403, 302)
+            proxy.assert_not_called()
+
+    def test_delete_denied_without_permission(self):
+        # See comment in test_upload_denied_without_permission_does_not_reach_storage
+        # for why a dedicated, role-less user is used instead of "gamma".
+        self.create_user_with_roles("file_uploader_no_perms_delete", roles=[])
+        self.login(username="file_uploader_no_perms_delete")
+        with patch("superset.views.file_uploader.proxy_to_storage") as proxy:
+            rv = self.client.delete("/fileuploader/api/files/123")
+            assert rv.status_code in (401, 403, 302)
+            proxy.assert_not_called()
