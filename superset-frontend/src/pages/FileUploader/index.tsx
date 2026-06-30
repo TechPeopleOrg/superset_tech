@@ -20,6 +20,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { t } from '@apache-superset/core/translation';
 import { Alert } from '@apache-superset/core/components';
+import { getClientErrorObject } from '@superset-ui/core';
 import {
   Button,
   DeleteModal,
@@ -54,6 +55,78 @@ const UPLOAD_CATEGORY_OPTIONS = [
   { value: 'svg', label: 'svg' },
 ];
 
+const uploadErrorFallback = () =>
+  t('Upload failed. Please check the file and category and try again.');
+
+// Narrow shape covering the ways an upload failure can surface a message:
+// SupersetClient rejects HTTP errors with the raw `Response` (has `.json()`),
+// but errors can also arrive already-parsed (`.json`/`.body` objects) or as
+// a plain `Error`-like object (`.message`/`.error`).
+interface UploadErrorLike {
+  json?: (() => Promise<unknown>) | { detail?: string; message?: string };
+  body?: { detail?: string; message?: string };
+  message?: string;
+  error?: string;
+}
+
+function readDetail(value: unknown): string | undefined {
+  if (value && typeof value === 'object') {
+    const { detail, message, error } = value as {
+      detail?: unknown;
+      message?: unknown;
+      error?: unknown;
+    };
+    if (typeof detail === 'string' && detail) return detail;
+    if (typeof message === 'string' && message) return message;
+    if (typeof error === 'string' && error) return error;
+  }
+  return undefined;
+}
+
+// Extracts a human-readable message from an upload failure. SupersetClient
+// rejects HTTP errors with the raw `Response` object (has a `.json()`
+// method) carrying the storage service's `{ detail: "..." }` body, so we
+// read that directly first. If that yields nothing (e.g. a non-JSON body),
+// we fall back to getClientErrorObject - the codebase's standard
+// SupersetClient error parser, which also understands network/timeout
+// errors - then to already-parsed shapes, then a generic message.
+async function extractErrorMessage(err: unknown): Promise<string> {
+  if (!err || typeof err !== 'object') {
+    return uploadErrorFallback();
+  }
+  const errObj = err as UploadErrorLike;
+
+  if (typeof errObj.json === 'function') {
+    try {
+      const parsed = await (errObj.json as () => Promise<unknown>)();
+      const detail = readDetail(parsed);
+      if (detail) return detail;
+    } catch {
+      // fall through to getClientErrorObject, which can fall back to
+      // reading the response body as text
+    }
+    try {
+      const clientError = await getClientErrorObject(
+        err as Parameters<typeof getClientErrorObject>[0],
+      );
+      const detail = readDetail(clientError);
+      if (detail) return detail;
+    } catch {
+      // fall through to the generic fallback message
+    }
+    return uploadErrorFallback();
+  }
+
+  return (
+    readDetail(errObj.json) ??
+    readDetail(errObj.body) ??
+    (typeof errObj.message === 'string' && errObj.message
+      ? errObj.message
+      : undefined) ??
+    uploadErrorFallback()
+  );
+}
+
 export default function FileUploader() {
   const user = useSelector((state: RootState) => state.user);
   const hasView = canView(user);
@@ -69,6 +142,7 @@ export default function FileUploader() {
   const [uploadCategory, setUploadCategory] = useState('');
   const [uploadFolder, setUploadFolder] = useState('');
   const [uploadTags, setUploadTags] = useState('');
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const [editState, setEditState] = useState<EditState | null>(null);
   const [saving, setSaving] = useState(false);
@@ -102,6 +176,7 @@ export default function FileUploader() {
     setUploadCategory('');
     setUploadFolder('');
     setUploadTags('');
+    setUploadError(null);
   };
 
   const onUpload = async () => {
@@ -122,8 +197,12 @@ export default function FileUploader() {
         formData.append('tags', uploadTags);
       }
       await uploadFile(formData);
+      setUploadError(null);
       closeUploadModal();
       await loadFiles();
+    } catch (err) {
+      const message = await extractErrorMessage(err);
+      setUploadError(message);
     } finally {
       setUploading(false);
     }
@@ -269,17 +348,29 @@ export default function FileUploader() {
             uploading
           }
         >
+          {uploadError && (
+            <Alert
+              type="error"
+              closable={false}
+              data-test="upload-error-alert"
+              description={uploadError}
+            />
+          )}
           <Upload
             data-test="upload-file-input"
             fileList={uploadFileList}
             onChange={({ fileList }) => {
               setUploadFileList(fileList);
+              setUploadError(null);
               const selected = fileList[0];
               if (selected && !uploadName) {
                 setUploadName(selected.name);
               }
             }}
-            onRemove={() => setUploadFileList([])}
+            onRemove={() => {
+              setUploadFileList([]);
+              setUploadError(null);
+            }}
             customRequest={() => {}}
             maxCount={1}
           >
@@ -298,7 +389,10 @@ export default function FileUploader() {
             data-test="upload-category-select"
             placeholder={t('Select a category')}
             value={uploadCategory || undefined}
-            onChange={value => setUploadCategory(value as string)}
+            onChange={value => {
+              setUploadCategory(value as string);
+              setUploadError(null);
+            }}
             options={UPLOAD_CATEGORY_OPTIONS}
             getPopupContainer={() => document.body}
           />

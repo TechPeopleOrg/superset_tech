@@ -238,3 +238,27 @@ test('onUpload sends a FormData with name and category populated', async () => {
   expect(sentFormData.get('category')).toBe('bim');
   expect(sentFormData.get('file')).toBeInstanceOf(File);
 });
+
+test('onUpload shows the validation error inside the modal and keeps it open on failure', async () => {
+  jest.spyOn(SupersetClient, 'get').mockResolvedValueOnce({ json: [] } as any);
+  jest.spyOn(api, 'uploadFile').mockRejectedValueOnce({
+    json: async () => ({
+      detail: 'Extension .svg not allowed for category image',
+    }),
+  });
+
+  await openUploadModal();
+  await selectAFile('icon.svg');
+  await selectOption('image', 'Category');
+
+  const uploadModalPrimaryBtn = screen.getByTestId('modal-confirm-button');
+  await waitFor(() => expect(uploadModalPrimaryBtn).not.toBeDisabled());
+  userEvent.click(uploadModalPrimaryBtn);
+
+  expect(
+    await screen.findByText('Extension .svg not allowed for category image'),
+  ).toBeInTheDocument();
+  // modal stays open so the user can fix the category and retry
+  expect(screen.getByText('Upload file')).toBeInTheDocument();
+  expect(uploadModalPrimaryBtn).toBeInTheDocument();
+});
