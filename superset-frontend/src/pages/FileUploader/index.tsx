@@ -414,7 +414,7 @@ export default function FileUploader() {
             )}
           </Alert>
         )}
-        {canUpload(user) && (
+        {canUpload(user) && !error && (
           <StyledToolbar>
             <Button
               data-test="upload-btn"
