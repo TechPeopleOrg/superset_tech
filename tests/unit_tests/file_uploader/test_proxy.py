@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import io
 import json
 from unittest.mock import MagicMock, patch
 
@@ -67,3 +68,37 @@ def test_timeout_returns_504():
         content, status, _ = _call()
     assert status == 504
     assert json.loads(content)["error"]
+
+
+def test_multipart_rebuilds_body_and_drops_content_type():
+    fake = MagicMock(
+        status_code=201,
+        content=b'{"ok":true}',
+        headers={"Content-Type": "application/json"},
+    )
+    files = [("file", ("a.svg", io.BytesIO(b"x"), "image/svg+xml"))]
+    data = {"name": "a", "category": "svg"}
+    with patch(
+        "superset.views.file_uploader.requests.request", return_value=fake
+    ) as req:
+        content, status, _ = proxy_to_storage(
+            "POST",
+            "files",
+            query_string=b"",
+            headers={"Content-Type": "multipart/form-data; boundary=stale"},
+            body=b"",
+            data=data,
+            files=files,
+            base_url="http://storage:8000",
+            api_key="secret-key",
+            timeout=TIMEOUT,
+        )
+
+    assert status == 201
+    assert content == b'{"ok":true}'
+    _, kwargs = req.call_args
+    assert kwargs["files"] == files
+    assert kwargs["data"] == data
+    headers_lower = {k.lower() for k in kwargs["headers"]}
+    assert "content-type" not in headers_lower
+    assert kwargs["headers"]["X-API-Key"] == "secret-key"
