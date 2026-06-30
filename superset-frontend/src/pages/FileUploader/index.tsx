@@ -26,6 +26,7 @@ import {
   FormLabel,
   Input,
   Modal,
+  Select,
   Table,
   Upload,
   type ColumnsType,
@@ -47,6 +48,12 @@ interface EditState {
   category: string;
 }
 
+const UPLOAD_CATEGORY_OPTIONS = [
+  { value: 'bim', label: 'bim' },
+  { value: 'image', label: 'image' },
+  { value: 'svg', label: 'svg' },
+];
+
 export default function FileUploader() {
   const user = useSelector((state: RootState) => state.user);
   const hasView = canView(user);
@@ -58,6 +65,10 @@ export default function FileUploader() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadFileList, setUploadFileList] = useState<UploadFile[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [uploadName, setUploadName] = useState('');
+  const [uploadCategory, setUploadCategory] = useState('');
+  const [uploadFolder, setUploadFolder] = useState('');
+  const [uploadTags, setUploadTags] = useState('');
 
   const [editState, setEditState] = useState<EditState | null>(null);
   const [saving, setSaving] = useState(false);
@@ -87,17 +98,29 @@ export default function FileUploader() {
   const closeUploadModal = () => {
     setUploadOpen(false);
     setUploadFileList([]);
+    setUploadName('');
+    setUploadCategory('');
+    setUploadFolder('');
+    setUploadTags('');
   };
 
   const onUpload = async () => {
     const fileToUpload = uploadFileList[0]?.originFileObj;
-    if (!fileToUpload) {
+    if (!fileToUpload || !uploadName || !uploadCategory) {
       return;
     }
     setUploading(true);
     try {
       const formData = new FormData();
       formData.append('file', fileToUpload);
+      formData.append('name', uploadName);
+      formData.append('category', uploadCategory);
+      if (uploadFolder) {
+        formData.append('folder', uploadFolder);
+      }
+      if (uploadTags) {
+        formData.append('tags', uploadTags);
+      }
       await uploadFile(formData);
       closeUploadModal();
       await loadFiles();
@@ -239,18 +262,60 @@ export default function FileUploader() {
           onHide={closeUploadModal}
           onHandledPrimaryAction={onUpload}
           primaryButtonName={t('Upload')}
-          disablePrimaryButton={uploadFileList.length === 0 || uploading}
+          disablePrimaryButton={
+            uploadFileList.length === 0 ||
+            !uploadName ||
+            !uploadCategory ||
+            uploading
+          }
         >
           <Upload
             data-test="upload-file-input"
             fileList={uploadFileList}
-            onChange={({ fileList }) => setUploadFileList(fileList)}
+            onChange={({ fileList }) => {
+              setUploadFileList(fileList);
+              const selected = fileList[0];
+              if (selected && !uploadName) {
+                setUploadName(selected.name);
+              }
+            }}
             onRemove={() => setUploadFileList([])}
             customRequest={() => {}}
             maxCount={1}
           >
             <Button loading={uploading}>{t('Select file')}</Button>
           </Upload>
+          <FormLabel htmlFor="upload-name">{t('Name')}</FormLabel>
+          <Input
+            data-test="upload-name-input"
+            id="upload-name"
+            value={uploadName}
+            onChange={e => setUploadName(e.target.value)}
+          />
+          <FormLabel htmlFor="upload-category">{t('Category')}</FormLabel>
+          <Select
+            ariaLabel={t('Category')}
+            data-test="upload-category-select"
+            placeholder={t('Select a category')}
+            value={uploadCategory || undefined}
+            onChange={value => setUploadCategory(value as string)}
+            options={UPLOAD_CATEGORY_OPTIONS}
+            getPopupContainer={() => document.body}
+          />
+          <FormLabel htmlFor="upload-folder">{t('Folder')}</FormLabel>
+          <Input
+            data-test="upload-folder-input"
+            id="upload-folder"
+            value={uploadFolder}
+            onChange={e => setUploadFolder(e.target.value)}
+          />
+          <FormLabel htmlFor="upload-tags">{t('Tags')}</FormLabel>
+          <Input
+            data-test="upload-tags-input"
+            id="upload-tags"
+            value={uploadTags}
+            onChange={e => setUploadTags(e.target.value)}
+          />
         </Modal>
       )}
       {editState && (

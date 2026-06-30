@@ -17,10 +17,18 @@
  * under the License.
  */
 import { SupersetClient } from '@superset-ui/core';
-import { render, screen, waitFor } from 'spec/helpers/testing-library';
+import {
+  render,
+  screen,
+  waitFor,
+  userEvent,
+  fireEvent,
+  selectOption,
+} from 'spec/helpers/testing-library';
 import { UserWithPermissionsAndRoles } from 'src/types/bootstrapTypes';
 import { canUpload, canDelete } from './permissions';
 import FileUploader from './index';
+import * as api from './api';
 
 const roleWith = (
   perms: string[],
@@ -163,4 +171,70 @@ test('shows edit and delete actions with permission', async () => {
   await screen.findByText('a.pdf');
   expect(screen.getByTestId('edit-file-1')).toBeInTheDocument();
   expect(screen.getByTestId('delete-file-1')).toBeInTheDocument();
+});
+
+const openUploadModal = async () => {
+  render(<FileUploader />, {
+    useRedux: true,
+    initialState: { user: roleWith(['can_view', 'can_upload']) },
+  });
+  const uploadBtn = await screen.findByTestId('upload-btn');
+  userEvent.click(uploadBtn);
+  await screen.findByText('Upload file');
+};
+
+const selectAFile = async (fileName = 'model.ifc') => {
+  const fileInput = (await screen.findByTestId(
+    'upload-file-input',
+  )) as HTMLInputElement;
+  const testFile = new File([new ArrayBuffer(1)], fileName);
+  // antd's rc-upload spreads `event.target.files` (expects an iterable
+  // FileList). @testing-library/user-event's `upload()` helper in this
+  // repo's installed version builds a files object that is not iterable,
+  // so we dispatch the change event manually with a real iterable list.
+  Object.defineProperty(fileInput, 'files', {
+    value: [testFile],
+    configurable: true,
+  });
+  fireEvent.change(fileInput);
+};
+
+test('upload primary button is disabled until file, name and category are set', async () => {
+  jest
+    .spyOn(SupersetClient, 'get')
+    .mockResolvedValueOnce({ json: [] } as any);
+  await openUploadModal();
+
+  const uploadModalPrimaryBtn = screen.getByTestId('modal-confirm-button');
+  expect(uploadModalPrimaryBtn).toBeDisabled();
+
+  await selectAFile('model.ifc');
+  expect(uploadModalPrimaryBtn).toBeDisabled();
+
+  await selectOption('bim', 'Category');
+  expect(uploadModalPrimaryBtn).not.toBeDisabled();
+});
+
+test('onUpload sends a FormData with name and category populated', async () => {
+  jest
+    .spyOn(SupersetClient, 'get')
+    .mockResolvedValueOnce({ json: [] } as any)
+    .mockResolvedValueOnce({ json: [] } as any);
+  const uploadSpy = jest
+    .spyOn(api, 'uploadFile')
+    .mockResolvedValueOnce({} as any);
+
+  await openUploadModal();
+  await selectAFile('model.ifc');
+  await selectOption('bim', 'Category');
+
+  const uploadModalPrimaryBtn = screen.getByTestId('modal-confirm-button');
+  await waitFor(() => expect(uploadModalPrimaryBtn).not.toBeDisabled());
+  userEvent.click(uploadModalPrimaryBtn);
+
+  await waitFor(() => expect(uploadSpy).toHaveBeenCalledTimes(1));
+  const sentFormData = uploadSpy.mock.calls[0][0] as FormData;
+  expect(sentFormData.get('name')).toBe('model.ifc');
+  expect(sentFormData.get('category')).toBe('bim');
+  expect(sentFormData.get('file')).toBeInstanceOf(File);
 });
