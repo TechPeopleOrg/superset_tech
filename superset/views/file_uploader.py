@@ -94,6 +94,9 @@ class FileUploaderView(BaseSupersetView):
     """
 
     route_base = "/fileuploader"
+    # FAB's BaseView defaults to "list"; the Manage-menu link is built from
+    # default_view, and this view exposes "index" (an SPA page), not "list".
+    default_view = "index"
     class_permission_name = "FileUploader"
     method_permission_name = {
         "index": "view",
