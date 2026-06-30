@@ -584,15 +584,36 @@ export default function FileUploader() {
           hideFooter
         >
           {isImageLike(previewTarget) ? (
-            <img
-              data-test="preview-file-image"
-              src={fileContentUrl(previewTarget.id)}
-              alt={previewTarget.name ?? previewTarget.file_name}
-              style={{ maxWidth: '100%', maxHeight: '70vh' }}
-            />
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                width: '100%',
+                height: '70vh',
+              }}
+            >
+              <img
+                data-test="preview-file-image"
+                src={fileContentUrl(previewTarget.id)}
+                alt={previewTarget.name ?? previewTarget.file_name}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                }}
+              />
+            </div>
           ) : (
             <>
-              <p>{t('Preview is not available for this file type.')}</p>
+              <p>
+                {t(
+                  'This file type does not support preview (%s).',
+                  previewTarget.content_type ??
+                    previewTarget.category ??
+                    t('unknown type'),
+                )}
+              </p>
               <Button
                 data-test="preview-file-open-link"
                 buttonStyle="link"
