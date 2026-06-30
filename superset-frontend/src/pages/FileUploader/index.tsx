@@ -179,6 +179,7 @@ export default function FileUploader() {
   const [saving, setSaving] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState<StorageFile | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const loadFiles = useCallback(async () => {
     setLoading(true);
@@ -268,9 +269,15 @@ export default function FileUploader() {
     if (!deleteTarget) {
       return;
     }
-    await deleteFile(deleteTarget.id);
-    setDeleteTarget(null);
-    await loadFiles();
+    try {
+      await deleteFile(deleteTarget.id);
+      setDeleteError(null);
+      setDeleteTarget(null);
+      await loadFiles();
+    } catch (err) {
+      const message = await extractErrorMessage(err);
+      setDeleteError(message);
+    }
   };
 
   if (!hasView) {
@@ -496,13 +503,28 @@ export default function FileUploader() {
       {deleteTarget && (
         <DeleteModal
           open={!!deleteTarget}
-          onHide={() => setDeleteTarget(null)}
+          onHide={() => {
+            setDeleteError(null);
+            setDeleteTarget(null);
+          }}
           onConfirm={onConfirmDelete}
           title={t('Delete file')}
-          description={t(
-            'Are you sure you want to delete %s?',
-            deleteTarget.name ?? deleteTarget.file_name,
-          )}
+          description={
+            <>
+              {deleteError && (
+                <Alert
+                  type="error"
+                  closable={false}
+                  data-test="delete-error-alert"
+                  description={deleteError}
+                />
+              )}
+              {t(
+                'Are you sure you want to delete %s?',
+                deleteTarget.name ?? deleteTarget.file_name,
+              )}
+            </>
+          }
         />
       )}
     </div>

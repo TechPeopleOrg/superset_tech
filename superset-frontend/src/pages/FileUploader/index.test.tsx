@@ -252,6 +252,39 @@ test('onUpload sends a FormData with name and category populated', async () => {
   expect(sentFormData.get('file')).toBeInstanceOf(File);
 });
 
+test('onConfirmDelete closes the delete modal and refreshes the list on success', async () => {
+  const getSpy = jest
+    .spyOn(SupersetClient, 'get')
+    .mockResolvedValueOnce({
+      json: [{ id: '1', name: 'A doc', file_name: 'a.pdf', category: 'doc' }],
+    } as any)
+    .mockResolvedValueOnce({ json: [] } as any);
+  const deleteSpy = jest
+    .spyOn(api, 'deleteFile')
+    .mockResolvedValueOnce({} as any);
+
+  render(<FileUploader />, {
+    useRedux: true,
+    initialState: { user: roleWith(['can_view', 'can_delete']) },
+  });
+
+  await screen.findByText('a.pdf');
+  userEvent.click(screen.getByTestId('delete-file-1'));
+
+  const confirmInput = await screen.findByTestId('delete-modal-input');
+  userEvent.type(confirmInput, 'DELETE');
+  const confirmBtn = screen.getByTestId('modal-confirm-button');
+  await waitFor(() => expect(confirmBtn).not.toBeDisabled());
+  userEvent.click(confirmBtn);
+
+  await waitFor(() => expect(deleteSpy).toHaveBeenCalledWith('1'));
+  await waitFor(() =>
+    expect(screen.queryByText('Delete file')).not.toBeInTheDocument(),
+  );
+  // initial load + reload after delete
+  await waitFor(() => expect(getSpy).toHaveBeenCalledTimes(2));
+});
+
 test('onUpload shows the validation error inside the modal and keeps it open on failure', async () => {
   jest.spyOn(SupersetClient, 'get').mockResolvedValueOnce({ json: [] } as any);
   jest.spyOn(api, 'uploadFile').mockRejectedValueOnce({

@@ -52,5 +52,8 @@ export const updateFile = (id: string, meta: Record<string, unknown>) =>
     jsonPayload: meta,
   });
 
+// The storage service returns 204 No Content on delete (empty body), so we
+// must not let SupersetClient try to JSON-parse the response - that would
+// reject the promise on an otherwise-successful delete.
 export const deleteFile = (id: string) =>
-  SupersetClient.delete({ endpoint: `${BASE}/files/${id}` });
+  SupersetClient.delete({ endpoint: `${BASE}/files/${id}`, parseMethod: null });
