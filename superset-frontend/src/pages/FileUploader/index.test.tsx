@@ -32,14 +32,14 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-test('canUpload true only with upload permission', () => {
-  expect(canUpload(roleWith(['upload']))).toBe(true);
-  expect(canUpload(roleWith(['view']))).toBe(false);
+test('canUpload true only with can_upload permission', () => {
+  expect(canUpload(roleWith(['can_upload']))).toBe(true);
+  expect(canUpload(roleWith(['can_view']))).toBe(false);
 });
 
-test('canDelete reflects delete permission', () => {
-  expect(canDelete(roleWith(['delete']))).toBe(true);
-  expect(canDelete(roleWith(['view']))).toBe(false);
+test('canDelete reflects can_delete permission', () => {
+  expect(canDelete(roleWith(['can_delete']))).toBe(true);
+  expect(canDelete(roleWith(['can_view']))).toBe(false);
 });
 
 test('renders the page title', async () => {
@@ -48,7 +48,7 @@ test('renders the page title', async () => {
     .mockResolvedValueOnce({ json: [] } as any);
   render(<FileUploader />, {
     useRedux: true,
-    initialState: { user: roleWith(['view']) },
+    initialState: { user: roleWith(['can_view']) },
   });
   expect(screen.getByText('Files')).toBeInTheDocument();
 });
@@ -59,7 +59,7 @@ test('hides the upload button when user lacks upload permission', async () => {
     .mockResolvedValueOnce({ json: [] } as any);
   render(<FileUploader />, {
     useRedux: true,
-    initialState: { user: roleWith(['view']) },
+    initialState: { user: roleWith(['can_view']) },
   });
   await waitFor(() =>
     expect(screen.queryByTestId('upload-btn')).not.toBeInTheDocument(),
@@ -72,7 +72,7 @@ test('shows the upload button when user has upload permission', async () => {
     .mockResolvedValueOnce({ json: [] } as any);
   render(<FileUploader />, {
     useRedux: true,
-    initialState: { user: roleWith(['view', 'upload']) },
+    initialState: { user: roleWith(['can_view', 'can_upload']) },
   });
   expect(await screen.findByTestId('upload-btn')).toBeInTheDocument();
 });
@@ -93,7 +93,7 @@ test('shows error banner when storage is unavailable', async () => {
   jest.spyOn(SupersetClient, 'get').mockRejectedValueOnce({ status: 502 });
   render(<FileUploader />, {
     useRedux: true,
-    initialState: { user: roleWith(['view']) },
+    initialState: { user: roleWith(['can_view']) },
   });
   expect(await screen.findByText(/unavailable/i)).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
@@ -108,7 +108,7 @@ test('retry re-fetches the file list after a failure', async () => {
     } as any);
   render(<FileUploader />, {
     useRedux: true,
-    initialState: { user: roleWith(['view']) },
+    initialState: { user: roleWith(['can_view']) },
   });
   expect(await screen.findByText(/unavailable/i)).toBeInTheDocument();
   screen.getByRole('button', { name: /retry/i }).click();
@@ -121,9 +121,20 @@ test('renders file list from API', async () => {
   } as any);
   render(<FileUploader />, {
     useRedux: true,
-    initialState: { user: roleWith(['view']) },
+    initialState: { user: roleWith(['can_view']) },
   });
   expect(await screen.findByText('a.pdf')).toBeInTheDocument();
+});
+
+test('renders file list from API when response is wrapped in items envelope', async () => {
+  jest.spyOn(SupersetClient, 'get').mockResolvedValueOnce({
+    json: { items: [{ id: '1', file_name: 'b.pdf', category: 'doc' }] },
+  } as any);
+  render(<FileUploader />, {
+    useRedux: true,
+    initialState: { user: roleWith(['can_view']) },
+  });
+  expect(await screen.findByText('b.pdf')).toBeInTheDocument();
 });
 
 test('hides edit and delete actions without permission', async () => {
@@ -132,7 +143,7 @@ test('hides edit and delete actions without permission', async () => {
   } as any);
   render(<FileUploader />, {
     useRedux: true,
-    initialState: { user: roleWith(['view']) },
+    initialState: { user: roleWith(['can_view']) },
   });
   await screen.findByText('a.pdf');
   expect(screen.queryByTestId('edit-file-1')).not.toBeInTheDocument();
@@ -145,7 +156,9 @@ test('shows edit and delete actions with permission', async () => {
   } as any);
   render(<FileUploader />, {
     useRedux: true,
-    initialState: { user: roleWith(['view', 'edit', 'delete']) },
+    initialState: {
+      user: roleWith(['can_view', 'can_edit', 'can_delete']),
+    },
   });
   await screen.findByText('a.pdf');
   expect(screen.getByTestId('edit-file-1')).toBeInTheDocument();

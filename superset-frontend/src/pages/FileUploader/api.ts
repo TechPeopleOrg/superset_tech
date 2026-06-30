@@ -27,11 +27,18 @@ export interface StorageFile {
 
 const BASE = '/fileuploader/api';
 
+interface FileListEnvelope {
+  items?: StorageFile[];
+}
+
 export const fetchFiles = async (folder = ''): Promise<StorageFile[]> => {
   const { json } = await SupersetClient.get({
     endpoint: `${BASE}/files${folder ? `?folder=${encodeURIComponent(folder)}` : ''}`,
   });
-  return Array.isArray(json) ? (json as StorageFile[]) : [];
+  const list = Array.isArray(json)
+    ? json
+    : ((json as FileListEnvelope)?.items ?? []);
+  return list as StorageFile[];
 };
 
 export const uploadFile = (formData: FormData) =>

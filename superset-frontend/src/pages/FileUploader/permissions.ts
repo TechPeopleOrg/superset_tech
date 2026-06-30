@@ -24,13 +24,13 @@ export const FILE_UPLOADER_VIEW = 'FileUploader';
 type UserWithRoles = Pick<UserWithPermissionsAndRoles, 'roles'>;
 
 export const canView = (user?: UserWithRoles): boolean =>
-  findPermission('view', FILE_UPLOADER_VIEW, user?.roles);
+  findPermission('can_view', FILE_UPLOADER_VIEW, user?.roles);
 
 export const canUpload = (user?: UserWithRoles): boolean =>
-  findPermission('upload', FILE_UPLOADER_VIEW, user?.roles);
+  findPermission('can_upload', FILE_UPLOADER_VIEW, user?.roles);
 
 export const canEdit = (user?: UserWithRoles): boolean =>
-  findPermission('edit', FILE_UPLOADER_VIEW, user?.roles);
+  findPermission('can_edit', FILE_UPLOADER_VIEW, user?.roles);
 
 export const canDelete = (user?: UserWithRoles): boolean =>
-  findPermission('delete', FILE_UPLOADER_VIEW, user?.roles);
+  findPermission('can_delete', FILE_UPLOADER_VIEW, user?.roles);
