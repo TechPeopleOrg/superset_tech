@@ -177,10 +177,15 @@ class FileUploaderView(BaseSupersetView):
             ),
         )
         resp = Response(content, status=status)
-        if "Content-Type" in headers:
-            resp.headers["Content-Type"] = headers["Content-Type"]
-        if "Content-Disposition" in headers:
-            resp.headers["Content-Disposition"] = headers["Content-Disposition"]
+        # Upstream header keys may be any case (requests' dict() lowercases
+        # them), so look them up case-insensitively — otherwise the upstream
+        # Content-Type is dropped and Flask defaults to text/html, which breaks
+        # binary/SVG passthrough (e.g. file preview).
+        lower_headers = {k.lower(): v for k, v in headers.items()}
+        if "content-type" in lower_headers:
+            resp.headers["Content-Type"] = lower_headers["content-type"]
+        if "content-disposition" in lower_headers:
+            resp.headers["Content-Disposition"] = lower_headers["content-disposition"]
         return resp
 
     @expose("/api/<path:subpath>", methods=("GET",))
