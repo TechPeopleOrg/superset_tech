@@ -57,11 +57,11 @@ class TestFileUploaderView(SupersetTestCase):
         self.login(username="admin")
         with patch(
             "superset.views.file_uploader.proxy_to_storage",
-            return_value=(b'{"items":[]}', 200, {"Content-Type": "application/json"}),
+            return_value=(b"[]", 200, {"Content-Type": "application/json"}),
         ) as proxy:
             rv = self.client.get("/fileuploader/api/files?folder=x")
             assert rv.status_code == 200
-            assert rv.data == b'{"items":[]}'
+            assert rv.data == b"[]"
             args, kwargs = proxy.call_args
             assert args[0] == "GET"
             assert args[1] == "files"
