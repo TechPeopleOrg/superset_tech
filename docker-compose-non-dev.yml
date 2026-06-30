@@ -74,6 +74,9 @@ services:
       superset-init:
         condition: service_completed_successfully
     volumes: *superset-volumes
+    networks:
+      - default
+      - superset_shared
 
   superset-init:
     container_name: superset_init
@@ -144,3 +147,10 @@ volumes:
     external: false
   redis:
     external: false
+
+networks:
+  # Shared bridge so the Superset proxy can reach the file-storage service
+  # running from its own compose stack. Created externally:
+  #   docker network create superset_shared
+  superset_shared:
+    external: true
