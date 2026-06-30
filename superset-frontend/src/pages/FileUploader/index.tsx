@@ -45,13 +45,20 @@ import {
   uploadFile,
   updateFile,
   deleteFile,
+  fileContentUrl,
 } from './api';
 
 interface EditState {
   id: string;
   name: string;
-  category: string;
+  folder: string;
+  tags: string;
 }
+
+const isImageLike = (file: StorageFile): boolean =>
+  Boolean(file.content_type?.startsWith('image/')) ||
+  file.category === 'image' ||
+  file.category === 'svg';
 
 const StyledContent = styled.div`
   ${({ theme }) => css`
@@ -181,6 +188,10 @@ export default function FileUploader() {
   const [deleteTarget, setDeleteTarget] = useState<StorageFile | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  const [previewTarget, setPreviewTarget] = useState<StorageFile | null>(
+    null,
+  );
+
   const loadFiles = useCallback(async () => {
     setLoading(true);
     setError(false);
@@ -244,7 +255,8 @@ export default function FileUploader() {
     setEditState({
       id: file.id,
       name: file.name ?? file.file_name,
-      category: file.category ?? '',
+      folder: file.folder ?? '',
+      tags: (file.tags ?? []).join(', '),
     });
   };
 
@@ -254,9 +266,14 @@ export default function FileUploader() {
     }
     setSaving(true);
     try {
+      const tags = editState.tags
+        .split(',')
+        .map(tag => tag.trim())
+        .filter(Boolean);
       await updateFile(editState.id, {
         name: editState.name,
-        category: editState.category,
+        folder: editState.folder,
+        tags,
       });
       setEditState(null);
       await loadFiles();
@@ -311,44 +328,68 @@ export default function FileUploader() {
       key: 'category',
       render: (value: string) => value ?? '',
     },
+    {
+      title: t('Folder'),
+      dataIndex: 'folder',
+      key: 'folder',
+      render: (value: string) => value ?? '',
+    },
+    {
+      title: t('Tags'),
+      dataIndex: 'tags',
+      key: 'tags',
+      render: (value: string[]) => (value ?? []).join(', '),
+    },
   ];
 
-  if (canEdit(user) || canDelete(user)) {
-    columns.push({
-      title: t('Actions'),
-      key: 'actions',
-      render: (_: unknown, file: StorageFile) => (
-        <StyledActions className="actions">
-          {canEdit(user) && (
-            <Tooltip id="edit-action-tooltip" title={t('Edit')}>
-              <span
-                data-test={`edit-file-${file.id}`}
-                role="button"
-                tabIndex={0}
-                className="action-button"
-                onClick={() => openEditModal(file)}
-              >
-                <Icons.EditOutlined iconSize="l" />
-              </span>
-            </Tooltip>
-          )}
-          {canDelete(user) && (
-            <Tooltip id="delete-action-tooltip" title={t('Delete')}>
-              <span
-                data-test={`delete-file-${file.id}`}
-                role="button"
-                tabIndex={0}
-                className="action-button"
-                onClick={() => setDeleteTarget(file)}
-              >
-                <Icons.DeleteOutlined iconSize="l" />
-              </span>
-            </Tooltip>
-          )}
-        </StyledActions>
-      ),
-    });
-  }
+  // This component already returns early above when `!hasView`, so every
+  // row reaching this point belongs to a user who can view - the preview
+  // action is therefore always rendered alongside edit/delete.
+  columns.push({
+    title: t('Actions'),
+    key: 'actions',
+    render: (_: unknown, file: StorageFile) => (
+      <StyledActions className="actions">
+        <Tooltip id="preview-action-tooltip" title={t('Preview')}>
+          <span
+            data-test={`preview-file-${file.id}`}
+            role="button"
+            tabIndex={0}
+            className="action-button"
+            onClick={() => setPreviewTarget(file)}
+          >
+            <Icons.EyeOutlined iconSize="l" />
+          </span>
+        </Tooltip>
+        {canEdit(user) && (
+          <Tooltip id="edit-action-tooltip" title={t('Edit')}>
+            <span
+              data-test={`edit-file-${file.id}`}
+              role="button"
+              tabIndex={0}
+              className="action-button"
+              onClick={() => openEditModal(file)}
+            >
+              <Icons.EditOutlined iconSize="l" />
+            </span>
+          </Tooltip>
+        )}
+        {canDelete(user) && (
+          <Tooltip id="delete-action-tooltip" title={t('Delete')}>
+            <span
+              data-test={`delete-file-${file.id}`}
+              role="button"
+              tabIndex={0}
+              className="action-button"
+              onClick={() => setDeleteTarget(file)}
+            >
+              <Icons.DeleteOutlined iconSize="l" />
+            </span>
+          </Tooltip>
+        )}
+      </StyledActions>
+    ),
+  });
 
   return (
     <div data-test="file-uploader-page">
@@ -489,14 +530,21 @@ export default function FileUploader() {
             value={editState.name}
             onChange={e => setEditState({ ...editState, name: e.target.value })}
           />
-          <FormLabel htmlFor="category">{t('Category')}</FormLabel>
+          <FormLabel htmlFor="edit-folder">{t('Folder')}</FormLabel>
           <Input
-            data-test="edit-category-input"
-            id="category"
-            value={editState.category}
+            data-test="edit-folder-input"
+            id="edit-folder"
+            value={editState.folder}
             onChange={e =>
-              setEditState({ ...editState, category: e.target.value })
+              setEditState({ ...editState, folder: e.target.value })
             }
+          />
+          <FormLabel htmlFor="edit-tags">{t('Tags')}</FormLabel>
+          <Input
+            data-test="edit-tags-input"
+            id="edit-tags"
+            value={editState.tags}
+            onChange={e => setEditState({ ...editState, tags: e.target.value })}
           />
         </Modal>
       )}
@@ -526,6 +574,41 @@ export default function FileUploader() {
             </>
           }
         />
+      )}
+      {previewTarget && (
+        <Modal
+          name="preview-file"
+          show={!!previewTarget}
+          title={t('Preview: %s', previewTarget.name ?? previewTarget.file_name)}
+          onHide={() => setPreviewTarget(null)}
+          hideFooter
+        >
+          {isImageLike(previewTarget) ? (
+            <img
+              data-test="preview-file-image"
+              src={fileContentUrl(previewTarget.id)}
+              alt={previewTarget.name ?? previewTarget.file_name}
+              style={{ maxWidth: '100%', maxHeight: '70vh' }}
+            />
+          ) : (
+            <>
+              <p>{t('Preview is not available for this file type.')}</p>
+              <Button
+                data-test="preview-file-open-link"
+                buttonStyle="link"
+                onClick={() =>
+                  window.open(
+                    fileContentUrl(previewTarget.id),
+                    '_blank',
+                    'noopener,noreferrer',
+                  )
+                }
+              >
+                {t('Open file')}
+              </Button>
+            </>
+          )}
+        </Modal>
       )}
     </div>
   );

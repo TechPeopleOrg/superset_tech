@@ -23,10 +23,19 @@ export interface StorageFile {
   name: string;
   file_name: string;
   category?: string;
+  folder?: string;
+  tags?: string[];
+  content_type?: string;
   [key: string]: unknown;
 }
 
 const BASE = '/fileuploader/api';
+
+// Plain same-origin URL the browser can load directly to stream a file's
+// bytes. The proxy is same-origin (uses the session cookie) and injects the
+// storage service's API key server-side, so the browser must never hit a
+// raw MinIO/presigned URL.
+export const fileContentUrl = (id: string) => `${BASE}/files/${id}/content`;
 
 interface FileListEnvelope {
   items?: StorageFile[];

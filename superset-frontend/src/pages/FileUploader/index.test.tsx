@@ -285,6 +285,109 @@ test('onConfirmDelete closes the delete modal and refreshes the list on success'
   await waitFor(() => expect(getSpy).toHaveBeenCalledTimes(2));
 });
 
+test('renders Folder and Tags column values', async () => {
+  jest.spyOn(SupersetClient, 'get').mockResolvedValueOnce({
+    json: [
+      {
+        id: '1',
+        name: 'A doc',
+        file_name: 'a.pdf',
+        category: 'doc',
+        folder: 'projects/2026',
+        tags: ['draft', 'urgent'],
+      },
+    ],
+  } as any);
+  render(<FileUploader />, {
+    useRedux: true,
+    initialState: { user: roleWith(['can_view']) },
+  });
+  expect(await screen.findByText('projects/2026')).toBeInTheDocument();
+  expect(screen.getByText('draft, urgent')).toBeInTheDocument();
+});
+
+test('edit modal does not contain a Category field and onSaveEdit PATCHes without category', async () => {
+  jest
+    .spyOn(SupersetClient, 'get')
+    .mockResolvedValueOnce({
+      json: [
+        {
+          id: '1',
+          name: 'A doc',
+          file_name: 'a.pdf',
+          category: 'doc',
+          folder: 'old-folder',
+          tags: ['one', 'two'],
+        },
+      ],
+    } as any)
+    .mockResolvedValueOnce({ json: [] } as any);
+  const updateSpy = jest
+    .spyOn(api, 'updateFile')
+    .mockResolvedValueOnce({} as any);
+
+  render(<FileUploader />, {
+    useRedux: true,
+    initialState: { user: roleWith(['can_view', 'can_edit']) },
+  });
+
+  await screen.findByText('a.pdf');
+  userEvent.click(screen.getByTestId('edit-file-1'));
+
+  await screen.findByText('Edit file');
+  expect(screen.queryByTestId('edit-category-input')).not.toBeInTheDocument();
+  expect(screen.queryByLabelText('Category')).not.toBeInTheDocument();
+
+  const nameInput = screen.getByTestId('edit-file-name-input');
+  userEvent.clear(nameInput);
+  userEvent.type(nameInput, 'New Name');
+
+  const folderInput = screen.getByTestId('edit-folder-input');
+  userEvent.clear(folderInput);
+  userEvent.type(folderInput, 'new-folder');
+
+  const tagsInput = screen.getByTestId('edit-tags-input');
+  userEvent.clear(tagsInput);
+  userEvent.type(tagsInput, 'alpha, beta ,gamma');
+
+  const saveBtn = screen.getByTestId('modal-confirm-button');
+  userEvent.click(saveBtn);
+
+  await waitFor(() => expect(updateSpy).toHaveBeenCalledTimes(1));
+  expect(updateSpy).toHaveBeenCalledWith('1', {
+    name: 'New Name',
+    folder: 'new-folder',
+    tags: ['alpha', 'beta', 'gamma'],
+  });
+});
+
+test('clicking the preview icon opens the preview modal and renders an image for an image-type row', async () => {
+  jest.spyOn(SupersetClient, 'get').mockResolvedValueOnce({
+    json: [
+      {
+        id: '1',
+        name: 'A photo',
+        file_name: 'photo.png',
+        category: 'image',
+        content_type: 'image/png',
+      },
+    ],
+  } as any);
+  render(<FileUploader />, {
+    useRedux: true,
+    initialState: { user: roleWith(['can_view']) },
+  });
+
+  await screen.findByText('photo.png');
+  userEvent.click(screen.getByTestId('preview-file-1'));
+
+  const image = await screen.findByTestId('preview-file-image');
+  expect(image).toHaveAttribute(
+    'src',
+    expect.stringContaining('/fileuploader/api/files/1/content'),
+  );
+});
+
 test('onUpload shows the validation error inside the modal and keeps it open on failure', async () => {
   jest.spyOn(SupersetClient, 'get').mockResolvedValueOnce({ json: [] } as any);
   jest.spyOn(api, 'uploadFile').mockRejectedValueOnce({
