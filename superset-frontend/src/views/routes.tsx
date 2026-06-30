@@ -187,6 +187,10 @@ const RedirectWarning = lazy(
     ),
 );
 
+const FileUploader = lazy(
+  () => import(/* webpackChunkName: "FileUploader" */ 'src/pages/FileUploader'),
+);
+
 type Routes = {
   path: string;
   Component: ComponentType;
@@ -329,6 +333,10 @@ export const routes: Routes = [
   {
     path: '/registrations/',
     Component: UserRegistrations,
+  },
+  {
+    path: '/fileuploader/',
+    Component: FileUploader,
   },
 ];
 
