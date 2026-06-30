@@ -24,6 +24,13 @@ import logging
 from typing import Any
 
 import requests
+from flask import current_app, g, request, Response
+from flask_appbuilder import expose
+from flask_appbuilder.security.decorators import has_access, has_access_api
+
+from superset.superset_typing import FlaskResponse
+from superset.views.base import BaseSupersetView, common_bootstrap_payload
+from superset.views.utils import bootstrap_user_data
 
 logger = logging.getLogger(__name__)
 
@@ -79,3 +86,75 @@ def proxy_to_storage(
             502,
             {"Content-Type": "application/json"},
         )
+
+
+class FileUploaderView(BaseSupersetView):
+    """Serves the File Uploader SPA page and proxies browser requests to the
+    standalone file-storage service.
+    """
+
+    route_base = "/fileuploader"
+    class_permission_name = "FileUploader"
+    method_permission_name = {
+        "index": "view",
+        "proxy_get": "view",
+        "proxy_post": "upload",
+        "proxy_patch": "edit",
+        "proxy_put": "edit",
+        "proxy_delete": "delete",
+    }
+
+    @expose("/")
+    @has_access
+    def index(self) -> FlaskResponse:
+        payload = {
+            "user": bootstrap_user_data(g.user, include_perms=True),
+            "common": common_bootstrap_payload(),
+        }
+        return self.render_app_template(extra_bootstrap_data=payload)
+
+    def _proxy(self, subpath: str) -> FlaskResponse:
+        content, status, headers = proxy_to_storage(
+            request.method,
+            subpath,
+            query_string=request.query_string,
+            headers=dict(request.headers),
+            body=request.get_data(),
+            base_url=current_app.config["STORAGE_BASE_URL"],
+            api_key=current_app.config["STORAGE_API_KEY"],
+            timeout=(
+                current_app.config["STORAGE_PROXY_CONNECT_TIMEOUT"],
+                current_app.config["STORAGE_PROXY_READ_TIMEOUT"],
+            ),
+        )
+        resp = Response(content, status=status)
+        if "Content-Type" in headers:
+            resp.headers["Content-Type"] = headers["Content-Type"]
+        if "Content-Disposition" in headers:
+            resp.headers["Content-Disposition"] = headers["Content-Disposition"]
+        return resp
+
+    @expose("/api/<path:subpath>", methods=("GET",))
+    @has_access_api
+    def proxy_get(self, subpath: str) -> FlaskResponse:
+        return self._proxy(subpath)
+
+    @expose("/api/<path:subpath>", methods=("POST",))
+    @has_access_api
+    def proxy_post(self, subpath: str) -> FlaskResponse:
+        return self._proxy(subpath)
+
+    @expose("/api/<path:subpath>", methods=("PATCH",))
+    @has_access_api
+    def proxy_patch(self, subpath: str) -> FlaskResponse:
+        return self._proxy(subpath)
+
+    @expose("/api/<path:subpath>", methods=("PUT",))
+    @has_access_api
+    def proxy_put(self, subpath: str) -> FlaskResponse:
+        return self._proxy(subpath)
+
+    @expose("/api/<path:subpath>", methods=("DELETE",))
+    @has_access_api
+    def proxy_delete(self, subpath: str) -> FlaskResponse:
+        return self._proxy(subpath)
