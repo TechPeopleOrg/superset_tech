@@ -68,6 +68,7 @@ export default function useXeokitViewer(
         const { Viewer, XKTLoaderPlugin } = await import('@xeokit/xeokit-sdk');
         if (cancelled) return;
 
+        // NOTE: backgroundColor is reserved and will be applied in the data-binding stage.
         viewer = new Viewer({ canvasElement: canvas, transparent: false });
         const loader = new XKTLoaderPlugin(viewer);
         model = loader.load({ id: 'bim-model', src: modelUrl, edges: showEdges });

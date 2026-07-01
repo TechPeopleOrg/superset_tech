@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { createRef } from 'react';
+import { useRef } from 'react';
 import { render, waitFor } from '@testing-library/react';
 import useXeokitViewer from '../src/useXeokitViewer';
 
@@ -41,7 +41,7 @@ jest.mock('@xeokit/xeokit-sdk', () => ({
 }));
 
 function Harness({ url }: { url: string }) {
-  const ref = createRef<HTMLDivElement>();
+  const ref = useRef<HTMLDivElement>(null);
   const state = useXeokitViewer(ref, { modelUrl: url });
   return (
     <div>
