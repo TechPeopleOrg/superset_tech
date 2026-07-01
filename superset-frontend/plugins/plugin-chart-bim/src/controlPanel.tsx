@@ -17,7 +17,7 @@
  * under the License.
  */
 import { t } from '@apache-superset/core/translation';
-import { ControlPanelConfig, columnChoices } from '@superset-ui/chart-controls';
+import { ControlPanelConfig, columnChoices, ControlPanelState } from '@superset-ui/chart-controls';
 
 const config: ControlPanelConfig = {
   controlPanelSections: [
@@ -40,8 +40,8 @@ const config: ControlPanelConfig = {
                 'Dataset column holding the model UUID (value of the first row is used).',
               ),
               default: null,
-              mapStateToProps: (state: { datasource?: unknown }) => ({
-                choices: columnChoices(state.datasource as any),
+              mapStateToProps: (state: ControlPanelState) => ({
+                choices: columnChoices(state.datasource),
               }),
             },
           },
