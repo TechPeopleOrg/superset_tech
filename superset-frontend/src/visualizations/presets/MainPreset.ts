@@ -32,6 +32,7 @@ import PartitionChartPlugin from '@superset-ui/legacy-plugin-chart-partition';
 import RoseChartPlugin from '@superset-ui/legacy-plugin-chart-rose';
 import TableChartPlugin from '@superset-ui/plugin-chart-table';
 import SvgChartPlugin from '@superset-ui/plugin-chart-svg';
+import BimChartPlugin from '@superset-ui/plugin-chart-bim';
 import { WordCloudChartPlugin } from '@superset-ui/plugin-chart-word-cloud';
 import WorldMapChartPlugin from '@superset-ui/legacy-plugin-chart-world-map';
 import {
@@ -149,6 +150,7 @@ export default class MainPreset extends Preset {
         new RoseChartPlugin().configure({ key: VizType.Rose }),
         new TableChartPlugin().configure({ key: VizType.Table }),
         new SvgChartPlugin().configure({ key: VizType.Svg }),
+        new BimChartPlugin().configure({ key: VizType.Bim }),
         new TimePivotChartPlugin().configure({ key: VizType.TimePivot }),
         new TimeTableChartPlugin().configure({ key: VizType.TimeTable }),
         new WordCloudChartPlugin().configure({ key: VizType.WordCloud }),
