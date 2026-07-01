@@ -105,7 +105,13 @@ test('retry re-fetches the file list after a failure', async () => {
     .mockRejectedValueOnce({ status: 502 })
     .mockResolvedValueOnce({
       json: [
-        { id: '1', name: 'Retry doc', file_name: 'retry.pdf', category: 'doc' },
+        {
+          id: '1',
+          uuid: 'uuid-1',
+          name: 'Retry doc',
+          file_name: 'retry.pdf',
+          category: 'doc',
+        },
       ],
     } as any);
   render(<FileUploader />, {
@@ -119,7 +125,9 @@ test('retry re-fetches the file list after a failure', async () => {
 
 test('renders file list from API', async () => {
   jest.spyOn(SupersetClient, 'get').mockResolvedValueOnce({
-    json: [{ id: '1', name: 'A doc', file_name: 'a.pdf', category: 'doc' }],
+    json: [
+      { id: '1', uuid: 'uuid-1', name: 'A doc', file_name: 'a.pdf', category: 'doc' },
+    ],
   } as any);
   render(<FileUploader />, {
     useRedux: true,
@@ -131,7 +139,9 @@ test('renders file list from API', async () => {
 test('renders file list from API when response is wrapped in items envelope', async () => {
   jest.spyOn(SupersetClient, 'get').mockResolvedValueOnce({
     json: {
-      items: [{ id: '1', name: 'B doc', file_name: 'b.pdf', category: 'doc' }],
+      items: [
+        { id: '1', uuid: 'uuid-1', name: 'B doc', file_name: 'b.pdf', category: 'doc' },
+      ],
     },
   } as any);
   render(<FileUploader />, {
@@ -146,6 +156,7 @@ test('shows the user-entered name, not just the raw file name', async () => {
     json: [
       {
         id: '1',
+        uuid: 'uuid-1',
         name: 'My Renamed File',
         file_name: 'original-upload.pdf',
         category: 'doc',
@@ -162,20 +173,24 @@ test('shows the user-entered name, not just the raw file name', async () => {
 
 test('hides edit and delete actions without permission', async () => {
   jest.spyOn(SupersetClient, 'get').mockResolvedValueOnce({
-    json: [{ id: '1', name: 'A doc', file_name: 'a.pdf', category: 'doc' }],
+    json: [
+      { id: '1', uuid: 'uuid-1', name: 'A doc', file_name: 'a.pdf', category: 'doc' },
+    ],
   } as any);
   render(<FileUploader />, {
     useRedux: true,
     initialState: { user: roleWith(['can_view']) },
   });
   await screen.findByText('a.pdf');
-  expect(screen.queryByTestId('edit-file-1')).not.toBeInTheDocument();
-  expect(screen.queryByTestId('delete-file-1')).not.toBeInTheDocument();
+  expect(screen.queryByTestId('edit-file-uuid-1')).not.toBeInTheDocument();
+  expect(screen.queryByTestId('delete-file-uuid-1')).not.toBeInTheDocument();
 });
 
 test('shows edit and delete actions with permission', async () => {
   jest.spyOn(SupersetClient, 'get').mockResolvedValueOnce({
-    json: [{ id: '1', name: 'A doc', file_name: 'a.pdf', category: 'doc' }],
+    json: [
+      { id: '1', uuid: 'uuid-1', name: 'A doc', file_name: 'a.pdf', category: 'doc' },
+    ],
   } as any);
   render(<FileUploader />, {
     useRedux: true,
@@ -184,8 +199,8 @@ test('shows edit and delete actions with permission', async () => {
     },
   });
   await screen.findByText('a.pdf');
-  expect(screen.getByTestId('edit-file-1')).toBeInTheDocument();
-  expect(screen.getByTestId('delete-file-1')).toBeInTheDocument();
+  expect(screen.getByTestId('edit-file-uuid-1')).toBeInTheDocument();
+  expect(screen.getByTestId('delete-file-uuid-1')).toBeInTheDocument();
 });
 
 const openUploadModal = async () => {
@@ -256,7 +271,9 @@ test('onConfirmDelete closes the delete modal and refreshes the list on success'
   const getSpy = jest
     .spyOn(SupersetClient, 'get')
     .mockResolvedValueOnce({
-      json: [{ id: '1', name: 'A doc', file_name: 'a.pdf', category: 'doc' }],
+      json: [
+        { id: '1', uuid: 'uuid-1', name: 'A doc', file_name: 'a.pdf', category: 'doc' },
+      ],
     } as any)
     .mockResolvedValueOnce({ json: [] } as any);
   const deleteSpy = jest
@@ -269,7 +286,7 @@ test('onConfirmDelete closes the delete modal and refreshes the list on success'
   });
 
   await screen.findByText('a.pdf');
-  userEvent.click(screen.getByTestId('delete-file-1'));
+  userEvent.click(screen.getByTestId('delete-file-uuid-1'));
 
   const confirmInput = await screen.findByTestId('delete-modal-input');
   userEvent.type(confirmInput, 'DELETE');
@@ -277,7 +294,7 @@ test('onConfirmDelete closes the delete modal and refreshes the list on success'
   await waitFor(() => expect(confirmBtn).not.toBeDisabled());
   userEvent.click(confirmBtn);
 
-  await waitFor(() => expect(deleteSpy).toHaveBeenCalledWith('1'));
+  await waitFor(() => expect(deleteSpy).toHaveBeenCalledWith('uuid-1'));
   await waitFor(() =>
     expect(screen.queryByText('Delete file')).not.toBeInTheDocument(),
   );
@@ -290,6 +307,7 @@ test('renders Folder and Tags column values', async () => {
     json: [
       {
         id: '1',
+        uuid: 'uuid-1',
         name: 'A doc',
         file_name: 'a.pdf',
         category: 'doc',
@@ -313,6 +331,7 @@ test('edit modal does not contain a Category field and onSaveEdit PATCHes withou
       json: [
         {
           id: '1',
+          uuid: 'uuid-1',
           name: 'A doc',
           file_name: 'a.pdf',
           category: 'doc',
@@ -332,7 +351,7 @@ test('edit modal does not contain a Category field and onSaveEdit PATCHes withou
   });
 
   await screen.findByText('a.pdf');
-  userEvent.click(screen.getByTestId('edit-file-1'));
+  userEvent.click(screen.getByTestId('edit-file-uuid-1'));
 
   await screen.findByText('Edit file');
   expect(screen.queryByTestId('edit-category-input')).not.toBeInTheDocument();
@@ -354,7 +373,7 @@ test('edit modal does not contain a Category field and onSaveEdit PATCHes withou
   userEvent.click(saveBtn);
 
   await waitFor(() => expect(updateSpy).toHaveBeenCalledTimes(1));
-  expect(updateSpy).toHaveBeenCalledWith('1', {
+  expect(updateSpy).toHaveBeenCalledWith('uuid-1', {
     name: 'New Name',
     folder: 'new-folder',
     tags: ['alpha', 'beta', 'gamma'],
@@ -366,6 +385,7 @@ test('clicking the preview icon opens the preview modal and renders an image for
     json: [
       {
         id: '1',
+        uuid: 'uuid-1',
         name: 'A photo',
         file_name: 'photo.png',
         category: 'image',
@@ -379,13 +399,34 @@ test('clicking the preview icon opens the preview modal and renders an image for
   });
 
   await screen.findByText('photo.png');
-  userEvent.click(screen.getByTestId('preview-file-1'));
+  userEvent.click(screen.getByTestId('preview-file-uuid-1'));
 
   const image = await screen.findByTestId('preview-file-image');
   expect(image).toHaveAttribute(
     'src',
-    expect.stringContaining('/fileuploader/api/files/1/content'),
+    expect.stringContaining('/fileuploader/api/files/uuid-1/content'),
   );
+});
+
+test('UUID column renders the truncated uuid for each file row', async () => {
+  jest.spyOn(SupersetClient, 'get').mockResolvedValueOnce({
+    json: [
+      {
+        id: '1',
+        uuid: 'abcdef12-0000-0000-0000-000000000001',
+        name: 'A doc',
+        file_name: 'a.pdf',
+        category: 'doc',
+      },
+    ],
+  } as any);
+  render(<FileUploader />, {
+    useRedux: true,
+    initialState: { user: roleWith(['can_view']) },
+  });
+  await screen.findByText('a.pdf');
+  // The UUID column renders the first 8 chars followed by an ellipsis
+  expect(screen.getByTitle('abcdef12-0000-0000-0000-000000000001')).toBeInTheDocument();
 });
 
 test('onUpload shows the validation error inside the modal and keeps it open on failure', async () => {

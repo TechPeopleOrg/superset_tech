@@ -49,7 +49,7 @@ import {
 } from './api';
 
 interface EditState {
-  id: string;
+  uuid: string;
   name: string;
   folder: string;
   tags: string;
@@ -253,7 +253,7 @@ export default function FileUploader() {
 
   const openEditModal = (file: StorageFile) => {
     setEditState({
-      id: file.id,
+      uuid: file.uuid,
       name: file.name ?? file.file_name,
       folder: file.folder ?? '',
       tags: (file.tags ?? []).join(', '),
@@ -270,7 +270,7 @@ export default function FileUploader() {
         .split(',')
         .map(tag => tag.trim())
         .filter(Boolean);
-      await updateFile(editState.id, {
+      await updateFile(editState.uuid, {
         name: editState.name,
         folder: editState.folder,
         tags,
@@ -287,7 +287,7 @@ export default function FileUploader() {
       return;
     }
     try {
-      await deleteFile(deleteTarget.id);
+      await deleteFile(deleteTarget.uuid);
       setDeleteError(null);
       setDeleteTarget(null);
       await loadFiles();
@@ -316,6 +316,19 @@ export default function FileUploader() {
       dataIndex: 'name',
       key: 'name',
       render: (value: string, file: StorageFile) => value ?? file.file_name,
+    },
+    {
+      title: t('UUID'),
+      dataIndex: 'uuid',
+      key: 'uuid',
+      render: (value: string) => (
+        <span
+          title={value}
+          style={{ fontFamily: 'monospace', fontSize: '0.85em' }}
+        >
+          {value ? `${value.slice(0, 8)}…` : ''}
+        </span>
+      ),
     },
     {
       title: t('File name'),
@@ -352,7 +365,7 @@ export default function FileUploader() {
       <StyledActions className="actions">
         <Tooltip id="preview-action-tooltip" title={t('Preview')}>
           <span
-            data-test={`preview-file-${file.id}`}
+            data-test={`preview-file-${file.uuid}`}
             role="button"
             tabIndex={0}
             className="action-button"
@@ -364,7 +377,7 @@ export default function FileUploader() {
         {canEdit(user) && (
           <Tooltip id="edit-action-tooltip" title={t('Edit')}>
             <span
-              data-test={`edit-file-${file.id}`}
+              data-test={`edit-file-${file.uuid}`}
               role="button"
               tabIndex={0}
               className="action-button"
@@ -377,7 +390,7 @@ export default function FileUploader() {
         {canDelete(user) && (
           <Tooltip id="delete-action-tooltip" title={t('Delete')}>
             <span
-              data-test={`delete-file-${file.id}`}
+              data-test={`delete-file-${file.uuid}`}
               role="button"
               tabIndex={0}
               className="action-button"
@@ -427,7 +440,7 @@ export default function FileUploader() {
         )}
         {!error && (
           <Table<StorageFile>
-            rowKey="id"
+            rowKey="uuid"
             columns={columns}
             data={files}
             loading={loading}
@@ -595,7 +608,7 @@ export default function FileUploader() {
             >
               <img
                 data-test="preview-file-image"
-                src={fileContentUrl(previewTarget.id)}
+                src={fileContentUrl(previewTarget.uuid)}
                 alt={previewTarget.name ?? previewTarget.file_name}
                 style={{
                   width: '100%',
@@ -619,7 +632,7 @@ export default function FileUploader() {
                 buttonStyle="link"
                 onClick={() =>
                   window.open(
-                    fileContentUrl(previewTarget.id),
+                    fileContentUrl(previewTarget.uuid),
                     '_blank',
                     'noopener,noreferrer',
                   )

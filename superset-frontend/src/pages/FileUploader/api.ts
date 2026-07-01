@@ -20,6 +20,7 @@ import { SupersetClient } from '@superset-ui/core';
 
 export interface StorageFile {
   id: string;
+  uuid: string;
   name: string;
   file_name: string;
   category?: string;
