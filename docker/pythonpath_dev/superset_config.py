@@ -120,6 +120,13 @@ WEBDRIVER_BASEURL_USER_FRIENDLY = (
 )
 SQLLAB_CTAS_NO_LIMIT = True
 
+
+BABEL_DEFAULT_LOCALE = "ru"
+LANGUAGES = {
+    "ru": {"flag": "ru", "name": "Russian"},
+    "en": {"flag": "us", "name": "English"},
+}
+
 log_level_text = os.getenv("SUPERSET_LOG_LEVEL", "INFO")
 LOG_LEVEL = getattr(logging, log_level_text.upper(), logging.INFO)
 
