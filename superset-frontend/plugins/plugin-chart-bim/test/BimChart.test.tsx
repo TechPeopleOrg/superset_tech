@@ -48,3 +48,17 @@ test('shows an error alert with retry on failure', () => {
   render(<BimChart {...baseProps()} />);
   expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
 });
+
+test('3D container div is always present in DOM regardless of state', () => {
+  // Verify container exists when modelUrl is empty
+  jest.spyOn(viewerHook, 'default').mockReturnValue({ loading: false });
+  const { rerender } = render(<BimChart {...baseProps({ modelUrl: '' })} />);
+  expect(document.querySelector('[data-test="bim-container"]')).toBeInTheDocument();
+
+  // Verify container still exists when hook returns an error
+  jest
+    .spyOn(viewerHook, 'default')
+    .mockReturnValue({ loading: false, error: 'Connection failed' });
+  rerender(<BimChart {...baseProps()} />);
+  expect(document.querySelector('[data-test="bim-container"]')).toBeInTheDocument();
+});

@@ -54,7 +54,7 @@ export default function BimChart(props: BimChartProps) {
 
   return (
     <Container style={{ width, height, background: backgroundColor }}>
-      <div ref={containerRef} style={{ width, height }} />
+      <div ref={containerRef} style={{ width, height }} data-test="bim-container" />
       {!modelUrl && (
         <Center>{t('Select a model column with a model UUID.')}</Center>
       )}
