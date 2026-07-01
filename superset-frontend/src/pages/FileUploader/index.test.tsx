@@ -410,26 +410,6 @@ test('clicking the preview icon opens the preview modal and renders an image for
   );
 });
 
-test('UUID column renders the truncated uuid for each file row', async () => {
-  jest.spyOn(SupersetClient, 'get').mockResolvedValueOnce({
-    json: [
-      {
-        id: '1',
-        uuid: 'abcdef12-0000-0000-0000-000000000001',
-        name: 'A doc',
-        file_name: 'a.pdf',
-        category: 'doc',
-      },
-    ],
-  } as any);
-  render(<FileUploader />, {
-    useRedux: true,
-    initialState: { user: roleWith(['can_view']) },
-  });
-  await screen.findByText('a.pdf');
-  // The UUID column renders the first 8 chars followed by an ellipsis
-  expect(screen.getByTitle('abcdef12-0000-0000-0000-000000000001')).toBeInTheDocument();
-});
 
 test('onUpload shows the validation error inside the modal and keeps it open on failure', async () => {
   jest.spyOn(SupersetClient, 'get').mockResolvedValueOnce({ json: [] } as any);

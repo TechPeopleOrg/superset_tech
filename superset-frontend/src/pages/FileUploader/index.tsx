@@ -325,19 +325,6 @@ function FileUploader({ addSuccessToast, addDangerToast }: ToastProps) {
       render: (value: string, file: StorageFile) => value ?? file.file_name,
     },
     {
-      title: t('UUID'),
-      dataIndex: 'uuid',
-      key: 'uuid',
-      render: (value: string) => (
-        <span
-          title={value}
-          style={{ fontFamily: 'monospace', fontSize: '0.85em' }}
-        >
-          {value ? `${value.slice(0, 8)}…` : ''}
-        </span>
-      ),
-    },
-    {
       title: t('File name'),
       dataIndex: 'file_name',
       key: 'file_name',
