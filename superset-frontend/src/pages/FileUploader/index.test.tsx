@@ -30,6 +30,8 @@ import { canUpload, canDelete } from './permissions';
 import FileUploader from './index';
 import * as api from './api';
 
+jest.mock('src/utils/copy', () => jest.fn(() => Promise.resolve()));
+
 const roleWith = (
   perms: string[],
 ): Pick<UserWithPermissionsAndRoles, 'roles'> => ({
@@ -451,4 +453,33 @@ test('onUpload shows the validation error inside the modal and keeps it open on 
   // modal stays open so the user can fix the category and retry
   expect(screen.getByText('Upload file')).toBeInTheDocument();
   expect(uploadModalPrimaryBtn).toBeInTheDocument();
+});
+
+test('clicking the copy-uuid button calls copyTextToClipboard with the file uuid', async () => {
+  const copyMock = jest.requireMock('src/utils/copy') as jest.Mock;
+  copyMock.mockClear();
+
+  jest.spyOn(SupersetClient, 'get').mockResolvedValueOnce({
+    json: [
+      {
+        id: '1',
+        uuid: 'abcdef12-0000-0000-0000-000000000099',
+        name: 'A doc',
+        file_name: 'a.pdf',
+        category: 'doc',
+      },
+    ],
+  } as any);
+  render(<FileUploader />, {
+    useRedux: true,
+    initialState: { user: roleWith(['can_view']) },
+  });
+
+  await screen.findByText('a.pdf');
+  userEvent.click(screen.getByTestId('copy-uuid-abcdef12-0000-0000-0000-000000000099'));
+
+  await waitFor(() => expect(copyMock).toHaveBeenCalledTimes(1));
+  // The first argument is a getter function; calling it should return the uuid
+  const getter = copyMock.mock.calls[0][0] as () => Promise<string>;
+  await expect(getter()).resolves.toBe('abcdef12-0000-0000-0000-000000000099');
 });

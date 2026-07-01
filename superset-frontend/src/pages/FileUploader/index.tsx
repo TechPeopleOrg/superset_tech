@@ -22,6 +22,8 @@ import { t } from '@apache-superset/core/translation';
 import { Alert } from '@apache-superset/core/components';
 import { getClientErrorObject } from '@superset-ui/core';
 import { css, styled } from '@apache-superset/core/theme';
+import copyTextToClipboard from 'src/utils/copy';
+import withToasts from 'src/components/MessageToasts/withToasts';
 import {
   Button,
   DeleteModal,
@@ -47,6 +49,11 @@ import {
   deleteFile,
   fileContentUrl,
 } from './api';
+
+interface ToastProps {
+  addSuccessToast: (msg: string) => void;
+  addDangerToast: (msg: string) => void;
+}
 
 interface EditState {
   uuid: string;
@@ -165,7 +172,7 @@ async function extractErrorMessage(err: unknown): Promise<string> {
   );
 }
 
-export default function FileUploader() {
+function FileUploader({ addSuccessToast, addDangerToast }: ToastProps) {
   const user = useSelector((state: RootState) => state.user);
   const hasView = canView(user);
 
@@ -363,6 +370,21 @@ export default function FileUploader() {
     key: 'actions',
     render: (_: unknown, file: StorageFile) => (
       <StyledActions className="actions">
+        <Tooltip id="copy-uuid-action-tooltip" title={t('Copy UUID')}>
+          <span
+            data-test={`copy-uuid-${file.uuid}`}
+            role="button"
+            tabIndex={0}
+            className="action-button"
+            onClick={() => {
+              copyTextToClipboard(() => Promise.resolve(file.uuid))
+                .then(() => addSuccessToast(t('UUID copied to clipboard')))
+                .catch(() => addDangerToast(t('Could not copy UUID')));
+            }}
+          >
+            <Icons.CopyOutlined iconSize="l" />
+          </span>
+        </Tooltip>
         <Tooltip id="preview-action-tooltip" title={t('Preview')}>
           <span
             data-test={`preview-file-${file.uuid}`}
@@ -647,3 +669,5 @@ export default function FileUploader() {
     </div>
   );
 }
+
+export default withToasts(FileUploader);
