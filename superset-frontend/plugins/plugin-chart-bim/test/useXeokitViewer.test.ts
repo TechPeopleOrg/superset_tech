@@ -112,3 +112,34 @@ test('api.showAll makes everything visible', async () => {
     door: true,
   });
 });
+
+test('tree and api reset to undefined when modelUrl changes', async () => {
+  const ref = createRef<HTMLDivElement>();
+  (ref as { current: HTMLDivElement }).current = document.createElement('div');
+
+  const { result, rerender } = renderHook(
+    ({ url }: { url: string }) =>
+      useXeokitViewer(ref, { modelUrl: url }),
+    { initialProps: { url: '/model-a' } },
+  );
+
+  // Wait for first load to register the 'loaded' callback, then fire it.
+  await waitFor(() => expect(loadedCb).toBeDefined());
+  act(() => loadedCb!());
+  await waitFor(() => expect(result.current.tree).toBeDefined());
+  await waitFor(() => expect(result.current.api).toBeDefined());
+
+  // Change modelUrl — cleanup runs, state resets to { loading: true }.
+  loadedCb = undefined;
+  rerender({ url: '/model-b' });
+
+  // Before the new 'loaded' event fires, tree must be undefined (reset by
+  // the effect initialisation). This assertion fails if cleanup omits the
+  // state reset on re-mount.
+  await waitFor(() => expect(result.current.tree).toBeUndefined());
+
+  // After the new 'loaded' fires, tree is populated again.
+  await waitFor(() => expect(loadedCb).toBeDefined());
+  act(() => loadedCb!());
+  await waitFor(() => expect(result.current.tree).toBeDefined());
+});

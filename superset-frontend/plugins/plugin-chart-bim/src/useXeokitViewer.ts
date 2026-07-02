@@ -95,6 +95,10 @@ export default function useXeokitViewer(
         const scene = viewer.scene as unknown as {
           objects: Record<string, { visible: boolean }>;
         };
+        // api is declared before the 'loaded' handler so the handler closes
+        // over it. This makes the final setState in 'loaded' atomic regardless
+        // of whether the event fires synchronously (inside loader.load) or
+        // asynchronously after the await.
         const api: XeokitApi = {
           setVisible: (ids, visible) => {
             ids.forEach(id => {
@@ -158,16 +162,28 @@ export default function useXeokitViewer(
           const metaScene = viewer.metaScene as unknown as {
             metaObjects: Record<string, MetaObjectLike>;
           };
-          const mObjects = metaScene?.metaObjects ?? {};
+          // No optional chain: metaScene is cast above and always defined here.
+          const mObjects = metaScene.metaObjects ?? {};
           const roots = buildTree(mObjects);
+          // A single functional update sets loading, api, and tree atomically.
+          // This is safe whether 'loaded' fires synchronously (inside
+          // loader.load below) or asynchronously: api is captured by closure
+          // and the spread merges whatever state existed before.
           setState(prev => ({
             ...prev,
+            loading: false,
+            api,
             tree: roots.length ? roots : undefined,
           }));
         });
 
         if (cancelled) return;
-        setState({ loading: false, api });
+        // Expose api immediately after loader.load() returns so callers can
+        // call visibility methods before the 'loaded' event fires. The
+        // 'loaded' handler re-applies api (from closure) alongside tree and
+        // loading:false in a single update, keeping state consistent whether
+        // 'loaded' fires synchronously or asynchronously.
+        setState(prev => ({ ...prev, api }));
       } catch (err) {
         if (cancelled) return;
         setState({
