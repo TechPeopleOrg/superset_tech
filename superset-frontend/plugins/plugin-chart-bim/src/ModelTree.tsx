@@ -130,18 +130,25 @@ function topLevelIds(nodes: TreeNode[]): string[] {
   return nodes.filter(n => n.children.length).map(n => n.id);
 }
 
-function toAntdNodes(nodes: TreeNode[]): TreeDataNode[] {
+function toAntdNodes(
+  nodes: TreeNode[],
+  onSelectNode: (id: string) => void,
+): TreeDataNode[] {
   return nodes.map(n => ({
     key: n.id,
     // Render name as its own text node so RTL getByText('Wall A') matches it
-    // directly, then append the IFC type as smaller secondary text.
+    // directly, then append the IFC type as smaller secondary text. Clicking the
+    // label selects the node directly, so Isolate works regardless of whether
+    // antd's own onSelect fires through the custom title / virtualized rows.
     title: (
-      <span>
+      <span onClick={() => onSelectNode(n.id)}>
         {n.name}
         {n.type ? <NodeType>{n.type}</NodeType> : null}
       </span>
     ),
-    children: n.children.length ? toAntdNodes(n.children) : undefined,
+    children: n.children.length
+      ? toAntdNodes(n.children, onSelectNode)
+      : undefined,
   }));
 }
 
@@ -225,7 +232,10 @@ export default function ModelTree({
     () => (tree ? filterTree(tree, query) : []),
     [tree, query],
   );
-  const antdData = useMemo(() => toAntdNodes(filtered), [filtered]);
+  const antdData = useMemo(
+    () => toAntdNodes(filtered, setSelected),
+    [filtered],
+  );
 
   // With no search, collapse to the top level. With a search, expand every
   // branch of the filtered tree so matches are visible.
@@ -315,6 +325,7 @@ export default function ModelTree({
             treeData={antdData}
             checkedKeys={checkedKeys}
             expandedKeys={expandedKeys}
+            selectedKeys={selected ? [selected] : []}
             onExpand={keys => setExpandedKeys(keys as string[])}
             onCheck={onCheck}
             onSelect={keys => setSelected(keys[0] as string | undefined)}
