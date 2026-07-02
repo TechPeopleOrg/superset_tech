@@ -62,3 +62,24 @@ test('3D container div is always present in DOM regardless of state', () => {
   rerender(<BimChart {...baseProps()} />);
   expect(document.querySelector('[data-test="bim-container"]')).toBeInTheDocument();
 });
+
+test('renders the model tree toggle once a model is present', () => {
+  jest.spyOn(viewerHook, 'default').mockReturnValue({
+    loading: false,
+    tree: [{ id: 'a', name: 'A', type: 'IfcWall', children: [] }],
+    api: {
+      setVisible: jest.fn(),
+      isolate: jest.fn(),
+      showAll: jest.fn(),
+      getVisibility: jest.fn().mockReturnValue({}),
+    },
+  });
+  render(<BimChart {...baseProps()} />);
+  expect(screen.getByTestId('model-tree-toggle')).toBeInTheDocument();
+});
+
+test('does not render the model tree when there is no model URL', () => {
+  jest.spyOn(viewerHook, 'default').mockReturnValue({ loading: false });
+  render(<BimChart {...baseProps({ modelUrl: '' })} />);
+  expect(screen.queryByTestId('model-tree-toggle')).not.toBeInTheDocument();
+});

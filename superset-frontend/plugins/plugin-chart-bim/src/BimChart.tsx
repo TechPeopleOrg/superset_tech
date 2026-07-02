@@ -22,6 +22,7 @@ import { styled } from '@apache-superset/core/theme';
 import { Alert } from '@apache-superset/core/components';
 import { Button, Loading } from '@superset-ui/core/components';
 import useXeokitViewer from './useXeokitViewer';
+import ModelTree from './ModelTree';
 import { BimChartProps } from './types';
 
 const Container = styled.div`
@@ -47,7 +48,7 @@ export default function BimChart(props: BimChartProps) {
   // Bump to force the hook effect to re-run on retry without changing modelUrl.
   const [retryKey, setRetryKey] = useState(0);
 
-  const { loading, error } = useXeokitViewer(containerRef, {
+  const { loading, error, tree, api } = useXeokitViewer(containerRef, {
     modelUrl: modelUrl ? `${modelUrl}#${retryKey}` : '',
     backgroundColor,
     showEdges,
@@ -57,6 +58,9 @@ export default function BimChart(props: BimChartProps) {
   return (
     <Container style={{ width, height, background: backgroundColor }}>
       <div ref={containerRef} style={{ width, height }} data-test="bim-container" />
+      {modelUrl && !loading && !error && api && (
+        <ModelTree tree={tree} api={api} />
+      )}
       {!modelUrl && (
         <Center>{t('Select a model column with a model UUID.')}</Center>
       )}
