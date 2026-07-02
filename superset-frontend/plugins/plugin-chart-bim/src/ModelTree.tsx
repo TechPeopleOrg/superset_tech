@@ -16,13 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useEffect, useMemo, useState } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from 'react';
 import { t } from '@apache-superset/core/translation';
 import { styled } from '@apache-superset/core/theme';
 import { Button, Input, Tree, type TreeDataNode } from '@superset-ui/core/components';
 import { TreeNode, XeokitApi } from './types';
 
-const PANEL_WIDTH = 280;
+const DEFAULT_PANEL_WIDTH = 280;
+const MIN_PANEL_WIDTH = 200;
+const MAX_PANEL_WIDTH = 600;
+// Height budget for the virtualized tree list. antd Tree virtualizes its rows
+// when a numeric `height` is set, so only visible rows hit the DOM — this is
+// what keeps large models (thousands of elements) from freezing the browser.
+const TREE_HEIGHT = 480;
 
 const Wrap = styled.div`
   position: absolute;
@@ -33,11 +44,11 @@ const Wrap = styled.div`
   pointer-events: none;
 `;
 
-const Panel = styled.div<{ open: boolean }>`
+const Panel = styled.div<{ open: boolean; width: number }>`
   position: absolute;
   top: 0;
   left: 0;
-  width: ${PANEL_WIDTH}px;
+  width: ${({ width }) => width}px;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -45,16 +56,31 @@ const Panel = styled.div<{ open: boolean }>`
   padding: ${({ theme }) => theme.sizeUnit * 2}px;
   background: ${({ theme }) => theme.colorBgContainer};
   border-right: 1px solid ${({ theme }) => theme.colorBorder};
-  overflow: auto;
+  overflow: hidden;
   pointer-events: auto;
-  transform: translateX(${({ open }) => (open ? '0' : `-${PANEL_WIDTH}px`)});
+  transform: translateX(${({ open, width }) => (open ? '0' : `-${width}px`)});
   transition: transform 200ms ease;
 `;
 
-const Toggle = styled.button<{ open: boolean }>`
+// Draggable strip on the panel's right edge; drag to resize the panel width.
+const ResizeHandle = styled.div`
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: ${({ theme }) => theme.sizeUnit}px;
+  height: 100%;
+  cursor: col-resize;
+  pointer-events: auto;
+  background: transparent;
+  &:hover {
+    background: ${({ theme }) => theme.colorBorder};
+  }
+`;
+
+const Toggle = styled.button<{ open: boolean; width: number }>`
   position: absolute;
   top: 50%;
-  left: ${({ open }) => (open ? `${PANEL_WIDTH}px` : '0')};
+  left: ${({ open, width }) => (open ? `${width}px` : '0')};
   transform: translateY(-50%);
   z-index: 11;
   pointer-events: auto;
@@ -88,6 +114,20 @@ const NodeType = styled.small`
 function collectLeafIds(node: TreeNode): string[] {
   if (node.children.length === 0) return [node.id];
   return node.children.flatMap(collectLeafIds);
+}
+
+// Ids of every node that has children — used to expand all matches while a
+// search is active (collapsed branches would hide the matched descendants).
+function collectParentIds(nodes: TreeNode[]): string[] {
+  return nodes.flatMap(n =>
+    n.children.length ? [n.id, ...collectParentIds(n.children)] : [],
+  );
+}
+
+// Ids of only the top level, so the tree opens collapsed to roots by default
+// instead of rendering every descendant at once.
+function topLevelIds(nodes: TreeNode[]): string[] {
+  return nodes.filter(n => n.children.length).map(n => n.id);
 }
 
 function toAntdNodes(nodes: TreeNode[]): TreeDataNode[] {
@@ -138,6 +178,28 @@ export default function ModelTree({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<string | undefined>();
+  const [width, setWidth] = useState(DEFAULT_PANEL_WIDTH);
+  // Controlled expansion so the tree starts collapsed to its top level and
+  // auto-expands to reveal matches while a search query is active.
+  const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
+
+  // Drag the right-edge handle to resize the panel. Listeners are attached to
+  // the window during the drag so the pointer can leave the handle.
+  const startResize = (e: ReactMouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = width;
+    const onMove = (move: MouseEvent) => {
+      const next = startWidth + (move.clientX - startX);
+      setWidth(Math.min(MAX_PANEL_WIDTH, Math.max(MIN_PANEL_WIDTH, next)));
+    };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
 
   const allLeafIds = useMemo(
     () => (tree ? tree.flatMap(collectLeafIds) : []),
@@ -164,6 +226,16 @@ export default function ModelTree({
     [tree, query],
   );
   const antdData = useMemo(() => toAntdNodes(filtered), [filtered]);
+
+  // With no search, collapse to the top level. With a search, expand every
+  // branch of the filtered tree so matches are visible.
+  useEffect(() => {
+    if (query.trim()) {
+      setExpandedKeys(collectParentIds(filtered));
+    } else {
+      setExpandedKeys(topLevelIds(filtered));
+    }
+  }, [query, filtered]);
 
   // Re-read visibility from the scene and update the checkbox state to match.
   // Uses the FULL tree (allLeafIds), not the filtered subset, because showAll
@@ -201,7 +273,7 @@ export default function ModelTree({
 
   return (
     <Wrap>
-      <Panel open={open} data-test="model-tree-panel">
+      <Panel open={open} width={width} data-test="model-tree-panel">
         <Input
           placeholder={t('Search')}
           value={query}
@@ -239,9 +311,11 @@ export default function ModelTree({
             checkable
             checkStrictly={false}
             selectable
-            defaultExpandAll
+            height={TREE_HEIGHT}
             treeData={antdData}
             checkedKeys={checkedKeys}
+            expandedKeys={expandedKeys}
+            onExpand={keys => setExpandedKeys(keys as string[])}
             onCheck={onCheck}
             onSelect={keys => setSelected(keys[0] as string | undefined)}
           />
@@ -250,9 +324,14 @@ export default function ModelTree({
             {t('No element hierarchy available for this model.')}
           </Empty>
         ) : null}
+        <ResizeHandle
+          data-test="model-tree-resize"
+          onMouseDown={startResize}
+        />
       </Panel>
       <Toggle
         open={open}
+        width={width}
         data-test="model-tree-toggle"
         aria-label={t('Toggle element tree')}
         onClick={() => setOpen(o => !o)}

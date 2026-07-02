@@ -30,12 +30,17 @@ test('returns [] for empty metadata', () => {
   expect(buildTree({})).toEqual([]);
 });
 
-test('builds a containment hierarchy from parent links', () => {
+test('builds a containment hierarchy from parent object references', () => {
   const tree = buildTree(
     meta([
       { id: 'proj', name: 'Project', type: 'IfcProject' },
-      { id: 'storey', name: 'Level 1', type: 'IfcBuildingStorey', parent: 'proj' },
-      { id: 'wall', name: 'Wall A', type: 'IfcWall', parent: 'storey' },
+      {
+        id: 'storey',
+        name: 'Level 1',
+        type: 'IfcBuildingStorey',
+        parent: { id: 'proj' },
+      },
+      { id: 'wall', name: 'Wall A', type: 'IfcWall', parent: { id: 'storey' } },
     ]),
   );
   expect(tree).toEqual([
@@ -63,6 +68,46 @@ test('falls back name->id and type->empty when missing', () => {
 });
 
 test('treats an object with an unknown parent as a root', () => {
-  const tree = buildTree(meta([{ id: 'orphan', parent: 'ghost' }]));
+  const tree = buildTree(meta([{ id: 'orphan', parent: { id: 'ghost' } }]));
   expect(tree.map(n => n.id)).toEqual(['orphan']);
+});
+
+test('keeps container nodes on the path to geometry, prunes the rest', () => {
+  const tree = buildTree(
+    meta([
+      { id: 'proj', name: 'Project', type: 'IfcProject' },
+      { id: 'storey', name: 'Level 1', parent: { id: 'proj' } },
+      { id: 'wall', name: 'Wall A', parent: { id: 'storey' } },
+      // Property set: metadata only, no geometry, must be pruned.
+      { id: 'pset', name: 'Pset_Common', parent: { id: 'wall' } },
+    ]),
+    new Set(['wall']),
+  );
+  // proj > storey kept because they lead to the geometric wall; pset dropped.
+  expect(tree).toEqual([
+    {
+      id: 'proj',
+      name: 'Project',
+      type: 'IfcProject',
+      children: [
+        {
+          id: 'storey',
+          name: 'Level 1',
+          type: '',
+          children: [{ id: 'wall', name: 'Wall A', type: '', children: [] }],
+        },
+      ],
+    },
+  ]);
+});
+
+test('prunes a whole branch that has no geometry', () => {
+  const tree = buildTree(
+    meta([
+      { id: 'proj', name: 'Project' },
+      { id: 'ghostStorey', name: 'Empty', parent: { id: 'proj' } },
+    ]),
+    new Set<string>(),
+  );
+  expect(tree).toEqual([]);
 });

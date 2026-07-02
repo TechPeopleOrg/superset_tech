@@ -164,7 +164,11 @@ export default function useXeokitViewer(
           };
           // No optional chain: metaScene is cast above and always defined here.
           const mObjects = metaScene.metaObjects ?? {};
-          const roots = buildTree(mObjects);
+          // Only elements with an entity in the scene carry geometry; restrict
+          // the tree to those (plus their container ancestors) so it does not
+          // list property sets / metadata-only nodes the user cannot toggle.
+          const geometryIds = new Set(Object.keys(scene.objects));
+          const roots = buildTree(mObjects, geometryIds);
           // A single functional update sets loading, api, and tree atomically.
           // This is safe whether 'loaded' fires synchronously (inside
           // loader.load below) or asynchronously: api is captured by closure

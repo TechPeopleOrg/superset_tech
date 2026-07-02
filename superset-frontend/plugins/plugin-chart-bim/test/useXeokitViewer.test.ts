@@ -30,8 +30,8 @@ const objects: Record<string, { visible: boolean }> = {
 
 const metaObjects = {
   proj: { id: 'proj', name: 'Project', type: 'IfcProject' },
-  wall: { id: 'wall', name: 'Wall', type: 'IfcWall', parent: 'proj' },
-  door: { id: 'door', name: 'Door', type: 'IfcDoor', parent: 'proj' },
+  wall: { id: 'wall', name: 'Wall', type: 'IfcWall', parent: { id: 'proj' } },
+  door: { id: 'door', name: 'Door', type: 'IfcDoor', parent: { id: 'proj' } },
 };
 
 jest.mock('@xeokit/xeokit-sdk', () => ({
