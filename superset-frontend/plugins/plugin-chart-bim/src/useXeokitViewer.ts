@@ -17,6 +17,8 @@
  * under the License.
  */
 import { RefObject, useEffect, useState } from 'react';
+import buildTree, { MetaObjectLike } from './buildTree';
+import { TreeNode, XeokitApi } from './types';
 
 export type NavMode = 'orbit' | 'firstPerson' | 'planView';
 
@@ -34,6 +36,8 @@ export interface UseXeokitViewerOptions {
 export interface UseXeokitViewerState {
   loading: boolean;
   error?: string;
+  tree?: TreeNode[];
+  api?: XeokitApi;
 }
 
 // All xeokit access is isolated here. The engine is dynamically imported so its
@@ -88,6 +92,36 @@ export default function useXeokitViewer(
         cc.navMode = navMode;
         cc.followPointer = navMode !== 'firstPerson';
 
+        const scene = viewer.scene as unknown as {
+          objects: Record<string, { visible: boolean }>;
+        };
+        const api: XeokitApi = {
+          setVisible: (ids, visible) => {
+            ids.forEach(id => {
+              const obj = scene.objects[id];
+              if (obj) obj.visible = visible;
+            });
+          },
+          isolate: ids => {
+            const show = new Set(ids);
+            Object.keys(scene.objects).forEach(id => {
+              scene.objects[id].visible = show.has(id);
+            });
+          },
+          showAll: () => {
+            Object.keys(scene.objects).forEach(id => {
+              scene.objects[id].visible = true;
+            });
+          },
+          getVisibility: () => {
+            const out: Record<string, boolean> = {};
+            Object.keys(scene.objects).forEach(id => {
+              out[id] = scene.objects[id].visible;
+            });
+            return out;
+          },
+        };
+
         const loader = new XKTLoaderPlugin(viewer);
         model = loader.load({ id: 'bim-model', src: modelUrl, edges: showEdges });
 
@@ -121,10 +155,19 @@ export default function useXeokitViewer(
           } catch {
             // camera not ready; ignore.
           }
+          const metaScene = viewer.metaScene as unknown as {
+            metaObjects: Record<string, MetaObjectLike>;
+          };
+          const mObjects = metaScene?.metaObjects ?? {};
+          const roots = buildTree(mObjects);
+          setState(prev => ({
+            ...prev,
+            tree: roots.length ? roots : undefined,
+          }));
         });
 
         if (cancelled) return;
-        setState({ loading: false });
+        setState({ loading: false, api });
       } catch (err) {
         if (cancelled) return;
         setState({
