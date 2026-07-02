@@ -81,7 +81,7 @@ const Empty = styled.div`
 const NodeType = styled.small`
   color: ${({ theme }) => theme.colorTextTertiary};
   font-size: 0.8em;
-  margin-left: 4px;
+  margin-left: ${({ theme }) => theme.sizeUnit}px;
 `;
 
 // A leaf is a node with no children. Return the leaf ids reachable from `node`.
@@ -165,6 +165,18 @@ export default function ModelTree({
   );
   const antdData = useMemo(() => toAntdNodes(filtered), [filtered]);
 
+  // Re-read visibility from the scene and update the checkbox state to match.
+  // Uses the FULL tree (allLeafIds), not the filtered subset, because showAll
+  // and isolate are scene-global operations — they can affect elements that are
+  // currently invisible in the search filter. In contrast, onCheck (below)
+  // intentionally limits its scope to the filtered view so that toggling a node
+  // does not accidentally mutate elements that are hidden by the search query.
+  const syncFromScene = () => {
+    if (!api) return;
+    const vis = api.getVisibility();
+    setCheckedKeys(allLeafIds.filter(id => vis[id] !== false));
+  };
+
   const onCheck = (rawCheckedKeys: unknown) => {
     if (!api || !tree) return;
     const keys = Array.isArray(rawCheckedKeys)
@@ -197,7 +209,14 @@ export default function ModelTree({
           allowClear
         />
         <Controls>
-          <Button buttonSize="small" disabled={!api} onClick={() => api?.showAll()}>
+          <Button
+            buttonSize="small"
+            disabled={!api}
+            onClick={() => {
+              api?.showAll();
+              syncFromScene();
+            }}
+          >
             {t('Show all')}
           </Button>
           <Button
@@ -206,7 +225,10 @@ export default function ModelTree({
             onClick={() => {
               if (!api || !tree || !selected) return;
               const node = findNode(tree, selected);
-              if (node) api.isolate(collectLeafIds(node));
+              if (node) {
+                api.isolate(collectLeafIds(node));
+                syncFromScene();
+              }
             }}
           >
             {t('Isolate')}
@@ -215,6 +237,7 @@ export default function ModelTree({
         {open && tree ? (
           <Tree
             checkable
+            checkStrictly={false}
             selectable
             defaultExpandAll
             treeData={antdData}

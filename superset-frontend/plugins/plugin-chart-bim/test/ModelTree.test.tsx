@@ -104,6 +104,61 @@ test('IFC type is shown as secondary text next to node name', async () => {
   expect(screen.getByText('IfcWall')).toBeInTheDocument();
 });
 
+// Regression: isolate must sync checkedKeys to match scene visibility.
+// Before the fix: api.isolate() changed scene state but checkedKeys was never
+// updated, so the tree showed all boxes checked even after isolating a subtree.
+// Strategy: mock getVisibility to return the post-isolate state (wall=true,
+// door=false), click Isolate on "Wall A", then verify that getVisibility was
+// called (syncFromScene ran) and the door checkbox lost its checked class.
+// DOM-class assertion is stable because antd consistently uses
+// .ant-tree-checkbox-checked for the checked state.
+test('after Isolate checkedKeys sync from scene — door checkbox becomes unchecked', async () => {
+  const api = makeApi();
+  // After isolate("wall"), the scene will report door as hidden.
+  (api.getVisibility as jest.Mock).mockReturnValue({ wall: true, door: false });
+  render(<ModelTree tree={tree} api={api} />);
+  await userEvent.click(screen.getByTestId('model-tree-toggle'));
+
+  // Select "Wall A" and click Isolate.
+  await userEvent.click(screen.getByText('Wall A'));
+  await userEvent.click(screen.getByRole('button', { name: /isolate/i }));
+
+  // syncFromScene must have called getVisibility after the isolate.
+  // The initial render also calls it once, so we expect >= 2 calls.
+  expect(api.getVisibility).toHaveBeenCalledTimes(2);
+
+  // The door row must no longer carry the checked class because visibility
+  // was synced from the scene (getVisibility returned door=false).
+  const doorRow = screen.getByText('Door B').closest('.ant-tree-treenode');
+  expect(doorRow!.querySelector('.ant-tree-checkbox-checked')).toBeNull();
+});
+
+// Regression: showAll must sync checkedKeys to match scene visibility.
+// Before the fix: api.showAll() restored all elements in the scene but
+// checkedKeys remained stale — previously unchecked boxes stayed unchecked.
+// Strategy: pre-render with door=false (door unchecked), click Show all,
+// mock getVisibility to return all true for the sync call, then verify that
+// the door checkbox is checked again.
+test('after Show all checkedKeys sync from scene — all checkboxes become checked', async () => {
+  const api = makeApi();
+  // Initial state: door is hidden.
+  (api.getVisibility as jest.Mock).mockReturnValue({ wall: true, door: false });
+  render(<ModelTree tree={tree} api={api} />);
+  await userEvent.click(screen.getByTestId('model-tree-toggle'));
+
+  // Now switch the mock to return all visible (what showAll produces in scene).
+  (api.getVisibility as jest.Mock).mockReturnValue({ wall: true, door: true });
+  await userEvent.click(screen.getByRole('button', { name: /show all/i }));
+
+  // syncFromScene must have called getVisibility after showAll.
+  // Expect >= 2 calls (1 on mount + 1 after showAll).
+  expect(api.getVisibility).toHaveBeenCalledTimes(2);
+
+  // Both wall and door checkboxes must be checked after the sync.
+  const doorRow = screen.getByText('Door B').closest('.ant-tree-treenode');
+  expect(doorRow!.querySelector('.ant-tree-checkbox-checked')).not.toBeNull();
+});
+
 // Regression: unchecking a filtered node must not affect nodes outside the filter.
 // Before the fix: checking/unchecking in filtered view used allLeafIds, so
 // removing Wall A while searching "wall" would also hide Door B.
