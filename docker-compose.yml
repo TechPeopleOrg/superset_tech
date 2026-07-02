@@ -130,6 +130,12 @@ services:
       superset-init:
         condition: service_completed_successfully
     volumes: *superset-volumes
+    # `default` keeps db/redis/init reachable; `superset_shared` is the
+    # cross-compose network where the file-storage service lives, so the
+    # /fileuploader proxy can reach http://file-storage:8000 (otherwise 502).
+    networks:
+      - default
+      - superset_shared
 
   superset-websocket:
     build: ./superset-websocket
@@ -290,3 +296,10 @@ volumes:
     external: false
   superset_data:
     external: false
+
+networks:
+  # Shared with the file-storage compose stack so the /fileuploader proxy can
+  # reach the file-storage service by hostname. Created by that stack; declared
+  # external here so this compose joins it rather than recreating it.
+  superset_shared:
+    external: true
