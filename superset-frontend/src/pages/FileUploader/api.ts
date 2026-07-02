@@ -38,6 +38,20 @@ const BASE = '/fileuploader/api';
 // raw MinIO/presigned URL.
 export const fileContentUrl = (id: string) => `${BASE}/files/${id}/content`;
 
+// Trigger a browser download of a file's bytes. The proxy serves content with
+// an `inline` Content-Disposition, so we force a download client-side via a
+// temporary anchor with the `download` attribute (same-origin, so it honors
+// the suggested filename).
+export const downloadFile = (id: string, fileName: string): void => {
+  const link = document.createElement('a');
+  link.href = fileContentUrl(id);
+  link.download = fileName;
+  link.rel = 'noopener';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
 interface FileListEnvelope {
   items?: StorageFile[];
 }

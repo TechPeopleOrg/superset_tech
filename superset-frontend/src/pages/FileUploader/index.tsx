@@ -47,6 +47,7 @@ import {
   uploadFile,
   updateFile,
   deleteFile,
+  downloadFile,
   fileContentUrl,
 } from './api';
 
@@ -381,6 +382,19 @@ function FileUploader({ addSuccessToast, addDangerToast }: ToastProps) {
             onClick={() => setPreviewTarget(file)}
           >
             <Icons.EyeOutlined iconSize="l" />
+          </span>
+        </Tooltip>
+        {/* Download is part of the `view` permission, like preview, so it is
+            always shown for rows the user can already see. */}
+        <Tooltip id="download-action-tooltip" title={t('Download')}>
+          <span
+            data-test={`download-file-${file.uuid}`}
+            role="button"
+            tabIndex={0}
+            className="action-button"
+            onClick={() => downloadFile(file.uuid, file.file_name)}
+          >
+            <Icons.DownloadOutlined iconSize="l" />
           </span>
         </Tooltip>
         {canEdit(user) && (

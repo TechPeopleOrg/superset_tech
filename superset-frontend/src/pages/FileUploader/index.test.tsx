@@ -410,6 +410,38 @@ test('clicking the preview icon opens the preview modal and renders an image for
   );
 });
 
+test('clicking the download icon triggers a download of the file bytes', async () => {
+  jest.spyOn(SupersetClient, 'get').mockResolvedValueOnce({
+    json: [
+      {
+        id: '1',
+        uuid: 'uuid-1',
+        name: 'A model',
+        file_name: 'model.xkt',
+        category: 'bim',
+      },
+    ],
+  } as any);
+  // Capture the anchor the download helper creates and clicks.
+  const clickSpy = jest
+    .spyOn(HTMLAnchorElement.prototype, 'click')
+    .mockImplementation(() => {});
+  render(<FileUploader />, {
+    useRedux: true,
+    initialState: { user: roleWith(['can_view']) },
+  });
+
+  await screen.findByText('model.xkt');
+  const anchor = screen.getByTestId('download-file-uuid-1');
+  userEvent.click(anchor);
+
+  expect(clickSpy).toHaveBeenCalled();
+  const created = clickSpy.mock.instances[0] as unknown as HTMLAnchorElement;
+  expect(created.href).toContain('/fileuploader/api/files/uuid-1/content');
+  expect(created.download).toBe('model.xkt');
+  clickSpy.mockRestore();
+});
+
 
 test('onUpload shows the validation error inside the modal and keeps it open on failure', async () => {
   jest.spyOn(SupersetClient, 'get').mockResolvedValueOnce({ json: [] } as any);
