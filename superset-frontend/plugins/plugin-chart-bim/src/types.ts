@@ -58,3 +58,26 @@ export type BimChartProps = BimStylesProps & {
   showEdges?: boolean;
   navMode?: 'orbit' | 'firstPerson' | 'planView';
 };
+
+// A node in the model's IFC containment hierarchy, built from xeokit metadata.
+// `id` is the metaObject id, which equals the entity/objectId used to toggle
+// visibility in the scene.
+export interface TreeNode {
+  id: string;
+  name: string;
+  type: string;
+  children: TreeNode[];
+}
+
+// Imperative visibility controls over the live viewer. All xeokit access lives
+// behind this interface so the tree UI stays engine-agnostic.
+export interface XeokitApi {
+  // Show or hide the given objects.
+  setVisible(objectIds: string[], visible: boolean): void;
+  // Show only the given objects; hide everything else.
+  isolate(objectIds: string[]): void;
+  // Make every object visible again.
+  showAll(): void;
+  // Current visibility of every object, keyed by objectId.
+  getVisibility(): Record<string, boolean>;
+}
