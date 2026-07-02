@@ -18,10 +18,17 @@
  */
 import { RefObject, useEffect, useState } from 'react';
 
+export type NavMode = 'orbit' | 'firstPerson' | 'planView';
+
 export interface UseXeokitViewerOptions {
   modelUrl: string;
   backgroundColor?: string;
   showEdges?: boolean;
+  // xeokit CameraControl navigation mode. 'orbit' rotates around a pivot (good
+  // for inspecting a model from outside); 'firstPerson' rotates around the
+  // camera itself (walk-through / look-around from inside a room); 'planView'
+  // is a top-down style. Defaults to 'orbit'.
+  navMode?: NavMode;
 }
 
 export interface UseXeokitViewerState {
@@ -36,7 +43,7 @@ export default function useXeokitViewer(
   containerRef: RefObject<HTMLElement>,
   options: UseXeokitViewerOptions,
 ): UseXeokitViewerState {
-  const { modelUrl, showEdges } = options;
+  const { modelUrl, showEdges, navMode = 'orbit' } = options;
   const [state, setState] = useState<UseXeokitViewerState>({ loading: false });
 
   useEffect(() => {
@@ -47,8 +54,6 @@ export default function useXeokitViewer(
     }
 
     let cancelled = false;
-    // Kept mutable so cleanup can tear down whatever was created, even if the
-    // effect is cancelled mid-load.
     // Using `import()` return type inference avoids a hard dependency on the
     // xeokit type declarations while still keeping the code free of `any`.
     type XeokitModule = typeof import('@xeokit/xeokit-sdk');
@@ -68,10 +73,55 @@ export default function useXeokitViewer(
         const { Viewer, XKTLoaderPlugin } = await import('@xeokit/xeokit-sdk');
         if (cancelled) return;
 
-        // NOTE: backgroundColor is reserved and will be applied in the data-binding stage.
+        // NOTE: backgroundColor is reserved and will be applied in the
+        // data-binding stage.
         viewer = new Viewer({ canvasElement: canvas, transparent: false });
+
+        // Navigation mode. In 'orbit'/'planView' the camera rotates around a
+        // pivot and following the pointer keeps a model placed away from the
+        // world origin centered. In 'firstPerson' the camera rotates around
+        // itself (look-around from inside a room), so followPointer is off.
+        const cc = viewer.cameraControl as unknown as {
+          navMode?: string;
+          followPointer?: boolean;
+        };
+        cc.navMode = navMode;
+        cc.followPointer = navMode !== 'firstPerson';
+
         const loader = new XKTLoaderPlugin(viewer);
         model = loader.load({ id: 'bim-model', src: modelUrl, edges: showEdges });
+
+        // Once geometry is in, position the camera relative to the model's real
+        // world bounds (IFC/xkt models rarely sit at the origin).
+        const loadedModel = model as unknown as {
+          on?: (event: string, cb: () => void) => void;
+        };
+        loadedModel.on?.('loaded', () => {
+          if (cancelled || !viewer) return;
+          try {
+            const aabb = viewer.scene.aabb;
+            if (navMode === 'firstPerson') {
+              // Stand inside the model: place the eye at the center, looking
+              // toward one side, so rotation is a look-around in place.
+              const cx = (aabb[0] + aabb[3]) / 2;
+              const cy = (aabb[1] + aabb[4]) / 2;
+              const cz = (aabb[2] + aabb[5]) / 2;
+              const camera = viewer.camera as unknown as {
+                eye: number[];
+                look: number[];
+                up: number[];
+              };
+              camera.eye = [cx, cy, cz];
+              camera.look = [aabb[3], cy, cz];
+              camera.up = [0, 1, 0];
+            } else {
+              // Frame the whole model from outside.
+              viewer.cameraFlight.flyTo({ aabb });
+            }
+          } catch {
+            // camera not ready; ignore.
+          }
+        });
 
         if (cancelled) return;
         setState({ loading: false });
@@ -102,7 +152,7 @@ export default function useXeokitViewer(
   // change identity on every render but their `.current` is stable; including
   // the ref would cause infinite re-renders when using createRef() in tests.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modelUrl, showEdges]);
+  }, [modelUrl, showEdges, navMode]);
 
   return state;
 }

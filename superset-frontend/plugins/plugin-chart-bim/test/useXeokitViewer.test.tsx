@@ -28,8 +28,10 @@ const mockDestroyViewer = jest.fn();
 
 jest.mock('@xeokit/xeokit-sdk', () => ({
   Viewer: jest.fn().mockImplementation(() => ({
-    scene: { canvas: {}, clearLights: jest.fn() },
+    scene: { canvas: {}, clearLights: jest.fn(), aabb: [0, 0, 0, 1, 1, 1] },
     camera: {},
+    cameraFlight: { flyTo: jest.fn() },
+    cameraControl: {},
     destroy: mockDestroyViewer,
   })),
   XKTLoaderPlugin: jest.fn().mockImplementation(() => ({

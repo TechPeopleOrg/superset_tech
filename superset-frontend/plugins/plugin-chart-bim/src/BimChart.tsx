@@ -41,7 +41,8 @@ const Center = styled.div`
 `;
 
 export default function BimChart(props: BimChartProps) {
-  const { width, height, modelUrl, backgroundColor, showEdges } = props;
+  const { width, height, modelUrl, backgroundColor, showEdges, navMode } =
+    props;
   const containerRef = useRef<HTMLDivElement>(null);
   // Bump to force the hook effect to re-run on retry without changing modelUrl.
   const [retryKey, setRetryKey] = useState(0);
@@ -50,6 +51,7 @@ export default function BimChart(props: BimChartProps) {
     modelUrl: modelUrl ? `${modelUrl}#${retryKey}` : '',
     backgroundColor,
     showEdges,
+    navMode,
   });
 
   return (

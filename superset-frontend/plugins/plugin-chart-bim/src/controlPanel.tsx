@@ -31,6 +31,23 @@ const config: ControlPanelConfig = {
       expanded: true,
       controlSetRows: [
         [
+          // TEMPORARY (manual testing without a dataset): paste a model UUID
+          // here to load it directly; overrides the model column below. Remove
+          // once dataset-driven use is the norm.
+          {
+            name: 'model_uuid',
+            config: {
+              type: 'TextControl',
+              label: t('Model UUID (manual)'),
+              description: t(
+                'Paste a storage UUID to load a model directly, without a dataset. Overrides the model column.',
+              ),
+              default: '',
+              renderTrigger: true,
+            },
+          },
+        ],
+        [
           {
             name: 'model_column',
             config: {
@@ -50,8 +67,28 @@ const config: ControlPanelConfig = {
     },
     {
       label: t('Viewer'),
-      expanded: false,
+      expanded: true,
       controlSetRows: [
+        [
+          {
+            name: 'nav_mode',
+            config: {
+              type: 'SelectControl',
+              label: t('Navigation mode'),
+              description: t(
+                'Orbit rotates around a pivot (inspect from outside); First person rotates in place (walk-through/look-around); Plan view is top-down.',
+              ),
+              clearable: false,
+              renderTrigger: true,
+              default: 'firstPerson',
+              choices: [
+                ['firstPerson', t('First person')],
+                ['orbit', t('Orbit')],
+                ['planView', t('Plan view')],
+              ],
+            },
+          },
+        ],
         [
           {
             name: 'background_color',

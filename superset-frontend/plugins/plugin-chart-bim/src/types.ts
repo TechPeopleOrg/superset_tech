@@ -26,12 +26,23 @@ export interface BimStylesProps {
 // Control-panel form fields for the BIM chart (MVP: display only).
 export type BimFormData = QueryFormData &
   BimStylesProps & {
-    // Dataset column holding the model UUID; the value of the first row is used.
+    // Control names as declared in the control panel (snake_case). Superset
+    // camelCases them into formData, so the camelCase variants below are what
+    // transformProps actually reads; both are kept for safety.
     model_column?: string;
-    // Scene background color (CSS color string).
     background_color?: string;
-    // Whether to render element edges.
     show_edges?: boolean;
+    nav_mode?: 'orbit' | 'firstPerson' | 'planView';
+    // TEMPORARY (manual testing without a dataset): a directly-entered model
+    // UUID that overrides `model_column`. Remove once dataset-driven use is the
+    // norm.
+    model_uuid?: string;
+    // camelCased variants Superset puts into formData.
+    modelColumn?: string;
+    modelUuid?: string;
+    backgroundColor?: string;
+    showEdges?: boolean;
+    navMode?: 'orbit' | 'firstPerson' | 'planView';
     // --- Reserved for the data-binding stage (NOT implemented in this MVP) ---
     // link_column?: string;       // dataset column with element GlobalId
     // category_column?: string;   // column whose value drives element color
@@ -45,4 +56,5 @@ export type BimChartProps = BimStylesProps & {
   modelUrl: string;
   backgroundColor?: string;
   showEdges?: boolean;
+  navMode?: 'orbit' | 'firstPerson' | 'planView';
 };

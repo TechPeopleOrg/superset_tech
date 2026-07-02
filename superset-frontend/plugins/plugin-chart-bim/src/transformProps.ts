@@ -30,10 +30,19 @@ export default function transformProps(chartProps: ChartProps): BimChartProps {
   const fd = formData as BimFormData;
 
   const data = (queriesData?.[0]?.data ?? []) as DataRecord[];
-  const modelColumn = fd.model_column;
+  // Superset camelCases control names into formData (e.g. `model_column` →
+  // `modelColumn`), but some paths preserve snake_case — read both to be safe.
+  const modelColumn = fd.modelColumn ?? fd.model_column;
 
   let modelUrl = '';
-  if (modelColumn && data.length > 0) {
+  // TEMPORARY (manual testing without a dataset): a directly-entered model UUID
+  // takes priority over the dataset column, so different models can be tried by
+  // pasting a UUID into the control. Remove `model_uuid` once dataset-driven use
+  // is the norm.
+  const manualUuid = (fd.modelUuid ?? fd.model_uuid)?.trim();
+  if (manualUuid) {
+    modelUrl = buildModelUrl(manualUuid);
+  } else if (modelColumn && data.length > 0) {
     const raw = data[0][modelColumn];
     if (raw !== null && raw !== undefined && String(raw).length > 0) {
       modelUrl = buildModelUrl(String(raw));
@@ -45,7 +54,8 @@ export default function transformProps(chartProps: ChartProps): BimChartProps {
     height,
     formData: fd,
     modelUrl,
-    backgroundColor: fd.background_color ?? '#ffffff',
-    showEdges: fd.show_edges ?? false,
+    backgroundColor: fd.backgroundColor ?? fd.background_color ?? '#ffffff',
+    showEdges: fd.showEdges ?? fd.show_edges ?? false,
+    navMode: fd.navMode ?? fd.nav_mode ?? 'firstPerson',
   };
 }
