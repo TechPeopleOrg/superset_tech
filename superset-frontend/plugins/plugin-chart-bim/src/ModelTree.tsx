@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { t } from '@apache-superset/core/translation';
 import { styled } from '@apache-superset/core/theme';
 import { Button, Input, Tree, type TreeDataNode } from '@superset-ui/core/components';
@@ -77,6 +77,13 @@ const Empty = styled.div`
   padding: ${({ theme }) => theme.sizeUnit * 2}px;
 `;
 
+// Secondary label showing IFC type next to the primary node name.
+const NodeType = styled.small`
+  color: ${({ theme }) => theme.colorTextTertiary};
+  font-size: 0.8em;
+  margin-left: 4px;
+`;
+
 // A leaf is a node with no children. Return the leaf ids reachable from `node`.
 function collectLeafIds(node: TreeNode): string[] {
   if (node.children.length === 0) return [node.id];
@@ -86,7 +93,14 @@ function collectLeafIds(node: TreeNode): string[] {
 function toAntdNodes(nodes: TreeNode[]): TreeDataNode[] {
   return nodes.map(n => ({
     key: n.id,
-    title: n.name,
+    // Render name as its own text node so RTL getByText('Wall A') matches it
+    // directly, then append the IFC type as smaller secondary text.
+    title: (
+      <span>
+        {n.name}
+        {n.type ? <NodeType>{n.type}</NodeType> : null}
+      </span>
+    ),
     children: n.children.length ? toAntdNodes(n.children) : undefined,
   }));
 }
@@ -140,6 +154,11 @@ export default function ModelTree({
 
   const [checkedKeys, setCheckedKeys] = useState<string[]>(initialCheckedKeys);
 
+  // Re-sync checkboxes when tree or api changes (e.g. after model reload).
+  useEffect(() => {
+    setCheckedKeys(initialCheckedKeys);
+  }, [initialCheckedKeys]);
+
   const filtered = useMemo(
     () => (tree ? filterTree(tree, query) : []),
     [tree, query],
@@ -157,8 +176,13 @@ export default function ModelTree({
         return node ? collectLeafIds(node) : [];
       }),
     );
-    const hidden = allLeafIds.filter(id => !checkedLeaves.has(id));
-    api.setVisible(Array.from(checkedLeaves), true);
+    // Only touch leaves that are present in the currently filtered tree.
+    // Leaves outside the active filter are left unchanged, so a search for
+    // "wall" + uncheck of Wall A does not accidentally hide Door B.
+    const visibleLeafIds = filtered.flatMap(collectLeafIds);
+    const hidden = visibleLeafIds.filter(id => !checkedLeaves.has(id));
+    const shown = visibleLeafIds.filter(id => checkedLeaves.has(id));
+    api.setVisible(shown, true);
     api.setVisible(hidden, false);
     setCheckedKeys(keys);
   };
@@ -173,7 +197,7 @@ export default function ModelTree({
           allowClear
         />
         <Controls>
-          <Button buttonSize="small" onClick={() => api?.showAll()}>
+          <Button buttonSize="small" disabled={!api} onClick={() => api?.showAll()}>
             {t('Show all')}
           </Button>
           <Button

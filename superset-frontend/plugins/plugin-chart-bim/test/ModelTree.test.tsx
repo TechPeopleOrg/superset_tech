@@ -70,15 +70,15 @@ test('Show all calls api.showAll', async () => {
   expect(api.showAll).toHaveBeenCalled();
 });
 
-test('Isolate calls api.isolate with the selected subtree leaves', async () => {
+test('Isolate calls api.isolate with exactly the selected subtree leaves', async () => {
   const api = makeApi();
   render(<ModelTree tree={tree} api={api} />);
   await userEvent.click(screen.getByTestId('model-tree-toggle'));
   await userEvent.click(screen.getByText('Project'));
   await userEvent.click(screen.getByRole('button', { name: /isolate/i }));
-  expect(api.isolate).toHaveBeenCalledWith(
-    expect.arrayContaining(['wall', 'door']),
-  );
+  // Must contain exactly wall and door — no extra ids like proj.
+  const isolateArg = (api.isolate as jest.Mock).mock.calls[0][0] as string[];
+  expect([...isolateArg].sort()).toEqual(['door', 'wall']);
 });
 
 test('search filters nodes by name', async () => {
@@ -93,4 +93,38 @@ test('shows an empty-state message when there is no hierarchy', async () => {
   render(<ModelTree tree={undefined} api={makeApi()} />);
   await userEvent.click(screen.getByTestId('model-tree-toggle'));
   expect(screen.getByText(/no element hierarchy/i)).toBeInTheDocument();
+});
+
+test('IFC type is shown as secondary text next to node name', async () => {
+  render(<ModelTree tree={tree} api={makeApi()} />);
+  await userEvent.click(screen.getByTestId('model-tree-toggle'));
+  // The name remains a standalone text node for RTL matching.
+  expect(screen.getByText('Wall A')).toBeInTheDocument();
+  // The IFC type appears as separate secondary text.
+  expect(screen.getByText('IfcWall')).toBeInTheDocument();
+});
+
+// Regression: unchecking a filtered node must not affect nodes outside the filter.
+// Before the fix: checking/unchecking in filtered view used allLeafIds, so
+// removing Wall A while searching "wall" would also hide Door B.
+test('uncheck in filtered view does not hide nodes outside the filter', async () => {
+  const api = makeApi();
+  render(<ModelTree tree={tree} api={api} />);
+  await userEvent.click(screen.getByTestId('model-tree-toggle'));
+
+  // Filter to show only Wall A.
+  await userEvent.type(screen.getByPlaceholderText(/search/i), 'wall');
+
+  // Uncheck Wall A.
+  const wallRow = screen.getByText('Wall A').closest('.ant-tree-treenode');
+  const checkbox = wallRow!.querySelector('.ant-tree-checkbox');
+  await userEvent.click(checkbox as Element);
+
+  // setVisible(..., false) must never be called with 'door' in the array,
+  // because door is outside the current filter and must not be touched.
+  const hideCalls = (api.setVisible as jest.Mock).mock.calls.filter(
+    ([, visible]) => visible === false,
+  ) as [string[], boolean][];
+  const hiddenIds = hideCalls.flatMap(([ids]) => ids);
+  expect(hiddenIds).not.toContain('door');
 });
