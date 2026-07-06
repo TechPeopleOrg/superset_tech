@@ -16,11 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useEffect, useRef, useState, KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, KeyboardEvent, ChangeEvent } from 'react';
 import { SafeMarkdown } from '@superset-ui/core/components';
-import { Button, Card, Input, Space, Spin, Typography, theme } from 'antd';
+import {
+  Button,
+  Card,
+  Input,
+  message,
+  Space,
+  Spin,
+  Tag,
+  Typography,
+  theme,
+} from 'antd';
 import {
   ClearOutlined,
+  PaperClipOutlined,
   RobotOutlined,
   SendOutlined,
   UserOutlined,
@@ -84,8 +95,13 @@ export default function OpenClawChat(props: OpenClawChatComponentProps) {
   const [conversationId, setConversationId] = useState<string>(() =>
     generateId(),
   );
+  const [attachedFile, setAttachedFile] = useState<{
+    name: string;
+    content: string;
+  } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isStreaming) {
@@ -131,6 +147,37 @@ export default function OpenClawChat(props: OpenClawChatComponentProps) {
     [],
   );
 
+  const handleAttachClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelect = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // Reset so selecting the same file again still fires onChange.
+    e.target.value = '';
+    if (!file) return;
+
+    const isText =
+      /\.(txt|md)$/i.test(file.name) ||
+      file.type === 'text/plain' ||
+      file.type === 'text/markdown';
+    if (!isText) {
+      message.warning('Поддерживаются только файлы .txt и .md');
+      return;
+    }
+
+    try {
+      const content = await file.text();
+      setAttachedFile({ name: file.name, content });
+    } catch {
+      message.error('Не удалось прочитать файл');
+    }
+  };
+
+  const handleDetachFile = () => {
+    setAttachedFile(null);
+  };
+
   const sendMessage = async () => {
     const trimmed = inputText.trim();
     if (!trimmed || !apiKey || !baseUrl) return;
@@ -144,6 +191,16 @@ export default function OpenClawChat(props: OpenClawChatComponentProps) {
 
     const history = [
       { role: 'system' as const, content: systemPrompt },
+      ...(attachedFile
+        ? [
+            {
+              role: 'system' as const,
+              content:
+                `Пользователь прикрепил файл "${attachedFile.name}". ` +
+                `Используй его содержимое как контекст:\n\n${attachedFile.content}`,
+            },
+          ]
+        : []),
       ...messages.map(m => ({ role: m.role, content: m.content })),
       { role: 'user' as const, content: trimmed },
     ];
@@ -214,6 +271,7 @@ export default function OpenClawChat(props: OpenClawChatComponentProps) {
     setStreamingText('');
     setIsStreaming(false);
     setConversationId(generateId());
+    setAttachedFile(null);
   };
 
   const handleKeyPress = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -444,7 +502,46 @@ export default function OpenClawChat(props: OpenClawChatComponentProps) {
             background: token.colorBgLayout,
           }}
         >
+          {attachedFile && (
+            <div style={{ marginBottom: 8 }}>
+              <Tag
+                icon={<PaperClipOutlined />}
+                closable
+                onClose={handleDetachFile}
+                color="processing"
+                style={{ maxWidth: '100%' }}
+              >
+                <span
+                  style={{
+                    display: 'inline-block',
+                    maxWidth: 240,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    verticalAlign: 'bottom',
+                  }}
+                  title={attachedFile.name}
+                >
+                  {attachedFile.name}
+                </span>
+              </Tag>
+            </div>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".txt,.md,text/plain,text/markdown"
+            onChange={handleFileSelect}
+            style={{ display: 'none' }}
+          />
           <Space.Compact style={{ width: '100%' }}>
+            <Button
+              icon={<PaperClipOutlined />}
+              onClick={handleAttachClick}
+              disabled={isLoading || isStreaming || !apiKey || !baseUrl}
+              style={{ height: 'auto' }}
+              title="Прикрепить файл (.txt, .md)"
+            />
             <TextArea
               placeholder={inputPlaceholder}
               value={inputText}
