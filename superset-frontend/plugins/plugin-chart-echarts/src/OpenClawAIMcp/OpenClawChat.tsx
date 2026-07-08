@@ -16,27 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useEffect, useRef, useState, KeyboardEvent, ChangeEvent } from 'react';
-import { SafeMarkdown } from '@superset-ui/core/components';
-import {
-  Button,
-  Card,
-  Input,
-  message,
-  Space,
-  Spin,
-  Tag,
-  Typography,
-  theme,
-} from 'antd';
+import { useEffect, useRef, useState, KeyboardEvent } from 'react';
+import { Button, Card, Input, Space, Spin, Typography, theme } from 'antd';
 import {
   ClearOutlined,
-  PaperClipOutlined,
   RobotOutlined,
   SendOutlined,
   UserOutlined,
 } from '@ant-design/icons';
 import { OpenClawChatComponentProps } from './transformProps';
+import { runChatLoop } from './orchestrator/runChatLoop';
+import { McpClient } from './mcp/McpClient';
+import { mcpToolsToOpenAI } from './mcp/toolAdapter';
+import { createOpenClawApi } from './openclaw/OpenClawApi';
 
 const { TextArea } = Input;
 const { Paragraph, Text, Title } = Typography;
@@ -50,26 +42,8 @@ interface Message {
   timestamp: Date;
 }
 
-interface OpenClawErrorBody {
-  error?: { message?: string };
-}
-
-interface OpenClawSuccessBody {
-  choices?: Array<{ message?: { content?: string } }>;
-}
-
 const formatTime = (date: Date) =>
   date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-
-const generateId = (): string => {
-  if (
-    typeof crypto !== 'undefined' &&
-    typeof crypto.randomUUID === 'function'
-  ) {
-    return crypto.randomUUID();
-  }
-  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-};
 
 export default function OpenClawChat(props: OpenClawChatComponentProps) {
   const {
@@ -80,6 +54,9 @@ export default function OpenClawChat(props: OpenClawChatComponentProps) {
     systemPrompt,
     temperature,
     speedText,
+    mcpEnabled,
+    mcpUrl,
+    mcpToken,
     // @ts-ignore
     formData,
   } = props;
@@ -92,16 +69,8 @@ export default function OpenClawChat(props: OpenClawChatComponentProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [streamingText, setStreamingText] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
-  const [conversationId, setConversationId] = useState<string>(() =>
-    generateId(),
-  );
-  const [attachedFile, setAttachedFile] = useState<{
-    name: string;
-    content: string;
-  } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isStreaming) {
@@ -109,21 +78,17 @@ export default function OpenClawChat(props: OpenClawChatComponentProps) {
     }
   }, [messages, streamingText, isStreaming]);
 
-  const streamIntervalRef = useRef<ReturnType<typeof setInterval>>();
-
   const streamAnswer = (fullText: string) => {
-    // Split by Unicode code points so surrogate pairs (emoji) are not sliced apart.
-    const chars = Array.from(fullText);
     setIsStreaming(true);
     setStreamingText('');
 
     let index = 0;
-    streamIntervalRef.current = setInterval(() => {
-      index += 1;
-      if (index < chars.length) {
-        setStreamingText(chars.slice(0, index).join(''));
+    const interval = setInterval(() => {
+      if (index <= fullText.length) {
+        setStreamingText(fullText.slice(0, index));
+        index += 1;
       } else {
-        clearInterval(streamIntervalRef.current);
+        clearInterval(interval);
         setIsStreaming(false);
         setMessages(prev => [
           ...prev,
@@ -139,45 +104,6 @@ export default function OpenClawChat(props: OpenClawChatComponentProps) {
     }, speedText || 30);
   };
 
-  // Stop the typing interval if the component unmounts mid-stream.
-  useEffect(
-    () => () => {
-      if (streamIntervalRef.current) clearInterval(streamIntervalRef.current);
-    },
-    [],
-  );
-
-  const handleAttachClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileSelect = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    // Reset so selecting the same file again still fires onChange.
-    e.target.value = '';
-    if (!file) return;
-
-    const isText =
-      /\.(txt|md)$/i.test(file.name) ||
-      file.type === 'text/plain' ||
-      file.type === 'text/markdown';
-    if (!isText) {
-      message.warning('Поддерживаются только файлы .txt и .md');
-      return;
-    }
-
-    try {
-      const content = await file.text();
-      setAttachedFile({ name: file.name, content });
-    } catch {
-      message.error('Не удалось прочитать файл');
-    }
-  };
-
-  const handleDetachFile = () => {
-    setAttachedFile(null);
-  };
-
   const sendMessage = async () => {
     const trimmed = inputText.trim();
     if (!trimmed || !apiKey || !baseUrl) return;
@@ -191,16 +117,6 @@ export default function OpenClawChat(props: OpenClawChatComponentProps) {
 
     const history = [
       { role: 'system' as const, content: systemPrompt },
-      ...(attachedFile
-        ? [
-            {
-              role: 'system' as const,
-              content:
-                `Пользователь прикрепил файл "${attachedFile.name}". ` +
-                `Используй его содержимое как контекст:\n\n${attachedFile.content}`,
-            },
-          ]
-        : []),
       ...messages.map(m => ({ role: m.role, content: m.content })),
       { role: 'user' as const, content: trimmed },
     ];
@@ -209,55 +125,53 @@ export default function OpenClawChat(props: OpenClawChatComponentProps) {
     setInputText('');
     setIsLoading(true);
 
-    const endpoint = `${baseUrl.replace(/\/+$/, '')}/v1/chat/completions`;
-
     try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model,
-          user: `conv:${conversationId}`,
-          messages: history,
-          temperature,
-          stream: false,
-        }),
-      });
+      let answer: string;
 
-      if (!response.ok) {
-        let detail = 'Ошибка запроса к OpenClaw';
-        try {
-          const errBody = (await response.json()) as OpenClawErrorBody;
-          if (errBody?.error?.message) detail = errBody.error.message;
-        } catch {
-          // body not JSON — keep the generic message
-        }
-        setMessages(prev => [
-          ...prev,
-          {
-            id: `${Date.now()}-e`,
-            role: 'assistant',
-            content: detail,
-            timestamp: new Date(),
-          },
-        ]);
-        return;
+      const callOpenClaw = createOpenClawApi({ baseUrl, apiKey });
+
+      if (mcpEnabled) {
+        const mcpClient = new McpClient({
+          url: mcpUrl,
+          token: mcpToken || undefined,
+        });
+        await mcpClient.initialize();
+
+        const deps = {
+          callOpenClaw,
+          listTools: async () => mcpToolsToOpenAI(await mcpClient.listTools()),
+          callTool: (name: string, args: Record<string, unknown>) =>
+            mcpClient.callTool(name, args),
+          model,
+          temperature,
+        };
+
+        const { answer: loopAnswer } = await runChatLoop({
+          messages: history,
+          deps,
+        });
+        answer = loopAnswer;
+      } else {
+        const message = await callOpenClaw({
+          messages: history,
+          model,
+          temperature,
+        });
+        answer = message.content ?? '';
       }
 
-      const body = (await response.json()) as OpenClawSuccessBody;
-      const answer = body.choices?.[0]?.message?.content ?? '';
       streamAnswer(answer);
-    } catch {
+    } catch (err) {
+      const detail =
+        err instanceof Error
+          ? err.message
+          : 'Не удалось подключиться к данным Superset (MCP). Проверьте настройки.';
       setMessages(prev => [
         ...prev,
         {
           id: `${Date.now()}-e`,
           role: 'assistant',
-          content:
-            'Извините, произошла ошибка. Пожалуйста, попробуйте еще раз.',
+          content: detail,
           timestamp: new Date(),
         },
       ]);
@@ -270,8 +184,6 @@ export default function OpenClawChat(props: OpenClawChatComponentProps) {
     setMessages([]);
     setStreamingText('');
     setIsStreaming(false);
-    setConversationId(generateId());
-    setAttachedFile(null);
   };
 
   const handleKeyPress = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -431,17 +343,12 @@ export default function OpenClawChat(props: OpenClawChatComponentProps) {
                         ? token.colorPrimaryText
                         : token.colorText,
                     wordBreak: 'break-word',
+                    whiteSpace: 'pre-wrap',
                   }}
                 >
-                  {msg.role === 'assistant' ? (
-                    <div className="openclaw-markdown">
-                      <SafeMarkdown source={msg.content} />
-                    </div>
-                  ) : (
-                    <Paragraph style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
-                      {msg.content}
-                    </Paragraph>
-                  )}
+                  <Paragraph style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
+                    {msg.content}
+                  </Paragraph>
                 </div>
               </div>
             </div>
@@ -472,9 +379,19 @@ export default function OpenClawChat(props: OpenClawChatComponentProps) {
                     border: `1px solid ${token.colorBorder}`,
                   }}
                 >
-                  <div className="openclaw-markdown openclaw-markdown--streaming">
-                    <SafeMarkdown source={streamingText} />
-                  </div>
+                  <Paragraph style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
+                    {streamingText}
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        width: 2,
+                        height: '1.2em',
+                        background: token.colorPrimary,
+                        marginLeft: 2,
+                        animation: 'blink 1s infinite',
+                      }}
+                    />
+                  </Paragraph>
                 </div>
               </div>
             </div>
@@ -488,7 +405,13 @@ export default function OpenClawChat(props: OpenClawChatComponentProps) {
                 padding: 20,
               }}
             >
-              <Spin tip="Думаю над ответом..." />
+              <Spin
+                tip={
+                  mcpEnabled
+                    ? 'Выполняю запрос к данным…'
+                    : 'Думаю над ответом...'
+                }
+              />
             </div>
           )}
 
@@ -502,46 +425,7 @@ export default function OpenClawChat(props: OpenClawChatComponentProps) {
             background: token.colorBgLayout,
           }}
         >
-          {attachedFile && (
-            <div style={{ marginBottom: 8 }}>
-              <Tag
-                icon={<PaperClipOutlined />}
-                closable
-                onClose={handleDetachFile}
-                color="processing"
-                style={{ maxWidth: '100%' }}
-              >
-                <span
-                  style={{
-                    display: 'inline-block',
-                    maxWidth: 240,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    verticalAlign: 'bottom',
-                  }}
-                  title={attachedFile.name}
-                >
-                  {attachedFile.name}
-                </span>
-              </Tag>
-            </div>
-          )}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".txt,.md,text/plain,text/markdown"
-            onChange={handleFileSelect}
-            style={{ display: 'none' }}
-          />
           <Space.Compact style={{ width: '100%' }}>
-            <Button
-              icon={<PaperClipOutlined />}
-              onClick={handleAttachClick}
-              disabled={isLoading || isStreaming || !apiKey || !baseUrl}
-              style={{ height: 'auto' }}
-              title="Прикрепить файл (.txt, .md)"
-            />
             <TextArea
               placeholder={inputPlaceholder}
               value={inputText}
@@ -573,42 +457,6 @@ export default function OpenClawChat(props: OpenClawChatComponentProps) {
         @keyframes blink {
           0%, 50%    { opacity: 1; }
           51%, 100%  { opacity: 0; }
-        }
-        .openclaw-markdown > *:first-child { margin-top: 0; }
-        .openclaw-markdown > *:last-child { margin-bottom: 0; }
-        .openclaw-markdown p { margin: 0 0 8px; }
-        .openclaw-markdown ul,
-        .openclaw-markdown ol { margin: 0 0 8px; padding-left: 20px; }
-        .openclaw-markdown pre {
-          margin: 0 0 8px;
-          padding: 8px 12px;
-          border-radius: 6px;
-          overflow-x: auto;
-          background: ${token.colorBgElevated};
-        }
-        .openclaw-markdown code {
-          font-family: monospace;
-          font-size: 0.9em;
-        }
-        .openclaw-markdown table {
-          border-collapse: collapse;
-          margin: 0 0 8px;
-        }
-        .openclaw-markdown th,
-        .openclaw-markdown td {
-          border: 1px solid ${token.colorBorder};
-          padding: 4px 8px;
-        }
-        .openclaw-markdown a { color: ${token.colorLink}; }
-        .openclaw-markdown--streaming > *:last-child::after {
-          content: '';
-          display: inline-block;
-          width: 2px;
-          height: 1.1em;
-          vertical-align: text-bottom;
-          margin-left: 2px;
-          background: ${token.colorPrimary};
-          animation: blink 1s infinite;
         }
       `}</style>
     </div>
