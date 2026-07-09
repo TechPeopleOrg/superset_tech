@@ -130,6 +130,9 @@ services:
       superset-init:
         condition: service_completed_successfully
     volumes: *superset-volumes
+    networks:
+      - default
+      - superset_shared
 
   superset-websocket:
     build: ./superset-websocket
@@ -290,3 +293,10 @@ volumes:
     external: false
   superset_data:
     external: false
+
+networks:
+  # Shared bridge so the Superset proxy can reach the file-storage service
+  # running from its own compose stack (services/file-storage). Created once:
+  #   docker network create superset_shared
+  superset_shared:
+    external: true

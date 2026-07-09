@@ -20,12 +20,67 @@
 
 | Аспект | Локально (dev) | Прод |
 |---|---|---|
-| Код в контейнере | `docker cp` в работающий контейнер | **Только внутри образа** (build → registry → pull) |
-| Сеть | `docker network create` + ручной `connect` | **external-сеть, объявленная в compose** |
+| Код в контейнере | bind-mount `./superset` с хоста (правки видны сразу) | **Только внутри образа** (build → registry → pull) |
+| Сеть | external-сеть `superset_shared`, объявлена в `docker-compose.yml` | **external-сеть, объявленная в compose** |
 | Секреты | дефолты (`change-me-dev-key`, `minioadmin`) | **сильные значения через env сервера** |
 | Порты наружу | проброшены 8000/9100/9101/5432 | **только Superset :8088** (за nginx) |
 
 Никаких `docker cp` и ручных `network connect` на проде. Всё воспроизводимо из git + env.
+
+---
+
+## 1a. Локальная разработка (dev-стек, с нуля)
+
+Для разработки (правишь код Superset и видишь изменения) поднимается **dev-стек**
+`docker-compose.yml` — в отличие от прод-стека `docker-compose-non-dev.yml` он:
+
+- монтирует `./superset` и `./superset-frontend` с хоста (правки Python видны сразу);
+- имеет контейнер **`superset-node`** — webpack dev-server, который собирает фронтенд
+  и кладёт ассеты в `superset/static/assets/` (без него UI пустой — белый экран).
+
+> Для правок **фронтенда** нужен именно dev-стек (`superset-node` пересобирает на
+> лету). Для правок только бэкенда хватит и non-dev. UI «побился» / белый экран =
+> ассеты не собраны → подними dev-стек и дай `superset-node` их собрать.
+
+### Порядок запуска с нуля
+
+```bash
+# 0. Один раз: общая сеть (к ней подключены оба стека)
+docker network create superset_shared     # если уже есть — команда просто отдаст ошибку, это ок
+
+# 1. file-storage (свой стек)
+cd services/file-storage
+cp -n .env.example .env                    # дефолтов достаточно для локалки
+docker compose -f docker-compose.storage.yml up -d --build
+
+# 2. Superset (dev-стек)
+cd ../../superset_tech
+#   docker/.env-local уже содержит STORAGE_BASE_URL + STORAGE_API_KEY (см. раздел 4)
+docker compose -f docker-compose.yml up -d --build
+```
+
+Первый запуск долгий: сборка образа без кэша + миграции + загрузка демо-примеров
+(контейнер `superset-init` отрабатывает и выходит с кодом 0 — это норма). Дождись,
+пока `superset` станет `healthy`.
+
+### Связь между стеками
+
+Оба compose-файла объявляют external-сеть `superset_shared`, а сервис `superset`
+к ней подключён. Поэтому Superset достаёт file-storage по DNS-имени
+`http://file-storage:8000` (значение `STORAGE_BASE_URL`) — ручной `network connect`
+не нужен. Если сеть не создана, `up` упадёт с `network superset_shared declared as
+external, but could not be found` → выполни `docker network create superset_shared`.
+
+### Проверка
+
+```bash
+curl localhost:8000/healthz        # file-storage -> {"status":"ok"}
+curl localhost:8088/health         # Superset     -> OK (200)
+```
+
+Затем войти в Superset (`admin`/`admin`) → **Settings → Manage → Files**: список
+грузится = связка работает. Хостовые адреса сервисов file-storage — см.
+`services/file-storage/README.md` (веб-консоль `:8000`, MinIO `:9101`, Postgres `:5442`).
 
 ---
 
