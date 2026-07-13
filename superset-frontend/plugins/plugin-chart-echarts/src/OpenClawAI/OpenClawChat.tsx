@@ -37,6 +37,7 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import { OpenClawChatComponentProps } from './transformProps';
+import { parseAttachment } from './fileParsers';
 
 const { TextArea } = Input;
 const { Paragraph, Text, Title } = Typography;
@@ -157,20 +158,13 @@ export default function OpenClawChat(props: OpenClawChatComponentProps) {
     e.target.value = '';
     if (!file) return;
 
-    const isText =
-      /\.(txt|md)$/i.test(file.name) ||
-      file.type === 'text/plain' ||
-      file.type === 'text/markdown';
-    if (!isText) {
-      message.warning('Поддерживаются только файлы .txt и .md');
-      return;
-    }
-
     try {
-      const content = await file.text();
-      setAttachedFile({ name: file.name, content });
-    } catch {
-      message.error('Не удалось прочитать файл');
+      const parsed = await parseAttachment(file);
+      setAttachedFile(parsed);
+    } catch (err) {
+      message.warning(
+        err instanceof Error ? err.message : 'Не удалось прочитать файл',
+      );
     }
   };
 
@@ -530,7 +524,7 @@ export default function OpenClawChat(props: OpenClawChatComponentProps) {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".txt,.md,text/plain,text/markdown"
+            accept=".txt,.md,.xlsx,.xls,.pdf,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,application/pdf"
             onChange={handleFileSelect}
             style={{ display: 'none' }}
           />
@@ -540,7 +534,7 @@ export default function OpenClawChat(props: OpenClawChatComponentProps) {
               onClick={handleAttachClick}
               disabled={isLoading || isStreaming || !apiKey || !baseUrl}
               style={{ height: 'auto' }}
-              title="Прикрепить файл (.txt, .md)"
+              title="Прикрепить файл (.txt, .md, .xlsx, .xls, .pdf)"
             />
             <TextArea
               placeholder={inputPlaceholder}
