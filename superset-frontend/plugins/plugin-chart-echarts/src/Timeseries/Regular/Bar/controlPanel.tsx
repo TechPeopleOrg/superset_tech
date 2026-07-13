@@ -309,6 +309,48 @@ function createAxisControl(axis: 'x' | 'y'): ControlSetRow[] {
         },
       },
     ],
+    [
+      {
+        name: `${axis}_axis_hide_line`,
+        config: {
+          type: 'CheckboxControl',
+          label: t('Hide axis line'),
+          renderTrigger: true,
+          default: false,
+          description: t('Hide the axis line while keeping the labels.'),
+          disableStash: true,
+          resetOnHide: false,
+        },
+      },
+    ],
+    [
+      {
+        name: `${axis}_axis_hide_tick`,
+        config: {
+          type: 'CheckboxControl',
+          label: t('Hide axis ticks'),
+          renderTrigger: true,
+          default: false,
+          description: t('Hide the axis tick marks while keeping the labels.'),
+          disableStash: true,
+          resetOnHide: false,
+        },
+      },
+    ],
+    [
+      {
+        name: `${axis}_axis_hide_split_line`,
+        config: {
+          type: 'CheckboxControl',
+          label: t('Hide grid lines'),
+          renderTrigger: true,
+          default: false,
+          description: t('Hide the split (grid) lines for this axis.'),
+          disableStash: true,
+          resetOnHide: false,
+        },
+      },
+    ],
   ];
 }
 
@@ -360,6 +402,108 @@ const config: ControlPanelConfig = {
         ['time_shift_color'],
         ...showValueSectionWithoutStream,
         ...colorByPrimaryAxisSection,
+        [
+          {
+            name: 'gradientByRank',
+            config: {
+              type: 'CheckboxControl',
+              label: t('Gradient by rank'),
+              renderTrigger: true,
+              default: false,
+              description: t(
+                'Color each bar by its position, from dark (largest) to ' +
+                  'light (smallest). Assumes the data is already sorted. ' +
+                  'Available for a single, non-stacked series.',
+              ),
+              visibility: ({ controls }: ControlPanelsContainerProps) =>
+                (!controls?.stack?.value || controls?.stack?.value === null) &&
+                (!controls?.groupby?.value ||
+                  (controls?.groupby?.value as unknown[])?.length === 0) &&
+                !controls?.color_by_primary_axis?.value,
+            },
+          },
+        ],
+        [
+          {
+            name: 'gradientHue',
+            config: {
+              type: 'SliderControl',
+              label: t('Gradient hue'),
+              renderTrigger: true,
+              min: 0,
+              max: 360,
+              default: 212,
+              description: t('Base color of the gradient (HSL hue, 0–360).'),
+              visibility: ({ controls }: ControlPanelsContainerProps) =>
+                Boolean(controls?.gradientByRank?.value),
+            },
+          },
+        ],
+        [
+          {
+            name: 'gradientSaturation',
+            config: {
+              type: 'SliderControl',
+              label: t('Gradient saturation'),
+              renderTrigger: true,
+              min: 0,
+              max: 100,
+              default: 72,
+              description: t('Saturation of the gradient (HSL, 0–100%).'),
+              visibility: ({ controls }: ControlPanelsContainerProps) =>
+                Boolean(controls?.gradientByRank?.value),
+            },
+          },
+        ],
+        [
+          {
+            name: 'gradientInvert',
+            config: {
+              type: 'CheckboxControl',
+              label: t('Invert gradient direction'),
+              renderTrigger: true,
+              default: false,
+              description: t(
+                'Reverse the gradient: run light-to-dark instead of dark-to-light.',
+              ),
+              visibility: ({ controls }: ControlPanelsContainerProps) =>
+                Boolean(controls?.gradientByRank?.value),
+            },
+          },
+        ],
+        [
+          {
+            name: 'barBorderRadius',
+            config: {
+              type: 'SliderControl',
+              label: t('Bar corner radius'),
+              renderTrigger: true,
+              min: 0,
+              max: 30,
+              default: 0,
+              description: t('Rounds the end corners of the bars, in pixels.'),
+            },
+          },
+        ],
+        [
+          {
+            name: 'barLabelPosition',
+            config: {
+              type: 'SelectControl',
+              label: t('Value label position'),
+              renderTrigger: true,
+              clearable: false,
+              default: 'end',
+              choices: [
+                ['end', t('End of bar')],
+                ['middle', t('Middle of bar')],
+              ],
+              description: t('Where to place the value label on each bar.'),
+              visibility: ({ controls }: ControlPanelsContainerProps) =>
+                Boolean(controls?.show_value?.value),
+            },
+          },
+        ],
         [
           {
             name: 'stackDimension',

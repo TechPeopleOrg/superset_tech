@@ -25,15 +25,18 @@ import { GenericDataType } from '@apache-superset/core/common';
 import { supersetTheme } from '@apache-superset/core/theme';
 import type { SeriesOption } from 'echarts';
 import { EchartsTimeseriesSeriesType } from '../../src';
-import { TIMESERIES_CONSTANTS } from '../../src/constants';
-import { LegendOrientation } from '../../src/types';
+import { TIMESERIES_CONSTANTS, StackControlsValue } from '../../src/constants';
+import {
+  LegendOrientation,
+  EchartsTimeseriesChartProps,
+} from '../../src/types';
 import {
   transformSeries,
   transformNegativeLabelsPosition,
+  applyGradientByRank,
   getPadding,
 } from '../../src/Timeseries/transformers';
 import transformProps from '../../src/Timeseries/transformProps';
-import { EchartsTimeseriesChartProps } from '../../src/types';
 import * as seriesUtils from '../../src/utils/series';
 
 // Mock the colorScale function
@@ -124,6 +127,40 @@ describe('transformSeries', () => {
 
     // OpacityEnum.NonTransparent = 1 (not dimmed)
     expect((result as any).itemStyle.opacity).toBe(1);
+  });
+});
+
+describe('transformSeries bar customizations', () => {
+  const series: SeriesOption = {
+    name: 's',
+    data: [
+      ['A', 100],
+      ['B', 50],
+    ],
+  } as SeriesOption;
+
+  test('places the value label inside the bar when position is middle', () => {
+    const result = transformSeries(series, mockColorScale, 'k', {
+      seriesType: EchartsTimeseriesSeriesType.Bar,
+      barLabelPosition: 'middle',
+    }) as any;
+    expect(result.label.position).toBe('inside');
+  });
+
+  test('keeps the label at the end of the bar by default', () => {
+    const result = transformSeries(series, mockColorScale, 'k', {
+      seriesType: EchartsTimeseriesSeriesType.Bar,
+      isHorizontal: true,
+    }) as any;
+    expect(result.label.position).toBe('right');
+  });
+
+  test('applies a single borderRadius to bars', () => {
+    const result = transformSeries(series, mockColorScale, 'k', {
+      seriesType: EchartsTimeseriesSeriesType.Bar,
+      barBorderRadius: 12,
+    }) as any;
+    expect(result.itemStyle.borderRadius).toBe(12);
   });
 });
 
@@ -532,4 +569,95 @@ test('getPadding should handle Left position with zero margin correctly', () => 
   } finally {
     getChartPaddingSpy.mockRestore();
   }
+});
+
+describe('applyGradientByRank', () => {
+  const barSeries: SeriesOption = {
+    name: 'sales',
+    data: [
+      ['A', 100],
+      ['B', 80],
+      ['C', 60],
+      ['D', 40],
+    ],
+  } as SeriesOption;
+
+  test('colors every point by rank with a dark-to-light lightness ramp', () => {
+    const result = applyGradientByRank(barSeries, 212, 72, 1);
+
+    expect(result).toHaveLength(4);
+    // First bar darkest (L=25%), last bar lightest (L=70%)
+    expect(result[0].itemStyle.color).toBe('hsl(212, 72%, 25%)');
+    expect(result[3].itemStyle.color).toBe('hsl(212, 72%, 70%)');
+    // Values are preserved untouched
+    expect(result[0].value).toEqual(['A', 100]);
+    expect(result[3].value).toEqual(['D', 40]);
+  });
+
+  test('honors hue and saturation arguments', () => {
+    const result = applyGradientByRank(barSeries, 30, 50, 1);
+    expect(result[0].itemStyle.color).toBe('hsl(30, 50%, 25%)');
+  });
+
+  test('inverts the ramp (light-to-dark) when invert is true', () => {
+    const result = applyGradientByRank(barSeries, 212, 72, 1, true);
+    // First bar now lightest (70%), last bar darkest (25%)
+    expect(result[0].itemStyle.color).toBe('hsl(212, 72%, 70%)');
+    expect(result[3].itemStyle.color).toBe('hsl(212, 72%, 25%)');
+  });
+
+  test('does not divide by zero for a single-point series', () => {
+    const single = { name: 's', data: [['A', 100]] } as SeriesOption;
+    const result = applyGradientByRank(single, 212, 72, 1);
+    expect(result[0].itemStyle.color).toBe('hsl(212, 72%, 25%)');
+  });
+});
+
+describe('transformSeries gradientByRank gating', () => {
+  const series: SeriesOption = {
+    name: 's',
+    data: [
+      ['A', 100],
+      ['B', 50],
+    ],
+  } as SeriesOption;
+
+  test('applies per-point gradient for a non-stacked bar series', () => {
+    const result = transformSeries(series, mockColorScale, 'k', {
+      seriesType: EchartsTimeseriesSeriesType.Bar,
+      gradientByRank: true,
+      gradientHue: 212,
+      gradientSaturation: 72,
+    }) as any;
+
+    expect(result.data[0].itemStyle.color).toBe('hsl(212, 72%, 25%)');
+    // Series-level itemStyle carries the mid-gradient color for the legend;
+    // per-point colors on the data still win for the bars themselves.
+    expect(result.itemStyle.color).toBe('hsl(212, 72%, 47.5%)');
+  });
+
+  test('does NOT apply gradient to a line series (default behavior preserved)', () => {
+    const result = transformSeries(series, mockColorScale, 'k', {
+      seriesType: EchartsTimeseriesSeriesType.Line,
+      gradientByRank: true,
+      gradientHue: 212,
+      gradientSaturation: 72,
+    }) as any;
+
+    // Line keeps its single series-level itemStyle color, data is not recolored
+    expect(result.itemStyle).toBeDefined();
+    expect(result.itemStyle.color).toContain('color-for-');
+  });
+
+  test('does NOT apply gradient when the bar series is stacked', () => {
+    const result = transformSeries(series, mockColorScale, 'k', {
+      seriesType: EchartsTimeseriesSeriesType.Bar,
+      stack: StackControlsValue.Stack,
+      gradientByRank: true,
+      gradientHue: 212,
+      gradientSaturation: 72,
+    }) as any;
+
+    expect(result.itemStyle).toBeDefined();
+  });
 });

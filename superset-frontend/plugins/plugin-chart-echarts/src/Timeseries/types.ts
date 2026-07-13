@@ -98,6 +98,18 @@ export type EchartsTimeseriesFormData = QueryFormData & {
   showExtraControls: boolean;
   percentageThreshold: number;
   colorByPrimaryAxis?: boolean;
+  gradientByRank?: boolean;
+  gradientHue?: number;
+  gradientSaturation?: number;
+  gradientInvert?: boolean;
+  barBorderRadius?: number;
+  barLabelPosition?: string;
+  xAxisHideLine?: boolean;
+  xAxisHideTick?: boolean;
+  xAxisHideSplitLine?: boolean;
+  yAxisHideLine?: boolean;
+  yAxisHideTick?: boolean;
+  yAxisHideSplitLine?: boolean;
   orientation?: OrientationType;
 } & LegendFormData &
   TitleFormData;
