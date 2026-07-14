@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useCallback } from 'react';
+import { ReactNode, useCallback } from 'react';
 import { shallowEqual, useDispatch, useSelector } from 'react-redux';
 import { JsonObject } from '@superset-ui/core';
 import { t } from '@apache-superset/core/translation';
 import { Tooltip } from '@superset-ui/core/components';
+import { Icons } from '@superset-ui/core/components/Icons';
 import { Radio, RadioChangeEvent } from '@superset-ui/core/components/Radio';
 import { switchActiveDevice } from 'src/dashboard/actions/deviceLayouts';
 import {
@@ -33,10 +34,14 @@ interface DeviceSwitcherState {
   dashboardState: { activeDevice?: DashboardDevice };
 }
 
-const DEVICE_OPTIONS: { value: DashboardDevice; label: string }[] = [
-  { value: 'desktop', label: t('Desktop') },
-  { value: 'tablet', label: t('Tablet') },
-  { value: 'mobile', label: t('Mobile') },
+const DEVICE_OPTIONS: {
+  value: DashboardDevice;
+  label: string;
+  icon: ReactNode;
+}[] = [
+  { value: 'desktop', label: t('Desktop'), icon: <Icons.DesktopOutlined /> },
+  { value: 'tablet', label: t('Tablet'), icon: <Icons.TabletOutlined /> },
+  { value: 'mobile', label: t('Mobile'), icon: <Icons.MobileOutlined /> },
 ];
 
 export default function DeviceLayoutSwitcher() {
@@ -58,22 +63,23 @@ export default function DeviceLayoutSwitcher() {
   if (!enabled) return null;
 
   return (
-    <Tooltip
-      id="device-layout-switcher-tooltip"
-      title={t('Edit the dashboard version for a specific device')}
+    <Radio.Group
+      value={activeDevice}
+      onChange={handleChange}
+      size="small"
+      data-test="device-layout-switcher"
     >
-      <Radio.Group
-        value={activeDevice}
-        onChange={handleChange}
-        size="small"
-        data-test="device-layout-switcher"
-      >
-        {DEVICE_OPTIONS.map(({ value, label }) => (
-          <Radio.Button key={value} value={value}>
-            {label}
+      {DEVICE_OPTIONS.map(({ value, label, icon }) => (
+        <Tooltip
+          key={value}
+          id={`device-layout-switcher-${value}-tooltip`}
+          title={label}
+        >
+          <Radio.Button value={value} aria-label={label}>
+            {icon}
           </Radio.Button>
-        ))}
-      </Radio.Group>
-    </Tooltip>
+        </Tooltip>
+      ))}
+    </Radio.Group>
   );
 }

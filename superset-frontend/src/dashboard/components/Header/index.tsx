@@ -55,6 +55,7 @@ import {
 } from 'src/dashboard/util/constants';
 import { TagType, TagTypeEnum } from 'src/components/Tag/TagType';
 import DeviceLayoutSwitcher from 'src/dashboard/components/Header/DeviceLayoutSwitcher';
+import EditorChartPlaceholderToggle from 'src/dashboard/components/Header/EditorChartPlaceholderToggle';
 import { useDeviceLayoutsPayload } from 'src/dashboard/hooks/useDeviceLayoutsPayload';
 import { isDeviceLayoutsEnabled } from 'src/dashboard/util/deviceLayouts';
 import ReportModal from 'src/features/reports/ReportModal';
@@ -681,6 +682,7 @@ const Header = (): JSX.Element => {
           <div className="button-container" data-test="dashboard-edit-actions">
             {editMode && (
               <div css={actionButtonsStyle}>
+                <EditorChartPlaceholderToggle />
                 <DeviceLayoutSwitcher />
                 <div className="undoRedo">
                   <Tooltip

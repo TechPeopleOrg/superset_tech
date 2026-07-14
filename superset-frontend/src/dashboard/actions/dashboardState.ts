@@ -301,6 +301,19 @@ export function setEditMode(editMode: boolean): SetEditModeAction {
   return { type: SET_EDIT_MODE, editMode };
 }
 
+export const SET_EDITOR_CHART_PLACEHOLDERS = 'SET_EDITOR_CHART_PLACEHOLDERS';
+
+interface SetEditorChartPlaceholdersAction {
+  type: typeof SET_EDITOR_CHART_PLACEHOLDERS;
+  editorChartPlaceholders: boolean;
+}
+
+export function setEditorChartPlaceholders(
+  editorChartPlaceholders: boolean,
+): SetEditorChartPlaceholdersAction {
+  return { type: SET_EDITOR_CHART_PLACEHOLDERS, editorChartPlaceholders };
+}
+
 export const ON_CHANGE = 'ON_CHANGE';
 
 interface OnChangeAction {

@@ -170,6 +170,7 @@ export type DashboardState = {
   activeDevice?: DashboardDevice;
   inactiveDeviceLayouts?: Partial<Record<DashboardDevice, DashboardLayout>>;
   customizedDeviceLayouts?: DashboardDevice[];
+  editorChartPlaceholders?: boolean;
 };
 export type DashboardInfo = {
   id: number;

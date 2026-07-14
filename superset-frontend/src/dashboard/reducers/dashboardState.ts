@@ -25,6 +25,7 @@ import {
   REMOVE_SLICE,
   SET_COLOR_SCHEME,
   SET_EDIT_MODE,
+  SET_EDITOR_CHART_PLACEHOLDERS,
   SET_MAX_UNDO_HISTORY_EXCEEDED,
   SET_UNSAVED_CHANGES,
   SHOW_BUILDER_PANE,
@@ -122,6 +123,7 @@ interface DashboardStateShape {
   activeDevice?: DashboardDevice;
   inactiveDeviceLayouts?: Partial<Record<DashboardDevice, DashboardLayout>>;
   customizedDeviceLayouts?: DashboardDevice[];
+  editorChartPlaceholders?: boolean;
   [key: string]: unknown;
 }
 
@@ -163,6 +165,7 @@ interface DashboardStateAction {
   parkedDevice?: DashboardDevice;
   parkedTree?: DashboardLayout;
   parkedTreeWasEdited?: boolean;
+  editorChartPlaceholders?: boolean;
   payload?: {
     maxUndoHistoryExceeded?: boolean;
     hasUnsavedChanges?: boolean;
@@ -245,6 +248,12 @@ export default function dashboardStateReducer(
       return {
         ...state,
         editMode: action.editMode,
+      };
+    },
+    [SET_EDITOR_CHART_PLACEHOLDERS](): DashboardStateShape {
+      return {
+        ...state,
+        editorChartPlaceholders: action.editorChartPlaceholders,
       };
     },
     [SET_MAX_UNDO_HISTORY_EXCEEDED](): DashboardStateShape {
