@@ -18,6 +18,7 @@
  */
 import { useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { css, useTheme } from '@apache-superset/core/theme';
 import { t } from '@apache-superset/core/translation';
 import { Switch, Tooltip } from '@superset-ui/core/components';
 import { setEditorChartPlaceholders } from 'src/dashboard/actions/dashboardState';
@@ -28,6 +29,7 @@ interface PlaceholderToggleState {
 
 export default function EditorChartPlaceholderToggle() {
   const dispatch = useDispatch();
+  const theme = useTheme();
   const placeholders = useSelector(
     (state: PlaceholderToggleState) =>
       !!state.dashboardState.editorChartPlaceholders,
@@ -40,19 +42,27 @@ export default function EditorChartPlaceholderToggle() {
   );
 
   return (
-    <Tooltip
-      id="editor-chart-placeholder-tooltip"
-      title={t(
-        'Edit layout with lightweight chart placeholders instead of rendered charts (no data is queried)',
-      )}
+    <span
+      css={css`
+        display: inline-flex;
+        align-items: center;
+        margin-right: ${theme.sizeUnit * 4}px;
+      `}
     >
-      <Switch
-        checked={placeholders}
-        onChange={handleChange}
-        checkedChildren={t('Layout')}
-        unCheckedChildren={t('Data')}
-        data-test="editor-chart-placeholder-toggle"
-      />
-    </Tooltip>
+      <Tooltip
+        id="editor-chart-placeholder-tooltip"
+        title={t(
+          'Lightweight layout mode: charts are shown as placeholders and no data is queried',
+        )}
+      >
+        <Switch
+          size="small"
+          checked={placeholders}
+          onChange={handleChange}
+          aria-label={t('Lightweight layout mode')}
+          data-test="editor-chart-placeholder-toggle"
+        />
+      </Tooltip>
+    </span>
   );
 }

@@ -19,6 +19,7 @@
 import { ReactNode, useCallback } from 'react';
 import { shallowEqual, useDispatch, useSelector } from 'react-redux';
 import { JsonObject } from '@superset-ui/core';
+import { css, useTheme } from '@apache-superset/core/theme';
 import { t } from '@apache-superset/core/translation';
 import { Tooltip } from '@superset-ui/core/components';
 import { Icons } from '@superset-ui/core/components/Icons';
@@ -46,6 +47,7 @@ const DEVICE_OPTIONS: {
 
 export default function DeviceLayoutSwitcher() {
   const dispatch = useDispatch();
+  const theme = useTheme();
   const { enabled, activeDevice } = useSelector(
     (state: DeviceSwitcherState) => ({
       enabled: isDeviceLayoutsEnabled(state.dashboardInfo?.metadata),
@@ -68,6 +70,11 @@ export default function DeviceLayoutSwitcher() {
       onChange={handleChange}
       size="small"
       data-test="device-layout-switcher"
+      css={css`
+        display: inline-flex;
+        align-items: center;
+        margin-right: ${theme.sizeUnit * 4}px;
+      `}
     >
       {DEVICE_OPTIONS.map(({ value, label, icon }) => (
         <Tooltip
