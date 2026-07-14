@@ -80,9 +80,7 @@ export interface DeviceLayoutsPayloadPieces {
   customizedDeviceLayouts: DashboardDevice[];
 }
 
-export function buildDeviceLayoutsPayload(
-  pieces: DeviceLayoutsPayloadPieces,
-): {
+export function buildDeviceLayoutsPayload(pieces: DeviceLayoutsPayloadPieces): {
   positions: DashboardLayout;
   deviceLayouts?: Partial<Record<DeviceLayoutKey, DashboardLayout>>;
 } {

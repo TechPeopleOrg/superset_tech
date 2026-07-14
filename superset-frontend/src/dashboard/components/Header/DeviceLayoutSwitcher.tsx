@@ -21,10 +21,7 @@ import { shallowEqual, useDispatch, useSelector } from 'react-redux';
 import { JsonObject } from '@superset-ui/core';
 import { t } from '@apache-superset/core/translation';
 import { Tooltip } from '@superset-ui/core/components';
-import {
-  Radio,
-  RadioChangeEvent,
-} from '@superset-ui/core/components/Radio';
+import { Radio, RadioChangeEvent } from '@superset-ui/core/components/Radio';
 import { switchActiveDevice } from 'src/dashboard/actions/deviceLayouts';
 import {
   DashboardDevice,
