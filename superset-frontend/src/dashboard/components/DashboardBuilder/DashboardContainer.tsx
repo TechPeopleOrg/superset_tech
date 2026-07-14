@@ -396,7 +396,13 @@ const DashboardContainer: FC<DashboardContainerProps> = ({ topLevelTabs }) => {
       data-test="grid-container"
       style={
         editCanvasWidth
-          ? { width: editCanvasWidth, maxWidth: '100%', margin: '0 auto' }
+          ? {
+              width: editCanvasWidth,
+              flex: `0 0 ${editCanvasWidth}px`,
+              alignSelf: 'center',
+              maxWidth: '100%',
+              margin: '0 auto',
+            }
           : undefined
       }
     >
