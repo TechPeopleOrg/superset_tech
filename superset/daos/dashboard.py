@@ -57,6 +57,14 @@ DASHBOARD_CUSTOM_FIELDS = {
 }
 
 
+def _device_layout_trees(data: dict[Any, Any]) -> list[dict[str, Any]]:
+    """Layout trees stored under metadata's device_layouts key."""
+    device_layouts = data.get("device_layouts") or {}
+    if not isinstance(device_layouts, dict):
+        return []
+    return [tree for tree in device_layouts.values() if isinstance(tree, dict)]
+
+
 class DashboardDAO(BaseDAO[Dashboard]):
     base_filter = DashboardAccessFilter
     # Column used by MCP tools for title-based identifier fallback, so a
@@ -269,10 +277,12 @@ class DashboardDAO(BaseDAO[Dashboard]):
         md = dashboard.params_dict
 
         if (positions := data.get("positions")) is not None:
-            # find slices in the position data
+            all_trees = [positions, *_device_layout_trees(data)]
+            # find slices in the position data of every device tree
             slice_ids = [
                 value.get("meta", {}).get("chartId")
-                for value in positions.values()
+                for tree in all_trees
+                for value in tree.values()
                 if isinstance(value, dict)
             ]
 
@@ -282,16 +292,17 @@ class DashboardDAO(BaseDAO[Dashboard]):
 
             dashboard.slices = current_slices
 
-            # add UUID to positions
+            # add UUID to positions in every tree
             uuid_map = {slice.id: str(slice.uuid) for slice in current_slices}
-            for obj in positions.values():
-                if (
-                    isinstance(obj, dict)
-                    and obj["type"] == "CHART"
-                    and obj["meta"]["chartId"]
-                ):
-                    chart_id = obj["meta"]["chartId"]
-                    obj["meta"]["uuid"] = uuid_map.get(chart_id)
+            for tree in all_trees:
+                for obj in tree.values():
+                    if (
+                        isinstance(obj, dict)
+                        and obj["type"] == "CHART"
+                        and obj["meta"]["chartId"]
+                    ):
+                        chart_id = obj["meta"]["chartId"]
+                        obj["meta"]["uuid"] = uuid_map.get(chart_id)
 
             # remove leading and trailing white spaces in the dumped json
             dashboard.position_json = json.dumps(
@@ -327,6 +338,12 @@ class DashboardDAO(BaseDAO[Dashboard]):
 
             # positions have its own column, no need to store it in metadata
             md.pop("positions", None)
+
+            # device trees live in metadata; persist the uuid-stamped copies
+            if _device_layout_trees(data):
+                md["device_layouts"] = data["device_layouts"]
+            else:
+                md.pop("device_layouts", None)
 
         if new_filter_scopes:
             md["filter_scopes"] = new_filter_scopes
@@ -390,12 +407,13 @@ class DashboardDAO(BaseDAO[Dashboard]):
                 new_slice.dashboards.append(dash)
                 old_to_new_slice_ids[slc.id] = new_slice.id
 
-            # update chartId of layout entities
-            for value in metadata["positions"].values():
-                if isinstance(value, dict) and value.get("meta", {}).get("chartId"):
-                    old_id = value["meta"]["chartId"]
-                    new_id = old_to_new_slice_ids.get(old_id)
-                    value["meta"]["chartId"] = new_id
+            # update chartId of layout entities in every device tree
+            for tree in [metadata["positions"], *_device_layout_trees(metadata)]:
+                for value in tree.values():
+                    if isinstance(value, dict) and value.get("meta", {}).get("chartId"):
+                        old_id = value["meta"]["chartId"]
+                        new_id = old_to_new_slice_ids.get(old_id)
+                        value["meta"]["chartId"] = new_id
         else:
             dash.slices = original_dash.slices
 

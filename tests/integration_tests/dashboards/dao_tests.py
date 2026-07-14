@@ -72,6 +72,61 @@ class TestDashboardDAO(SupersetTestCase):
             db.session.commit()
 
     @pytest.mark.usefixtures("load_world_bank_dashboard_with_slices")
+    def test_set_dash_metadata_device_layouts(self):
+        dashboard = db.session.query(Dashboard).filter_by(slug="world_health").first()
+        original_data = dashboard.data
+        original_positions = original_data["position_json"]
+
+        # move one chart to live ONLY in the mobile tree
+        chart_nodes = [
+            (key, value)
+            for key, value in original_positions.items()
+            if isinstance(value, dict) and value.get("type") == "CHART"
+        ]
+        moved_key, moved_node = chart_nodes[0]
+        moved_slice_id = moved_node["meta"]["chartId"]
+
+        positions = copy.deepcopy(original_positions)
+        del positions[moved_key]
+        parent_key = next(
+            key
+            for key, value in positions.items()
+            if isinstance(value, dict) and moved_key in (value.get("children") or [])
+        )
+        positions[parent_key]["children"].remove(moved_key)
+
+        mobile_tree = copy.deepcopy(original_positions)
+        data = {
+            "positions": positions,
+            "device_layouts": {"mobile": mobile_tree},
+            "device_layouts_enabled": True,
+        }
+        DashboardDAO.set_dash_metadata(dashboard, data)
+        db.session.flush()
+
+        # chart missing from desktop but present in mobile stays linked
+        linked_ids = {slc.id for slc in dashboard.slices}
+        assert moved_slice_id in linked_ids
+
+        md = json.loads(dashboard.json_metadata)
+        # device tree persisted and uuid-stamped
+        saved_mobile = md["device_layouts"]["mobile"]
+        saved_chart = saved_mobile[moved_key]
+        assert saved_chart["meta"]["uuid"] is not None
+        # positions never leaks into metadata
+        assert "positions" not in md
+
+        # a full layout save without device_layouts clears the stored trees
+        DashboardDAO.set_dash_metadata(dashboard, {"positions": original_positions})
+        db.session.flush()
+        md = json.loads(dashboard.json_metadata)
+        assert "device_layouts" not in md
+
+        # restore
+        DashboardDAO.set_dash_metadata(dashboard, {"positions": original_positions})
+        db.session.commit()
+
+    @pytest.mark.usefixtures("load_world_bank_dashboard_with_slices")
     @patch("superset.daos.dashboard.g")
     def test_copy_dashboard(self, mock_g):
         mock_g.user = security_manager.find_user("admin")
