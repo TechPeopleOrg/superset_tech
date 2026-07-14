@@ -54,6 +54,8 @@ import {
   DASHBOARD_HEADER_ID,
 } from 'src/dashboard/util/constants';
 import { TagType, TagTypeEnum } from 'src/components/Tag/TagType';
+import { useDeviceLayoutsPayload } from 'src/dashboard/hooks/useDeviceLayoutsPayload';
+import { isDeviceLayoutsEnabled } from 'src/dashboard/util/deviceLayouts';
 import ReportModal from 'src/features/reports/ReportModal';
 import {
   deleteActiveReport,
@@ -278,6 +280,7 @@ const Header = (): JSX.Element => {
     }),
     shallowEqual,
   );
+  const deviceLayoutsPayload = useDeviceLayoutsPayload();
   const isLoading = useSelector((state: HeaderRootState) =>
     Object.values(state.charts).some(chart => {
       const start = chart.chartUpdateStartTime ?? 0;
@@ -450,7 +453,10 @@ const Header = (): JSX.Element => {
         ...dashboardInfo?.metadata,
         color_namespace: currentColorNamespace,
         color_scheme: currentColorScheme,
-        positions: layout,
+        positions: deviceLayoutsPayload.positions,
+        ...(isDeviceLayoutsEnabled(dashboardInfo?.metadata) && {
+          device_layouts: deviceLayoutsPayload.deviceLayouts,
+        }),
         refresh_frequency: shouldPersistRefreshFrequency
           ? refreshFrequency
           : dashboardInfo.metadata?.refresh_frequency,
@@ -458,7 +464,9 @@ const Header = (): JSX.Element => {
     };
 
     // make sure positions data less than DB storage limitation:
-    const positionJSONLength = safeStringify(layout).length;
+    const positionJSONLength = safeStringify(
+      deviceLayoutsPayload.positions,
+    ).length;
     const limit =
       dashboardInfo.common?.conf?.SUPERSET_DASHBOARD_POSITION_DATA_LIMIT ||
       DASHBOARD_POSITION_DATA_LIMIT;
@@ -492,7 +500,7 @@ const Header = (): JSX.Element => {
     dashboardInfo.roles,
     dashboardInfo.tags,
     dashboardTitle,
-    layout,
+    deviceLayoutsPayload,
     refreshFrequency,
     shouldPersistRefreshFrequency,
     slug,

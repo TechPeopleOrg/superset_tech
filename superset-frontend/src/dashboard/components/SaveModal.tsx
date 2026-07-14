@@ -38,6 +38,8 @@ import {
   SAVE_TYPE_OVERWRITE,
   SAVE_TYPE_NEWDASHBOARD,
 } from 'src/dashboard/util/constants';
+import { useDeviceLayoutsPayload } from 'src/dashboard/hooks/useDeviceLayoutsPayload';
+import { isDeviceLayoutsEnabled } from 'src/dashboard/util/deviceLayouts';
 
 type SaveType = typeof SAVE_TYPE_OVERWRITE | typeof SAVE_TYPE_NEWDASHBOARD;
 
@@ -77,13 +79,13 @@ function SaveModal({
   dashboardId,
   dashboardInfo,
   expandedSlices,
-  layout,
   customCss,
   refreshFrequency,
   lastModifiedTime,
 }: SaveModalProps) {
   const theme = useTheme();
   const modal = useRef() as ModalTriggerRef;
+  const deviceLayoutsPayload = useDeviceLayoutsPayload();
 
   const [saveType, setSaveType] = useState<SaveType>(initialSaveType);
   const [newDashName, setNewDashName] = useState(
@@ -122,7 +124,10 @@ function SaveModal({
       roles: dashboardInfo.roles,
       metadata: {
         ...dashboardInfo?.metadata,
-        positions: layout,
+        positions: deviceLayoutsPayload.positions,
+        ...(isDeviceLayoutsEnabled(dashboardInfo?.metadata) && {
+          device_layouts: deviceLayoutsPayload.deviceLayouts,
+        }),
         refresh_frequency: refreshFrequencyToUse,
       },
     };
