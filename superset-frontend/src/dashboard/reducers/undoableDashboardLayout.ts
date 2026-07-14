@@ -32,6 +32,7 @@ import {
 } from '../actions/dashboardLayout';
 
 import { HYDRATE_DASHBOARD } from '../actions/hydrate';
+import { SET_DEVICE_LAYOUT_TREE } from '../actions/deviceLayouts';
 
 import dashboardLayout from './dashboardLayout';
 import { DashboardLayout } from '../types';
@@ -39,6 +40,8 @@ import { DashboardLayout } from '../types';
 // List of actions that should trigger undo history
 const TRACKED_ACTIONS: string[] = [
   HYDRATE_DASHBOARD,
+  // device switches pass through the filter; history is cleared right after
+  SET_DEVICE_LAYOUT_TREE,
   UPDATE_COMPONENTS,
   DELETE_COMPONENT,
   CREATE_COMPONENT,

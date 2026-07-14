@@ -67,6 +67,9 @@ import {
   SET_AUTO_REFRESH_PAUSE_ON_INACTIVE_TAB,
 } from '../actions/autoRefresh';
 import { AutoRefreshStatus, ERROR_THRESHOLD_COUNT } from '../types/autoRefresh';
+import { SET_ACTIVE_DEVICE } from '../actions/deviceLayouts';
+import { DashboardDevice } from '../util/deviceLayouts';
+import { DashboardLayout } from '../types';
 
 interface ChartStateEntry {
   chartId: number;
@@ -116,6 +119,9 @@ interface DashboardStateShape {
   refreshErrorCount?: number;
   autoRefreshFetchStartTime?: number | null;
   autoRefreshPauseOnInactiveTab?: boolean;
+  activeDevice?: DashboardDevice;
+  inactiveDeviceLayouts?: Partial<Record<DashboardDevice, DashboardLayout>>;
+  customizedDeviceLayouts?: DashboardDevice[];
   [key: string]: unknown;
 }
 
@@ -153,6 +159,10 @@ interface DashboardStateAction {
   timestamp?: number | null;
   error?: string | null;
   pauseOnInactiveTab?: boolean;
+  device?: DashboardDevice;
+  parkedDevice?: DashboardDevice;
+  parkedTree?: DashboardLayout;
+  parkedTreeWasEdited?: boolean;
   payload?: {
     maxUndoHistoryExceeded?: boolean;
     hasUnsavedChanges?: boolean;
@@ -185,6 +195,27 @@ export default function dashboardStateReducer(
         });
       }
       return hydratedState;
+    },
+    [SET_ACTIVE_DEVICE](): DashboardStateShape {
+      const device = action.device as DashboardDevice;
+      const parkedDevice = action.parkedDevice as DashboardDevice;
+      const inactiveDeviceLayouts: Partial<
+        Record<DashboardDevice, DashboardLayout>
+      > = {
+        ...state.inactiveDeviceLayouts,
+        [parkedDevice]: action.parkedTree as DashboardLayout,
+      };
+      delete inactiveDeviceLayouts[device];
+      const customized = new Set(state.customizedDeviceLayouts ?? []);
+      if (action.parkedTreeWasEdited) {
+        customized.add(parkedDevice);
+      }
+      return {
+        ...state,
+        activeDevice: device,
+        inactiveDeviceLayouts,
+        customizedDeviceLayouts: Array.from(customized),
+      };
     },
     [ADD_SLICE](): DashboardStateShape {
       const updatedSliceIds = new Set(state.sliceIds);
