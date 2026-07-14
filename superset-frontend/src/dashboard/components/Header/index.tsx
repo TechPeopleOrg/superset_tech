@@ -54,6 +54,7 @@ import {
   DASHBOARD_HEADER_ID,
 } from 'src/dashboard/util/constants';
 import { TagType, TagTypeEnum } from 'src/components/Tag/TagType';
+import DeviceLayoutSwitcher from 'src/dashboard/components/Header/DeviceLayoutSwitcher';
 import { useDeviceLayoutsPayload } from 'src/dashboard/hooks/useDeviceLayoutsPayload';
 import { isDeviceLayoutsEnabled } from 'src/dashboard/util/deviceLayouts';
 import ReportModal from 'src/features/reports/ReportModal';
@@ -680,6 +681,7 @@ const Header = (): JSX.Element => {
           <div className="button-container" data-test="dashboard-edit-actions">
             {editMode && (
               <div css={actionButtonsStyle}>
+                <DeviceLayoutSwitcher />
                 <div className="undoRedo">
                   <Tooltip
                     id="dashboard-undo-tooltip"
