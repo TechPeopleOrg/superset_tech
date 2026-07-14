@@ -56,6 +56,7 @@ import {
   DashboardDevice,
   DEVICE_EDIT_CANVAS_WIDTH,
 } from 'src/dashboard/util/deviceLayouts';
+import { useDeviceLayoutAutoSwitch } from 'src/dashboard/hooks/useDeviceLayoutAutoSwitch';
 import { setInScopeStatusOfFilters } from 'src/dashboard/actions/nativeFilters';
 import { setInScopeStatusOfCustomizations } from 'src/dashboard/actions/chartCustomizationActions';
 import { useChartIds } from 'src/dashboard/util/charts/useChartIds';
@@ -174,6 +175,7 @@ const DashboardContainer: FC<DashboardContainerProps> = ({ topLevelTabs }) => {
     editMode && activeDevice !== 'desktop'
       ? DEVICE_EDIT_CANVAS_WIDTH[activeDevice]
       : undefined;
+  useDeviceLayoutAutoSwitch();
   const chartIds = useChartIds();
 
   const renderedChartIds = useRenderedChartIds();
