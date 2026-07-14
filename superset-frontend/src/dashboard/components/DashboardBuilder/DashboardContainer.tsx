@@ -52,6 +52,10 @@ import {
   DASHBOARD_ROOT_DEPTH,
 } from 'src/dashboard/util/constants';
 import findTabIndexByComponentId from 'src/dashboard/util/findTabIndexByComponentId';
+import {
+  DashboardDevice,
+  DEVICE_EDIT_CANVAS_WIDTH,
+} from 'src/dashboard/util/deviceLayouts';
 import { setInScopeStatusOfFilters } from 'src/dashboard/actions/nativeFilters';
 import { setInScopeStatusOfCustomizations } from 'src/dashboard/actions/chartCustomizationActions';
 import { useChartIds } from 'src/dashboard/util/charts/useChartIds';
@@ -160,6 +164,16 @@ const DashboardContainer: FC<DashboardContainerProps> = ({ topLevelTabs }) => {
   const directPathToChild = useSelector<RootState, string[]>(
     state => state.dashboardState.directPathToChild,
   );
+  const editMode = useSelector<RootState, boolean>(
+    state => !!state.dashboardState.editMode,
+  );
+  const activeDevice = useSelector<RootState, DashboardDevice>(
+    state => state.dashboardState.activeDevice ?? 'desktop',
+  );
+  const editCanvasWidth =
+    editMode && activeDevice !== 'desktop'
+      ? DEVICE_EDIT_CANVAS_WIDTH[activeDevice]
+      : undefined;
   const chartIds = useChartIds();
 
   const renderedChartIds = useRenderedChartIds();
@@ -375,7 +389,15 @@ const DashboardContainer: FC<DashboardContainerProps> = ({ topLevelTabs }) => {
   );
 
   return (
-    <div className="grid-container" data-test="grid-container">
+    <div
+      className="grid-container"
+      data-test="grid-container"
+      style={
+        editCanvasWidth
+          ? { width: editCanvasWidth, maxWidth: '100%', margin: '0 auto' }
+          : undefined
+      }
+    >
       <ParentSize>{renderParentSizeChildren}</ParentSize>
     </div>
   );
