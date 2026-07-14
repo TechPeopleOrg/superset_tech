@@ -53,6 +53,7 @@ import { cloneDeep } from 'lodash';
 import {
   DashboardDevice,
   getDeviceLayoutTrees,
+  getDeviceScreenWidth,
   isDeviceLayoutsEnabled,
   resolveActiveLayoutDevice,
 } from 'src/dashboard/util/deviceLayouts';
@@ -143,7 +144,7 @@ export const hydrateDashboard =
       : {};
     const activeDevice: DashboardDevice = resolveActiveLayoutDevice(
       metadata,
-      window.innerWidth,
+      getDeviceScreenWidth(),
     );
 
     const layout =

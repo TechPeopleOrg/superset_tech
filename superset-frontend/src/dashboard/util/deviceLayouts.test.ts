@@ -22,6 +22,7 @@ import {
   getDeviceLayoutTrees,
   resolveActiveLayoutDevice,
   buildDeviceLayoutsPayload,
+  getDeviceScreenWidth,
 } from './deviceLayouts';
 import { DashboardLayout } from '../types';
 
@@ -80,6 +81,46 @@ test('resolveActiveLayoutDevice cascades mobile→tablet→desktop', () => {
   expect(
     resolveActiveLayoutDevice({ device_layouts: { mobile: tree('m') } }, 375),
   ).toBe('desktop');
+});
+
+test('getDeviceScreenWidth uses physical screen on mobile and window on desktop', () => {
+  const setEnv = (userAgent: string, maxTouchPoints: number) => {
+    Object.defineProperty(window.navigator, 'userAgent', {
+      value: userAgent,
+      configurable: true,
+    });
+    Object.defineProperty(window.navigator, 'maxTouchPoints', {
+      value: maxTouchPoints,
+      configurable: true,
+    });
+  };
+  Object.defineProperty(window, 'innerWidth', {
+    value: 980, // virtual viewport reported without a meta tag
+    configurable: true,
+  });
+  Object.defineProperty(window.screen, 'width', {
+    value: 390,
+    configurable: true,
+  });
+  Object.defineProperty(window.screen, 'height', {
+    value: 844,
+    configurable: true,
+  });
+
+  // phone: real screen wins over the lying innerWidth, rotation-stable
+  setEnv(
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Safari/604.1',
+    5,
+  );
+  expect(getDeviceScreenWidth()).toBe(390);
+
+  // iPadOS masquerading as desktop Mac: touch points reveal the tablet
+  setEnv('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Safari/605.1.15', 5);
+  expect(getDeviceScreenWidth()).toBe(390);
+
+  // real desktop: live window width, resize preview keeps working
+  setEnv('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Safari/605.1.15', 0);
+  expect(getDeviceScreenWidth()).toBe(980);
 });
 
 test('buildDeviceLayoutsPayload always returns desktop positions', () => {

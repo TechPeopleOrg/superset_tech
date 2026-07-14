@@ -40,6 +40,28 @@ export function isDeviceLayoutsEnabled(metadata?: JsonObject | null): boolean {
   return Boolean(metadata?.device_layouts_enabled);
 }
 
+/**
+ * Superset pages ship without a viewport meta tag, so on mobile browsers
+ * window.innerWidth reports the ~980px virtual layout viewport instead of the
+ * real screen width. For device detection we therefore use the physical
+ * screen size on mobile/tablet devices — the smaller side, so the detected
+ * class stays stable across rotation — and fall back to the live window width
+ * on desktop browsers, where innerWidth is accurate and lets a narrowed
+ * window preview the other versions.
+ */
+export function getDeviceScreenWidth(): number {
+  if (typeof window === 'undefined') return TABLET_MAX_SCREEN_WIDTH;
+  const ua = window.navigator?.userAgent ?? '';
+  const isMobileDevice =
+    /Mobi|Android|iPhone|iPad|iPod/i.test(ua) ||
+    // iPadOS Safari masquerades as desktop Mac but is a touch device
+    (/Macintosh/.test(ua) && (window.navigator?.maxTouchPoints ?? 0) > 1);
+  if (isMobileDevice && window.screen) {
+    return Math.min(window.screen.width, window.screen.height);
+  }
+  return window.innerWidth;
+}
+
 export function getDeviceLayoutTrees(
   metadata?: JsonObject | null,
 ): Partial<Record<DeviceLayoutKey, DashboardLayout>> {

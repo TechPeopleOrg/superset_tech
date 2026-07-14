@@ -23,6 +23,7 @@ import { JsonObject } from '@superset-ui/core';
 import { switchActiveDevice } from '../actions/deviceLayouts';
 import {
   DashboardDevice,
+  getDeviceScreenWidth,
   isDeviceLayoutsEnabled,
   resolveActiveLayoutDevice,
 } from '../util/deviceLayouts';
@@ -49,7 +50,10 @@ export function useDeviceLayoutAutoSwitch(): void {
     // auto-switching only makes sense for viewers of adaptive dashboards
     if (editMode || !isDeviceLayoutsEnabled(metadata)) return undefined;
     const handleResize = debounce(() => {
-      const nextDevice = resolveActiveLayoutDevice(metadata, window.innerWidth);
+      const nextDevice = resolveActiveLayoutDevice(
+        metadata,
+        getDeviceScreenWidth(),
+      );
       if (nextDevice !== activeDevice) {
         dispatch(switchActiveDevice(nextDevice));
       }
