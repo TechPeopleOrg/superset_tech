@@ -68,12 +68,18 @@ export default function DeviceLayoutSwitcher() {
     <Radio.Group
       value={activeDevice}
       onChange={handleChange}
-      size="small"
       data-test="device-layout-switcher"
       css={css`
         display: inline-flex;
         align-items: center;
         margin-right: ${theme.sizeUnit * 4}px;
+
+        /* match the rendered height of small superset buttons (e.g. Discard) */
+        .ant-radio-button-wrapper {
+          height: 32px;
+          display: inline-flex;
+          align-items: center;
+        }
       `}
     >
       {DEVICE_OPTIONS.map(({ value, label, icon }) => (
