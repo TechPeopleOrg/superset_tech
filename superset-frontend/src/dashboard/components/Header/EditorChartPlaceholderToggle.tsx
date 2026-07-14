@@ -56,7 +56,6 @@ export default function EditorChartPlaceholderToggle() {
         )}
       >
         <Switch
-          size="small"
           checked={placeholders}
           onChange={handleChange}
           aria-label={t('Lightweight layout mode')}
