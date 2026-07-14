@@ -49,6 +49,13 @@ import {
   ROW_TYPE,
 } from 'src/dashboard/util/componentTypes';
 import findFirstParentContainerId from 'src/dashboard/util/findFirstParentContainer';
+import { cloneDeep } from 'lodash';
+import {
+  DashboardDevice,
+  getDeviceLayoutTrees,
+  isDeviceLayoutsEnabled,
+  resolveActiveLayoutDevice,
+} from 'src/dashboard/util/deviceLayouts';
 import getEmptyLayout from 'src/dashboard/util/getEmptyLayout';
 import getLocationHash from 'src/dashboard/util/getLocationHash';
 import newComponentFactory, {
@@ -124,11 +131,41 @@ export const hydrateDashboard =
     // new dash: position_json could be {} or null
     // getEmptyLayout() includes a version string entry plus BasicLayoutItem entries
     // which lack the `meta` field; layout is mutated below to add full LayoutItem entries
-    const layout = (
+    const desktopLayout = (
       positionData && Object.keys(positionData).length > 0
         ? positionData
         : getEmptyLayout()
     ) as Record<string, LayoutItem | DashboardEntity>;
+
+    const deviceLayoutsEnabled = isDeviceLayoutsEnabled(metadata);
+    const deviceTrees = deviceLayoutsEnabled
+      ? getDeviceLayoutTrees(metadata)
+      : {};
+    const activeDevice: DashboardDevice = resolveActiveLayoutDevice(
+      metadata,
+      window.innerWidth,
+    );
+
+    const layout =
+      activeDevice === 'desktop'
+        ? desktopLayout
+        : (cloneDeep(deviceTrees[activeDevice]) as Record<
+            string,
+            LayoutItem | DashboardEntity
+          >);
+
+    // chart ids referenced by any tree; a chart absent from every tree was just
+    // added from Explore and must be auto-placed, a chart present in another
+    // device tree must not leak into this one
+    const chartIdsInAnyTree = new Set<number>();
+    [desktopLayout, ...Object.values(deviceTrees)].forEach(tree => {
+      Object.values(tree).forEach(component => {
+        const treeChartId = (component as LayoutItem).meta?.chartId;
+        if (component.type === CHART_TYPE && treeChartId !== undefined) {
+          chartIdsInAnyTree.add(treeChartId);
+        }
+      });
+    });
 
     // create a lookup to sync layout names with slice names
     const chartIdToLayoutId: Record<number, string> = {};
@@ -187,7 +224,7 @@ export const hydrateDashboard =
       sliceIds.add(key);
 
       // if there are newly added slices from explore view, fill slices into 1 or more rows
-      if (!chartIdToLayoutId[key] && layout[parentId]) {
+      if (!chartIdsInAnyTree.has(key) && layout[parentId]) {
         if (
           newSlicesContainerWidth === 0 ||
           newSlicesContainerWidth + GRID_DEFAULT_CHART_WIDTH > GRID_COLUMN_COUNT
@@ -321,6 +358,19 @@ export const hydrateDashboard =
     metadata.chart_configuration = chartConfiguration;
     metadata.global_chart_configuration = globalChartConfiguration;
 
+    const inactiveDeviceLayouts: Partial<
+      Record<DashboardDevice, Record<string, LayoutItem | DashboardEntity>>
+    > = {};
+    if (activeDevice !== 'desktop') {
+      inactiveDeviceLayouts.desktop = desktopLayout;
+    }
+    (['tablet', 'mobile'] as const).forEach(device => {
+      const tree = deviceTrees[device];
+      if (device !== activeDevice && tree) {
+        inactiveDeviceLayouts[device] = tree;
+      }
+    });
+
     const { roles } = user;
     const canEdit = canUserEditDashboard(dashboard, user);
     const crossFiltersEnabled = isCrossFiltersEnabled(
@@ -391,6 +441,11 @@ export const hydrateDashboard =
           isRefreshing: false,
           isFiltersRefreshing: false,
           activeTabs: activeTabs || dashboardState?.activeTabs || [],
+          activeDevice,
+          inactiveDeviceLayouts,
+          customizedDeviceLayouts: Object.keys(
+            deviceTrees,
+          ) as DashboardDevice[],
           datasetsStatus:
             dashboardState?.datasetsStatus || ResourceStatus.Loading,
           chartStates: chartStates || dashboardState?.chartStates || {},
