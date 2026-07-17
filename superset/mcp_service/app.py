@@ -130,6 +130,14 @@ Dashboard Management:
 - get_dashboard_layout: Get parsed tabs and chart positions for a dashboard (companion to get_dashboard_info when its omitted_fields hint flags position_json)
 - generate_dashboard: Create a dashboard from chart IDs (requires write access)
 - add_chart_to_existing_dashboard: Add a chart to an existing dashboard (requires write access)
+- get_dashboard_css: Inspect a dashboard's CSS, its named blocks, and its widgets (name -> selector)
+- upsert_dashboard_css_block: Insert/replace/remove a named CSS block for dashboard-wide styling (background, fonts, theme); empty css removes it (requires write access)
+- style_dashboard_widget: Style one widget by name (the tool builds the selector); empty styles removes it (requires write access)
+- set_dashboard_css: Replace a dashboard's entire CSS — only for full replacement (requires write access)
+
+Dashboard styling: name the dashboard explicitly (id, slug, or title). Prefer
+upsert_dashboard_css_block / style_dashboard_widget over set_dashboard_css.
+Never invent CSS selectors for widgets — the tools build them from the layout.
 
 Annotation Layers:
 - list_annotation_layers: List annotation layers with advanced filters (1-based pagination)
