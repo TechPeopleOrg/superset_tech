@@ -684,6 +684,7 @@ from superset.mcp_service.dashboard.tool import (  # noqa: F401, E402
     get_dashboard_info,
     get_dashboard_layout,
     list_dashboards,
+    set_dashboard_css,
 )
 from superset.mcp_service.database.tool import (  # noqa: F401, E402
     get_database_info,
