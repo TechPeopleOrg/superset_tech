@@ -110,6 +110,37 @@ describe('ChartHolder', () => {
       store,
     });
 
+  test('should render a lightweight placeholder instead of the chart when enabled in edit mode', async () => {
+    const store = createMockStore({
+      dashboardState: {
+        ...mockState.dashboardState,
+        editorChartPlaceholders: true,
+      },
+    });
+    renderWrapper(store, { editMode: true });
+
+    expect(screen.getByTestId('chart-placeholder')).toBeVisible();
+    // the real chart must not mount (no query, no renderer)
+    expect(
+      screen.queryByText('No results were returned for this query'),
+    ).not.toBeInTheDocument();
+  });
+
+  test('should ignore placeholder mode outside of edit mode', async () => {
+    const store = createMockStore({
+      dashboardState: {
+        ...mockState.dashboardState,
+        editorChartPlaceholders: true,
+      },
+    });
+    renderWrapper(store, { editMode: false });
+
+    expect(screen.queryByTestId('chart-placeholder')).not.toBeInTheDocument();
+    expect(
+      screen.getByText('No results were returned for this query'),
+    ).toBeVisible();
+  });
+
   test('should render empty state', async () => {
     renderWrapper();
 
