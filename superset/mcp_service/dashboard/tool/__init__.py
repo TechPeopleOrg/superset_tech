@@ -22,6 +22,7 @@ from .get_dashboard_info import get_dashboard_info
 from .get_dashboard_layout import get_dashboard_layout
 from .list_dashboards import list_dashboards
 from .set_dashboard_css import set_dashboard_css
+from .upsert_dashboard_css_block import upsert_dashboard_css_block
 
 __all__ = [
     "list_dashboards",
@@ -29,6 +30,7 @@ __all__ = [
     "get_dashboard_layout",
     "get_dashboard_css",
     "set_dashboard_css",
+    "upsert_dashboard_css_block",
     "generate_dashboard",
     "add_chart_to_existing_dashboard",
 ]
