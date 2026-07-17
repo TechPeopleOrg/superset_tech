@@ -47,7 +47,7 @@ def test_resolve_by_id_found():
     dash = MagicMock()
     dash.id = 1
     with patch(
-        "superset.mcp_service.dashboard.css_write.DashboardDAO.find_by_id",
+        "superset.daos.dashboard.DashboardDAO.find_by_id",
         return_value=dash,
     ):
         found, candidates = resolve_dashboard(1)
@@ -63,7 +63,7 @@ def test_resolve_by_title_ambiguous():
     d2.id = 2
     d2.dashboard_title = "Продажи ЕС"
     with patch(
-        "superset.mcp_service.dashboard.css_write.DashboardDAO.find_by_id_or_uuid",
+        "superset.daos.dashboard.DashboardDAO.find_by_id_or_uuid",
         return_value=None,
     ), patch(
         "superset.mcp_service.dashboard.css_write._find_by_title",

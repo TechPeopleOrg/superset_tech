@@ -24,10 +24,6 @@ UpdateDashboardCommand.
 
 from typing import Any
 
-from marshmallow import ValidationError
-
-from superset.daos.dashboard import DashboardDAO
-from superset.dashboards.schemas import validate_css
 from superset.mcp_service.dashboard.schemas import DashboardCandidate
 
 MAX_DASHBOARD_CSS_BYTES = 256 * 1024
@@ -60,6 +56,8 @@ def resolve_dashboard(
     identifier: int | str,
 ) -> tuple[Any | None, list[DashboardCandidate]]:
     """Resolve by id/uuid first, then by title. Ambiguous -> candidates."""
+    from superset.daos.dashboard import DashboardDAO
+
     if isinstance(identifier, int):
         found = DashboardDAO.find_by_id(identifier)
         return (found, []) if found is not None else (None, [])
@@ -95,6 +93,10 @@ def authorize_edit(dashboard: Any) -> None:
 
 
 def validate_and_size(css: str) -> None:
+    from marshmallow import ValidationError
+
+    from superset.dashboards.schemas import validate_css
+
     if len(css.encode("utf-8")) > MAX_DASHBOARD_CSS_BYTES:
         raise CssWriteError(
             f"CSS exceeds size limit ({MAX_DASHBOARD_CSS_BYTES} bytes).",
