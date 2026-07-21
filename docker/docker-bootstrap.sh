@@ -104,7 +104,24 @@ case "${1}" in
     ;;
   mcp)
     echo "Starting MCP service..."
-    superset mcp run --host 0.0.0.0 --port ${MCP_PORT:-5008} --debug
+    # Loud warning if MCP starts WITHOUT the prod lock. Harmless locally (port
+    # not exposed), but on a network-reachable host this means open access.
+    case "$(echo "${MCP_PROD:-}" | tr '[:upper:]' '[:lower:]')" in
+      1 | true | yes | on) : ;;
+      *)
+        echo "############################################################"
+        echo "# WARNING: MCP_PROD is not set — MCP starts WITHOUT auth.   #"
+        echo "# Safe only if :5008 is NOT reachable from the network.     #"
+        echo "# For prod set MCP_PROD=true (see tech_docs/MCP_PROD_SETUP).#"
+        echo "############################################################"
+        ;;
+    esac
+    # --debug only when MCP_DEBUG is truthy (keep it off on prod).
+    MCP_DEBUG_FLAG=""
+    case "$(echo "${MCP_DEBUG:-}" | tr '[:upper:]' '[:lower:]')" in
+      1 | true | yes | on) MCP_DEBUG_FLAG="--debug" ;;
+    esac
+    superset mcp run --host 0.0.0.0 --port "${MCP_PORT:-5008}" ${MCP_DEBUG_FLAG}
     ;;
   *)
     echo "Unknown Operation!!!"

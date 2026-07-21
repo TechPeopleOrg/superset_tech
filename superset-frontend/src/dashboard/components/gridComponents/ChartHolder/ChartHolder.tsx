@@ -25,6 +25,7 @@ import { css, useTheme } from '@apache-superset/core/theme';
 import { LayoutItem, RootState } from 'src/dashboard/types';
 import AnchorLink from 'src/dashboard/components/AnchorLink';
 import Chart from 'src/dashboard/components/gridComponents/Chart';
+import ChartPlaceholder from 'src/dashboard/components/gridComponents/ChartHolder/ChartPlaceholder';
 import DeleteComponentButton from 'src/dashboard/components/DeleteComponentButton';
 import { Draggable } from 'src/dashboard/components/dnd/DragDroppable';
 import { ConnectDragSource } from 'react-dnd';
@@ -116,6 +117,10 @@ const ChartHolder = ({
   const directPathLastUpdated = useSelector(
     (state: RootState) => state.dashboardState.directPathLastUpdated ?? 0,
   );
+  const editorChartPlaceholders = useSelector(
+    (state: RootState) => !!state.dashboardState.editorChartPlaceholders,
+  );
+  const showPlaceholder = editMode && editorChartPlaceholders;
 
   const [extraControls, setExtraControls] = useState<Record<string, unknown>>(
     {},
@@ -307,28 +312,40 @@ const ChartHolder = ({
                     }`}
               </style>
             )}
-            <Chart
-              componentId={component.id}
-              id={component.meta.chartId ?? 0}
-              dashboardId={dashboardId}
-              width={chartWidth}
-              height={chartHeight}
-              sliceName={
-                component.meta.sliceNameOverride ||
-                component.meta.sliceName ||
-                ''
-              }
-              updateSliceName={(_sliceId: number, name: string) =>
-                handleUpdateSliceName(name)
-              }
-              isComponentVisible={isComponentVisible}
-              handleToggleFullSize={handleToggleFullSize}
-              isFullSize={isFullSize}
-              setControlValue={handleExtraControl}
-              extraControls={extraControls}
-              isInView={isInView}
-              chartHolderRef={chartHolderRef}
-            />
+            {showPlaceholder ? (
+              <ChartPlaceholder
+                width={chartWidth}
+                height={chartHeight}
+                sliceName={
+                  component.meta.sliceNameOverride ||
+                  component.meta.sliceName ||
+                  ''
+                }
+              />
+            ) : (
+              <Chart
+                componentId={component.id}
+                id={component.meta.chartId ?? 0}
+                dashboardId={dashboardId}
+                width={chartWidth}
+                height={chartHeight}
+                sliceName={
+                  component.meta.sliceNameOverride ||
+                  component.meta.sliceName ||
+                  ''
+                }
+                updateSliceName={(_sliceId: number, name: string) =>
+                  handleUpdateSliceName(name)
+                }
+                isComponentVisible={isComponentVisible}
+                handleToggleFullSize={handleToggleFullSize}
+                isFullSize={isFullSize}
+                setControlValue={handleExtraControl}
+                extraControls={extraControls}
+                isInView={isInView}
+                chartHolderRef={chartHolderRef}
+              />
+            )}
             {editMode && (
               <HoverMenu position="top">
                 <div data-test="dashboard-delete-component-button">
@@ -370,6 +387,7 @@ const ChartHolder = ({
       extraControls,
       isInView,
       handleDeleteComponent,
+      showPlaceholder,
     ],
   );
 

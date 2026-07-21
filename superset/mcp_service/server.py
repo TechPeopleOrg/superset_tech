@@ -762,12 +762,30 @@ def _build_starlette_middleware(
         )
         mcp_hello_page = None
     page_config: dict[str, Any] = {**base_page_config, **(mcp_hello_page or {})}
+
+    from starlette.middleware.cors import CORSMiddleware
+
+    allowed_origins = flask_app.config.get("MCP_CORS_ALLOWED_ORIGINS", ["*"])
+
+    # CORS middleware is listed first so it wraps the preflight before the
+    # hello-page middleware handles the request.
     return [
+        StarletteMiddleware(
+            CORSMiddleware,
+            allow_origins=allowed_origins,
+            allow_methods=["GET", "POST", "OPTIONS"],
+            allow_headers=[
+                "Authorization",
+                "Content-Type",
+                "Mcp-Session-Id",
+            ],
+            expose_headers=["Mcp-Session-Id"],
+        ),
         StarletteMiddleware(
             BrowserHelloMiddleware,
             auth_enabled=auth_enabled,
             page_config=page_config,
-        )
+        ),
     ]
 
 

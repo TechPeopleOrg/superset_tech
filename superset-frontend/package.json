@@ -204,6 +204,7 @@
     "mustache": "^4.2.0",
     "nanoid": "^5.1.11",
     "ol": "^10.9.0",
+    "pdfjs-dist": "^3.11.174",
     "query-string": "9.4.0",
     "re-resizable": "^6.11.2",
     "react": "^18.2.0",

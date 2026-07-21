@@ -60,6 +60,11 @@ MCP_DEBUG = False
 # against the FAB security_manager before execution.
 MCP_RBAC_ENABLED = True
 
+# Origins allowed to call the MCP server from a browser (CORS). This is needed
+# for browser-based MCP clients (e.g. an in-app chart). Use specific origins in
+# production; "*" only for trusted dev contours.
+MCP_CORS_ALLOWED_ORIGINS = ["*"]
+
 # MCP Disabled Tools - a set of tool names to remove from the MCP server at
 # startup. Disabled tools are silently omitted from tool discovery, so AI
 # clients never see them. Use this when a Superset-provided tool conflicts with
@@ -84,11 +89,14 @@ MCP_DISABLED_TOOLS: set[str] = set()
 MCP_JWT_DEBUG_ERRORS = False
 
 # MCP API Key Authentication - controls whether FAB API keys are accepted by
-# the MCP transport. When None (default), falls back to FAB_API_KEY_ENABLED.
+# the MCP transport. When None, falls back to FAB_API_KEY_ENABLED.
 # Set explicitly to True/False to control MCP transport behavior independently
-# of the FAB REST API setting. When FAB_API_KEY_ENABLED=True and this is None,
-# Superset logs a startup warning to make the implicit enablement visible.
-MCP_API_KEY_ENABLED: bool | None = None
+# of the FAB REST API setting.
+# [techpeople] Default True: the MCP transport is network-reachable (OpenClaw
+# and Superset live on separate servers), so it must require an sst_ key out of
+# the box, independent of whether superset_config.py is picked up by the MCP
+# process. This is the secure default for the OpenClaw MCP chart.
+MCP_API_KEY_ENABLED: bool | None = True
 
 # URL surfaced to users when an API key is rejected, pointing them at the
 # place to create or rotate a key. Defaults to the FAB user profile page;
@@ -305,7 +313,11 @@ MCP_RESPONSE_SIZE_CONFIG: Dict[str, Any] = {
 #   compact); max_description_length still applies in summary mode.
 # =============================================================================
 MCP_TOOL_SEARCH_CONFIG: Dict[str, Any] = {
-    "enabled": True,  # Enabled by default — reduces initial context by ~70%
+    # [techpeople] Disabled by default: the OpenClaw MCP chart passes the full
+    # tool catalog to the agent (no search/call proxy). With Tool Search on, an
+    # unauthenticated probe sees only a stub catalog and call_tool fails — the
+    # default must match how the chart actually drives the server.
+    "enabled": False,
     "strategy": "bm25",  # "bm25" (natural language) or "regex" (pattern matching)
     "max_results": 5,  # Max tools returned per search
     "always_visible": [  # Tools always shown in list_tools (pinned)

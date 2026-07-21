@@ -132,6 +132,7 @@ const PropertiesModal = ({
   const [refreshFrequency, setRefreshFrequency] = useState(0);
   const [selectedThemeId, setSelectedThemeId] = useState<number | null>(null);
   const [showChartTimestamps, setShowChartTimestamps] = useState(false);
+  const [deviceLayoutsEnabled, setDeviceLayoutsEnabled] = useState(false);
   const [themes, setThemes] = useState<
     Array<{
       id: number;
@@ -207,11 +208,13 @@ const PropertiesModal = ({
         'map_label_colors',
         'color_scheme_domain',
         'show_chart_timestamps',
+        'device_layouts_enabled',
       ]);
 
       setJsonMetadata(metaDataCopy ? jsonStringify(metaDataCopy) : '');
       setRefreshFrequency(metadata?.refresh_frequency || 0);
       setShowChartTimestamps(metadata?.show_chart_timestamps ?? false);
+      setDeviceLayoutsEnabled(metadata?.device_layouts_enabled ?? false);
       originalDashboardMetadata.current = metadata;
     },
     [form],
@@ -350,6 +353,7 @@ const PropertiesModal = ({
     const jsonMetadataObj = getJsonMetadata();
     jsonMetadataObj.refresh_frequency = refreshFrequency;
     jsonMetadataObj.show_chart_timestamps = Boolean(showChartTimestamps);
+    jsonMetadataObj.device_layouts_enabled = Boolean(deviceLayoutsEnabled);
     const customLabelColors = jsonMetadataObj.label_colors || {};
     const updatedDashboardMetadata = {
       ...originalDashboardMetadata.current,
@@ -764,6 +768,8 @@ const PropertiesModal = ({
                   customCss={customCss}
                   hasCustomLabelsColor={hasCustomLabelsColor}
                   showChartTimestamps={showChartTimestamps}
+                  deviceLayoutsEnabled={deviceLayoutsEnabled}
+                  onDeviceLayoutsEnabledChange={setDeviceLayoutsEnabled}
                   onThemeChange={handleThemeChange}
                   onColorSchemeChange={onColorSchemeChange}
                   onCustomCssChange={handleCustomCssChange}

@@ -38,6 +38,7 @@ import { UrlParamEntries } from 'src/utils/urlUtils';
 import { ResourceStatus } from 'src/hooks/apiResources/apiResources';
 import { UserWithPermissionsAndRoles } from 'src/types/bootstrapTypes';
 import Owner from 'src/types/Owner';
+import type { DashboardDevice } from 'src/dashboard/util/deviceLayouts';
 import Role from 'src/types/Role';
 import { TagType } from 'src/components/Tag/TagType';
 import { ChartState } from '../explore/types';
@@ -166,6 +167,10 @@ export type DashboardState = {
   isStarred?: boolean;
   lastRefreshTime?: number;
   tabActivationTimes?: Record<string, number>;
+  activeDevice?: DashboardDevice;
+  inactiveDeviceLayouts?: Partial<Record<DashboardDevice, DashboardLayout>>;
+  customizedDeviceLayouts?: DashboardDevice[];
+  editorChartPlaceholders?: boolean;
 };
 export type DashboardInfo = {
   id: number;

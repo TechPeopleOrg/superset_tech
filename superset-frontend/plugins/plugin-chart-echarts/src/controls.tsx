@@ -150,7 +150,8 @@ export const colorByPrimaryAxisControl: ControlSetItem = {
     description: t('Color bars by x-axis'),
     visibility: ({ controls }: { controls: any }) =>
       (!controls?.stack?.value || controls?.stack?.value === null) &&
-      (!controls?.groupby?.value || controls?.groupby?.value?.length === 0),
+      (!controls?.groupby?.value || controls?.groupby?.value?.length === 0) &&
+      !controls?.gradientByRank?.value,
     shouldMapStateToProps: () => true,
     mapStateToProps: (state: any) => {
       const isHorizontal = state?.controls?.orientation?.value === 'horizontal';

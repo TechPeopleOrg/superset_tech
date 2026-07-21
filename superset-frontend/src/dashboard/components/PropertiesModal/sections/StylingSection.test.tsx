@@ -71,10 +71,12 @@ const defaultProps = {
   customCss: '',
   hasCustomLabelsColor: false,
   showChartTimestamps: false,
+  deviceLayoutsEnabled: false,
   onThemeChange: jest.fn(),
   onColorSchemeChange: jest.fn(),
   onCustomCssChange: jest.fn(),
   onShowChartTimestampsChange: jest.fn(),
+  onDeviceLayoutsEnabledChange: jest.fn(),
   addDangerToast: jest.fn(),
 };
 

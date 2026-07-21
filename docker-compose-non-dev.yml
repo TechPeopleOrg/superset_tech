@@ -32,6 +32,8 @@ x-superset-volumes:
 x-common-build: &common-build
   context: .
   target: dev
+  args:
+    BUILD_TRANSLATIONS: ${BUILD_TRANSLATIONS:-true}
   cache_from:
     - apache/superset-cache:3.10-slim-trixie
 
@@ -94,6 +96,34 @@ services:
       redis:
         condition: service_started
     user: "root"
+    volumes: *superset-volumes
+    healthcheck:
+      disable: true
+
+  superset-mcp:
+    env_file:
+      - path: docker/.env # default
+        required: true
+      - path: docker/.env-local # optional override
+        required: false
+    build:
+      <<: *common-build
+    container_name: superset_mcp
+    command: ["/app/docker/docker-bootstrap.sh", "mcp"]
+    user: "root"
+    restart: unless-stopped
+    # MCP is reachable inside the compose network (other services use
+    # http://superset-mcp:5008). It is NOT published to the host here, so it is
+    # never exposed to the internet by default — safe even if the lock is off.
+    # To reach it from the host for LOCAL testing, also run the override file:
+    #   docker compose -f docker-compose-non-dev.yml \
+    #                  -f docker-compose.mcp-localtest.yml up
+    # See tech_docs/MCP_PROD_SETUP.md.
+    expose:
+      - "5008"
+    depends_on:
+      superset-init:
+        condition: service_completed_successfully
     volumes: *superset-volumes
     healthcheck:
       disable: true

@@ -162,3 +162,15 @@ def test_dashboard_copy_css_rejects_dangerous_constructs() -> None:
             }
         )
     assert "css" in exc_info.value.messages
+
+
+def test_dashboard_json_metadata_accepts_device_layouts() -> None:
+    """Device layout keys pass json_metadata validation on create and update."""
+    metadata = (
+        '{"device_layouts_enabled": true,'
+        ' "device_layouts": {"mobile": {"DASHBOARD_VERSION_KEY": "v2"}}}'
+    )
+    assert DashboardPostSchema().load(
+        {"dashboard_title": "test", "json_metadata": metadata}
+    )
+    assert DashboardPutSchema().load({"json_metadata": metadata})

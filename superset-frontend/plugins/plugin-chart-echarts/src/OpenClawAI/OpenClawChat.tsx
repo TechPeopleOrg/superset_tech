@@ -16,15 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useEffect, useRef, useState, KeyboardEvent } from 'react';
-import { Button, Card, Input, Space, Spin, Typography, theme } from 'antd';
+import { useEffect, useRef, useState, KeyboardEvent, ChangeEvent } from 'react';
+import { SafeMarkdown } from '@superset-ui/core/components';
+import {
+  Button,
+  Card,
+  Input,
+  message,
+  Space,
+  Spin,
+  Tag,
+  Typography,
+  theme,
+} from 'antd';
 import {
   ClearOutlined,
+  PaperClipOutlined,
   RobotOutlined,
   SendOutlined,
   UserOutlined,
 } from '@ant-design/icons';
 import { OpenClawChatComponentProps } from './transformProps';
+import { parseAttachment } from './fileParsers';
 
 const { TextArea } = Input;
 const { Paragraph, Text, Title } = Typography;
@@ -83,8 +96,13 @@ export default function OpenClawChat(props: OpenClawChatComponentProps) {
   const [conversationId, setConversationId] = useState<string>(() =>
     generateId(),
   );
+  const [attachedFile, setAttachedFile] = useState<{
+    name: string;
+    content: string;
+  } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isStreaming) {
@@ -92,17 +110,21 @@ export default function OpenClawChat(props: OpenClawChatComponentProps) {
     }
   }, [messages, streamingText, isStreaming]);
 
+  const streamIntervalRef = useRef<ReturnType<typeof setInterval>>();
+
   const streamAnswer = (fullText: string) => {
+    // Split by Unicode code points so surrogate pairs (emoji) are not sliced apart.
+    const chars = Array.from(fullText);
     setIsStreaming(true);
     setStreamingText('');
 
     let index = 0;
-    const interval = setInterval(() => {
-      if (index <= fullText.length) {
-        setStreamingText(fullText.slice(0, index));
-        index += 1;
+    streamIntervalRef.current = setInterval(() => {
+      index += 1;
+      if (index < chars.length) {
+        setStreamingText(chars.slice(0, index).join(''));
       } else {
-        clearInterval(interval);
+        clearInterval(streamIntervalRef.current);
         setIsStreaming(false);
         setMessages(prev => [
           ...prev,
@@ -118,6 +140,38 @@ export default function OpenClawChat(props: OpenClawChatComponentProps) {
     }, speedText || 30);
   };
 
+  // Stop the typing interval if the component unmounts mid-stream.
+  useEffect(
+    () => () => {
+      if (streamIntervalRef.current) clearInterval(streamIntervalRef.current);
+    },
+    [],
+  );
+
+  const handleAttachClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelect = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // Reset so selecting the same file again still fires onChange.
+    e.target.value = '';
+    if (!file) return;
+
+    try {
+      const parsed = await parseAttachment(file);
+      setAttachedFile(parsed);
+    } catch (err) {
+      message.warning(
+        err instanceof Error ? err.message : 'Не удалось прочитать файл',
+      );
+    }
+  };
+
+  const handleDetachFile = () => {
+    setAttachedFile(null);
+  };
+
   const sendMessage = async () => {
     const trimmed = inputText.trim();
     if (!trimmed || !apiKey || !baseUrl) return;
@@ -131,6 +185,16 @@ export default function OpenClawChat(props: OpenClawChatComponentProps) {
 
     const history = [
       { role: 'system' as const, content: systemPrompt },
+      ...(attachedFile
+        ? [
+            {
+              role: 'system' as const,
+              content:
+                `Пользователь прикрепил файл "${attachedFile.name}". ` +
+                `Используй его содержимое как контекст:\n\n${attachedFile.content}`,
+            },
+          ]
+        : []),
       ...messages.map(m => ({ role: m.role, content: m.content })),
       { role: 'user' as const, content: trimmed },
     ];
@@ -201,6 +265,7 @@ export default function OpenClawChat(props: OpenClawChatComponentProps) {
     setStreamingText('');
     setIsStreaming(false);
     setConversationId(generateId());
+    setAttachedFile(null);
   };
 
   const handleKeyPress = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -360,12 +425,17 @@ export default function OpenClawChat(props: OpenClawChatComponentProps) {
                         ? token.colorPrimaryText
                         : token.colorText,
                     wordBreak: 'break-word',
-                    whiteSpace: 'pre-wrap',
                   }}
                 >
-                  <Paragraph style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
-                    {msg.content}
-                  </Paragraph>
+                  {msg.role === 'assistant' ? (
+                    <div className="openclaw-markdown">
+                      <SafeMarkdown source={msg.content} />
+                    </div>
+                  ) : (
+                    <Paragraph style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
+                      {msg.content}
+                    </Paragraph>
+                  )}
                 </div>
               </div>
             </div>
@@ -396,19 +466,9 @@ export default function OpenClawChat(props: OpenClawChatComponentProps) {
                     border: `1px solid ${token.colorBorder}`,
                   }}
                 >
-                  <Paragraph style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
-                    {streamingText}
-                    <span
-                      style={{
-                        display: 'inline-block',
-                        width: 2,
-                        height: '1.2em',
-                        background: token.colorPrimary,
-                        marginLeft: 2,
-                        animation: 'blink 1s infinite',
-                      }}
-                    />
-                  </Paragraph>
+                  <div className="openclaw-markdown openclaw-markdown--streaming">
+                    <SafeMarkdown source={streamingText} />
+                  </div>
                 </div>
               </div>
             </div>
@@ -436,7 +496,46 @@ export default function OpenClawChat(props: OpenClawChatComponentProps) {
             background: token.colorBgLayout,
           }}
         >
+          {attachedFile && (
+            <div style={{ marginBottom: 8 }}>
+              <Tag
+                icon={<PaperClipOutlined />}
+                closable
+                onClose={handleDetachFile}
+                color="processing"
+                style={{ maxWidth: '100%' }}
+              >
+                <span
+                  style={{
+                    display: 'inline-block',
+                    maxWidth: 240,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    verticalAlign: 'bottom',
+                  }}
+                  title={attachedFile.name}
+                >
+                  {attachedFile.name}
+                </span>
+              </Tag>
+            </div>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".txt,.md,.xlsx,.xls,.pdf,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,application/pdf"
+            onChange={handleFileSelect}
+            style={{ display: 'none' }}
+          />
           <Space.Compact style={{ width: '100%' }}>
+            <Button
+              icon={<PaperClipOutlined />}
+              onClick={handleAttachClick}
+              disabled={isLoading || isStreaming || !apiKey || !baseUrl}
+              style={{ height: 'auto' }}
+              title="Прикрепить файл (.txt, .md, .xlsx, .xls, .pdf)"
+            />
             <TextArea
               placeholder={inputPlaceholder}
               value={inputText}
@@ -468,6 +567,42 @@ export default function OpenClawChat(props: OpenClawChatComponentProps) {
         @keyframes blink {
           0%, 50%    { opacity: 1; }
           51%, 100%  { opacity: 0; }
+        }
+        .openclaw-markdown > *:first-child { margin-top: 0; }
+        .openclaw-markdown > *:last-child { margin-bottom: 0; }
+        .openclaw-markdown p { margin: 0 0 8px; }
+        .openclaw-markdown ul,
+        .openclaw-markdown ol { margin: 0 0 8px; padding-left: 20px; }
+        .openclaw-markdown pre {
+          margin: 0 0 8px;
+          padding: 8px 12px;
+          border-radius: 6px;
+          overflow-x: auto;
+          background: ${token.colorBgElevated};
+        }
+        .openclaw-markdown code {
+          font-family: monospace;
+          font-size: 0.9em;
+        }
+        .openclaw-markdown table {
+          border-collapse: collapse;
+          margin: 0 0 8px;
+        }
+        .openclaw-markdown th,
+        .openclaw-markdown td {
+          border: 1px solid ${token.colorBorder};
+          padding: 4px 8px;
+        }
+        .openclaw-markdown a { color: ${token.colorLink}; }
+        .openclaw-markdown--streaming > *:last-child::after {
+          content: '';
+          display: inline-block;
+          width: 2px;
+          height: 1.1em;
+          vertical-align: text-bottom;
+          margin-left: 2px;
+          background: ${token.colorPrimary};
+          animation: blink 1s infinite;
         }
       `}</style>
     </div>

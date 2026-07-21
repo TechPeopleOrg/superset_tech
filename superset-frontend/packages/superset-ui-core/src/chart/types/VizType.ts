@@ -27,6 +27,7 @@ export enum VizType {
   Bubble = 'bubble_v2',
   CamelAi = 'camel_ai',
   OpenClawAi = 'openclaw_ai',
+  OpenClawAiMcp = 'openclaw_ai_mcp',
   Bullet = 'bullet',
   Calendar = 'cal_heatmap',
   Cartodiagram = 'cartodiagram',

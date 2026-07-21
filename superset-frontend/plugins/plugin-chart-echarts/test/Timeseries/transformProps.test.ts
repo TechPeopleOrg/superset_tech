@@ -1753,4 +1753,31 @@ describe('Tooltip with long labels', () => {
     expect(typeof result).toBe('string');
     expect(result).toContain('599616000000');
   });
+
+  test('per-axis hide controls apply to the correct axis (camelCase form data)', () => {
+    const chartProps = createTestChartProps({
+      formData: {
+        yAxisHideLine: true,
+        yAxisHideTick: true,
+        yAxisHideSplitLine: true,
+        xAxisHideLine: true,
+        xAxisHideTick: true,
+      } as Partial<EchartsTimeseriesFormData>,
+    });
+    const { echartOptions } = transformProps(chartProps) as any;
+
+    expect(echartOptions.yAxis.axisLine.show).toBe(false);
+    expect(echartOptions.yAxis.axisTick.show).toBe(false);
+    expect(echartOptions.yAxis.splitLine.show).toBe(false);
+    expect(echartOptions.xAxis.axisLine.show).toBe(false);
+    expect(echartOptions.xAxis.axisTick.show).toBe(false);
+  });
+
+  test('per-axis hide controls default to showing the axis', () => {
+    const chartProps = createTestChartProps({});
+    const { echartOptions } = transformProps(chartProps) as any;
+
+    expect(echartOptions.yAxis.axisLine.show).toBe(true);
+    expect(echartOptions.xAxis.axisLine.show).toBe(true);
+  });
 });

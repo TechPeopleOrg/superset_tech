@@ -194,6 +194,40 @@ export function applyColorByPrimaryAxis(
   });
 }
 
+/**
+ * Colors each bar by its position (rank) in the already-sorted data, producing a
+ * single-hue gradient that steps from dark (first bar) to light (last bar). The
+ * lightness ramps across a fixed 25%–70% band so the darkest/lightest bars stay
+ * legible; hue and saturation come from the controls. When `invert` is set the
+ * ramp runs light→dark instead. Data is expected to be pre-sorted by the query —
+ * this intentionally colors by rank, not by value.
+ */
+export function applyGradientByRank(
+  series: SeriesOption,
+  hue: number,
+  saturation: number,
+  opacity: number,
+  invert = false,
+): {
+  value: [string | number, number];
+  itemStyle: { color: string; opacity: number; borderWidth: number };
+}[] {
+  const data = series.data as [string | number, number][];
+  const lastIndex = Math.max(data.length - 1, 1);
+  return data.map((value, index) => {
+    const fraction = index / lastIndex;
+    const lightness = 25 + (invert ? 1 - fraction : fraction) * 45;
+    return {
+      value,
+      itemStyle: {
+        color: `hsl(${hue}, ${saturation}%, ${lightness}%)`,
+        opacity,
+        borderWidth: 0,
+      },
+    };
+  });
+}
+
 export function transformSeries(
   series: SeriesOption,
   colorScale: CategoricalColorScale,
@@ -229,6 +263,12 @@ export function transformSeries(
     theme?: SupersetTheme;
     hasDimensions?: boolean;
     colorByPrimaryAxis?: boolean;
+    gradientByRank?: boolean;
+    gradientHue?: number;
+    gradientSaturation?: number;
+    gradientInvert?: boolean;
+    barBorderRadius?: number;
+    barLabelPosition?: string;
   },
 ): SeriesOption | undefined {
   const { name, data } = series;
@@ -260,6 +300,12 @@ export function transformSeries(
     timeShiftColor,
     theme,
     colorByPrimaryAxis = false,
+    gradientByRank = false,
+    gradientHue = 212,
+    gradientSaturation = 72,
+    gradientInvert = false,
+    barBorderRadius = 0,
+    barLabelPosition = 'end',
   } = opts;
   const contexts = seriesContexts[name || ''] || [];
   const hasForecast =
@@ -318,10 +364,16 @@ export function transformSeries(
    * if timeShiftColor is enabled the colorScaleKey forces the color to be the
    * same as the original series, otherwise uses separate colors
    * */
+  const gradientApplies = gradientByRank && seriesType === 'bar' && !stack;
   const itemStyle: ItemStyleOption = {
-    color: timeShiftColor
-      ? colorScale(colorScaleKey, sliceId)
-      : colorScale(seriesKey || forecastSeries.name, sliceId),
+    // When the gradient is on, the legend reads this series-level color; use the
+    // midpoint of the gradient's lightness band so it represents the ramp. The
+    // per-point colors on the data still win for the bars themselves.
+    color: gradientApplies
+      ? `hsl(${gradientHue}, ${gradientSaturation}%, 47.5%)`
+      : timeShiftColor
+        ? colorScale(colorScaleKey, sliceId)
+        : colorScale(seriesKey || forecastSeries.name, sliceId),
     opacity,
     borderWidth: 0,
   };
@@ -329,6 +381,10 @@ export function transformSeries(
     itemStyle.borderWidth = 1.5;
     itemStyle.borderType = 'dotted';
     itemStyle.borderColor = itemStyle.color;
+  }
+  // Round all four corners of bars by a single radius.
+  if (seriesType === 'bar' && barBorderRadius > 0) {
+    itemStyle.borderRadius = barBorderRadius;
   }
   let emphasis = {};
   let showSymbol = false;
@@ -368,24 +424,37 @@ export function transformSeries(
   return {
     ...series,
     ...(Array.isArray(data)
-      ? colorByPrimaryAxis
+      ? gradientByRank && seriesType === 'bar' && !stack
         ? {
-            data: applyColorByPrimaryAxis(
+            data: applyGradientByRank(
               series,
-              colorScale,
-              sliceId,
+              gradientHue,
+              gradientSaturation,
               opacity,
-              isHorizontal,
+              gradientInvert,
             ),
           }
-        : seriesType === 'bar' && !stack
-          ? { data: transformNegativeLabelsPosition(series, isHorizontal) }
-          : null
+        : colorByPrimaryAxis
+          ? {
+              data: applyColorByPrimaryAxis(
+                series,
+                colorScale,
+                sliceId,
+                opacity,
+                isHorizontal,
+              ),
+            }
+          : seriesType === 'bar' && !stack
+            ? { data: transformNegativeLabelsPosition(series, isHorizontal) }
+            : null
       : null),
     connectNulls,
     queryIndex,
     yAxisIndex,
     name: forecastSeries.name,
+    // colorByPrimaryAxis colors per-point and builds its own legend, so it drops
+    // the series-level itemStyle. The gradient keeps it: the bars use per-point
+    // colors while the legend reads this (mid-gradient) series color.
     ...(colorByPrimaryAxis ? {} : { itemStyle }),
     // @ts-ignore
     type: plotType,
@@ -416,7 +485,12 @@ export function transformSeries(
     symbolSize: markerSize,
     label: {
       show: !!showValue,
-      position: isHorizontal ? 'right' : 'top',
+      position:
+        seriesType === 'bar' && barLabelPosition === 'middle'
+          ? 'inside'
+          : isHorizontal
+            ? 'right'
+            : 'top',
       color: theme?.colorText,
       textBorderWidth: 0,
       formatter: (params: any) => {

@@ -1298,3 +1298,99 @@ def dashboard_layout_serializer(dashboard: "Dashboard") -> DashboardLayout:
             has_layout=bool(position_json_str),
         )
     )
+
+
+# --- Dashboard CSS tools schemas ---
+
+
+class GetDashboardCssRequest(BaseModel):
+    identifier: int | str = Field(
+        ..., description="Dashboard id, UUID, slug, or title"
+    )
+
+
+class WidgetSummary(BaseModel):
+    slice_name: str = Field(..., description="Widget (chart) display name")
+    chart_key: str = Field(..., description="Layout key, e.g. CHART-abc123")
+    selector: str = Field(..., description="Outer CSS selector for the widget")
+
+
+class GetDashboardCssResponse(BaseModel):
+    id: int = Field(..., description="Dashboard id")
+    dashboard_title: str | None = Field(None, description="Dashboard title")
+    css: str = Field("", description="Current full CSS")
+    css_length: int = Field(0, description="Length of css in characters")
+    blocks: list[str] = Field(
+        default_factory=list, description="Names of MCP-managed CSS blocks"
+    )
+    widgets: list[WidgetSummary] = Field(
+        default_factory=list, description="Widgets with name->selector mapping"
+    )
+
+
+class SetDashboardCssRequest(BaseModel):
+    identifier: int | str = Field(..., description="Dashboard id, UUID, slug, or title")
+    css: str = Field(..., description="Full new CSS stylesheet (replaces existing)")
+
+
+class SetDashboardCssResponse(BaseModel):
+    id: int
+    dashboard_title: str | None = None
+    css: str = ""
+    css_length: int = 0
+    changed: bool = True
+
+
+class UpsertDashboardCssBlockRequest(BaseModel):
+    identifier: int | str = Field(..., description="Dashboard id, UUID, slug, or title")
+    block_name: str = Field(..., description="Block slug, e.g. 'background'")
+    css: str = Field(
+        ..., description="CSS fragment for this block; empty string removes the block"
+    )
+
+
+class UpsertDashboardCssBlockResponse(BaseModel):
+    id: int
+    block_name: str
+    action: str = Field(..., description="created | updated | removed")
+    css: str = ""
+    css_length: int = 0
+
+
+class StyleDashboardWidgetRequest(BaseModel):
+    identifier: int | str = Field(..., description="Dashboard id, UUID, slug, or title")
+    widget_name: str = Field(
+        ..., description="Widget/chart display name on the dashboard"
+    )
+    styles: str = Field(
+        ...,
+        description=(
+            "Raw CSS properties, e.g. 'border: 2px solid red; border-radius: 12px;'. "
+            "Empty string removes this widget's styles."
+        ),
+    )
+
+
+class StyleDashboardWidgetResponse(BaseModel):
+    id: int
+    widget_name: str
+    selector: str = Field("", description="Applied CSS selector(s)")
+    action: str = Field(..., description="created | updated | removed")
+    css: str = ""
+    css_length: int = 0
+
+
+class DashboardCssError(BaseModel):
+    error: str = Field(..., description="Human-readable error message")
+    error_type: str = Field(..., description="Error category")
+
+
+class DashboardCandidate(BaseModel):
+    id: int
+    title: str
+
+
+class AmbiguousMatchResponse(BaseModel):
+    ambiguous: bool = True
+    candidates: list[DashboardCandidate] = Field(default_factory=list)
+    message: str = Field(..., description="Explanation to relay to the user")

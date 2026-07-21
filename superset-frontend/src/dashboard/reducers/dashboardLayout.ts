@@ -44,6 +44,7 @@ import {
 } from '../actions/dashboardLayout';
 
 import { HYDRATE_DASHBOARD } from '../actions/hydrate';
+import { SET_DEVICE_LAYOUT_TREE } from '../actions/deviceLayouts';
 import { DashboardLayout } from '../types';
 import { DropResult } from '../components/dnd/dragDroppableConfig';
 
@@ -109,6 +110,21 @@ const actionHandlers: Record<
   ): DashboardLayout {
     return {
       ...action.data!.dashboardLayout.present,
+    };
+  },
+
+  [SET_DEVICE_LAYOUT_TREE](
+    state: DashboardLayout,
+    action: DashboardLayoutAction,
+  ): DashboardLayout {
+    const tree =
+      (action.payload as { tree?: DashboardLayout } | undefined)?.tree ?? {};
+    return {
+      ...tree,
+      // keep the live header (dashboard title) when swapping trees
+      ...(state[DASHBOARD_HEADER_ID] && {
+        [DASHBOARD_HEADER_ID]: state[DASHBOARD_HEADER_ID],
+      }),
     };
   },
 

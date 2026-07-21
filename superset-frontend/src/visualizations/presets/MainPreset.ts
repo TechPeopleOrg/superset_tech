@@ -73,6 +73,7 @@ import {
   EchartsGanttChartPlugin,
   EchartsCamelAIChartPlugin,
   EchartsOpenClawAIChartPlugin,
+  EchartsOpenClawAIMcpChartPlugin,
 } from '@superset-ui/plugin-chart-echarts';
 import {
   SelectFilterPlugin,
@@ -131,6 +132,9 @@ export default class MainPreset extends Preset {
         new EchartsCamelAIChartPlugin().configure({ key: VizType.CamelAi }),
         new EchartsOpenClawAIChartPlugin().configure({
           key: VizType.OpenClawAi,
+        }),
+        new EchartsOpenClawAIMcpChartPlugin().configure({
+          key: VizType.OpenClawAiMcp,
         }),
         new EchartsGaugeChartPlugin().configure({ key: VizType.Gauge }),
         new EchartsGraphChartPlugin().configure({ key: VizType.Graph }),

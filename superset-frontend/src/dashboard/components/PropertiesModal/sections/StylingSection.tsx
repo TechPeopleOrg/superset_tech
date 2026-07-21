@@ -84,6 +84,7 @@ interface StylingSectionProps {
   customCss: string;
   hasCustomLabelsColor: boolean;
   showChartTimestamps: boolean;
+  deviceLayoutsEnabled: boolean;
   onThemeChange: (value: any) => void;
   onColorSchemeChange: (
     colorScheme: string,
@@ -91,6 +92,7 @@ interface StylingSectionProps {
   ) => void;
   onCustomCssChange: (css: string) => void;
   onShowChartTimestampsChange: (value: boolean) => void;
+  onDeviceLayoutsEnabledChange: (value: boolean) => void;
   addDangerToast?: (message: string) => void;
 }
 
@@ -101,10 +103,12 @@ const StylingSection = ({
   customCss,
   hasCustomLabelsColor,
   showChartTimestamps,
+  deviceLayoutsEnabled,
   onThemeChange,
   onColorSchemeChange,
   onCustomCssChange,
   onShowChartTimestampsChange,
+  onDeviceLayoutsEnabledChange,
   addDangerToast,
 }: StylingSectionProps) => {
   const [cssTemplates, setCssTemplates] = useState<CssTemplate[]>([]);
@@ -214,6 +218,23 @@ const StylingSection = ({
         <span className="switch-helper">
           {t(
             'Display the last queried timestamp on charts in the dashboard view',
+          )}
+        </span>
+      </StyledSwitchContainer>
+      <StyledSwitchContainer data-test="dashboard-device-layouts-field">
+        <div className="switch-row">
+          <Switch
+            data-test="dashboard-device-layouts-switch"
+            checked={deviceLayoutsEnabled}
+            onChange={onDeviceLayoutsEnabledChange}
+          />
+          <span className="switch-label">
+            {t('Adaptive versions (desktop/tablet/mobile)')}
+          </span>
+        </div>
+        <span className="switch-helper">
+          {t(
+            'Maintain separate dashboard layouts per device and show viewers the version matching their screen',
           )}
         </span>
       </StyledSwitchContainer>

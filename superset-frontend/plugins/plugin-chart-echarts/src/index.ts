@@ -46,6 +46,7 @@ export { default as EchartsWaterfallChartPlugin } from './Waterfall';
 export { default as EchartsGanttChartPlugin } from './Gantt';
 export { default as EchartsCamelAIChartPlugin } from './CamelAI';
 export { default as EchartsOpenClawAIChartPlugin } from './OpenClawAI';
+export { default as EchartsOpenClawAIMcpChartPlugin } from './OpenClawAIMcp';
 
 export { default as BoxPlotTransformProps } from './BoxPlot/transformProps';
 export { default as FunnelTransformProps } from './Funnel/transformProps';

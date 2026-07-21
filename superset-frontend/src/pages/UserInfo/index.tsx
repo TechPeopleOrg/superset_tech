@@ -19,11 +19,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { t } from '@apache-superset/core/translation';
-import {
-  SupersetClient,
-  FeatureFlag,
-  isFeatureEnabled,
-} from '@superset-ui/core';
+import { SupersetClient } from '@superset-ui/core';
 import { css, useTheme, styled } from '@apache-superset/core/theme';
 import SubMenu, { SubMenuProps } from 'src/features/home/SubMenu';
 import { useToasts } from 'src/components/MessageToasts/withToasts';
@@ -165,13 +161,7 @@ export function UserInfo({ user }: { user: UserWithPermissionsAndRoles }) {
       <StyledHeader>{t('Your user information')}</StyledHeader>
       <DescriptionsContainer>
         <Collapse
-          defaultActiveKey={[
-            'userInfo',
-            'personalInfo',
-            ...(isFeatureEnabled(FeatureFlag.FabApiKeyEnabled)
-              ? ['apiKeys']
-              : []),
-          ]}
+          defaultActiveKey={['userInfo', 'personalInfo', 'apiKeys']}
           ghost
         >
           <Collapse.Panel
@@ -222,14 +212,12 @@ export function UserInfo({ user }: { user: UserWithPermissionsAndRoles }) {
               </Descriptions.Item>
             </Descriptions>
           </Collapse.Panel>
-          {isFeatureEnabled(FeatureFlag.FabApiKeyEnabled) && (
-            <Collapse.Panel
-              header={<DescriptionTitle>{t('API Keys')}</DescriptionTitle>}
-              key="apiKeys"
-            >
-              <ApiKeyList />
-            </Collapse.Panel>
-          )}
+          <Collapse.Panel
+            header={<DescriptionTitle>{t('API Keys')}</DescriptionTitle>}
+            key="apiKeys"
+          >
+            <ApiKeyList />
+          </Collapse.Panel>
         </Collapse>
       </DescriptionsContainer>
       {modalState.resetPassword && (

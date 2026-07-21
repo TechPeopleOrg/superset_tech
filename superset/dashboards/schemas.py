@@ -211,6 +211,10 @@ class DashboardJSONMetadataSchema(Schema):
     cross_filters_enabled = fields.Boolean(dump_default=True)
     # controls visibility of "last queried at" timestamp on charts in dashboard view
     show_chart_timestamps = fields.Boolean(dump_default=False)
+    # per-dashboard opt-in for device-specific (desktop/tablet/mobile) layouts
+    device_layouts_enabled = fields.Boolean(dump_default=False)
+    # position_json-format layout trees keyed by device ("tablet", "mobile")
+    device_layouts = fields.Dict(allow_none=True)
     # used for v0 import/export
     import_time = fields.Integer()
     remote_id = fields.Integer()
