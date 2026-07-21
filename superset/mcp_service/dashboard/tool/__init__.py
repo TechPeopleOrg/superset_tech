@@ -17,14 +17,22 @@
 
 from .add_chart_to_existing_dashboard import add_chart_to_existing_dashboard
 from .generate_dashboard import generate_dashboard
+from .get_dashboard_css import get_dashboard_css
 from .get_dashboard_info import get_dashboard_info
 from .get_dashboard_layout import get_dashboard_layout
 from .list_dashboards import list_dashboards
+from .set_dashboard_css import set_dashboard_css
+from .style_dashboard_widget import style_dashboard_widget
+from .upsert_dashboard_css_block import upsert_dashboard_css_block
 
 __all__ = [
     "list_dashboards",
     "get_dashboard_info",
     "get_dashboard_layout",
+    "get_dashboard_css",
+    "set_dashboard_css",
+    "upsert_dashboard_css_block",
+    "style_dashboard_widget",
     "generate_dashboard",
     "add_chart_to_existing_dashboard",
 ]
