@@ -40,9 +40,12 @@ jest.mock('@xeokit/xeokit-sdk', () => ({
     scene: { objects, aabb: [0, 0, 0, 1, 1, 1] },
     metaScene: {
       metaObjects,
-      // storey contains wall+door; leaves return themselves.
+      // storey contains wall+door plus 'pset1', a property set with no
+      // geometry entity in scene.objects — exercises the
+      // `.filter(oid => !!scene.objects[oid])` non-geometry filtering in
+      // expandToLeaves. Leaves return themselves.
       getObjectIDsInSubtree: (id: string) =>
-        id === 'storey' ? ['storey', 'wall', 'door'] : [id],
+        id === 'storey' ? ['storey', 'wall', 'door', 'pset1'] : [id],
     },
     camera: { eye: [0, 0, 0], look: [0, 0, 0], up: [0, 1, 0] },
     cameraControl: {},
@@ -184,9 +187,11 @@ test('api.resetColors with ids resets only those', async () => {
 test('api.expandToLeaves returns geometry leaves under a container', async () => {
   const { result } = renderViewer();
   await waitFor(() => expect(result.current.api).toBeDefined());
-  expect(result.current.api!.expandToLeaves('storey').sort()).toEqual(
-    ['door', 'storey', 'wall'],
-  );
+  const leaves = result.current.api!.expandToLeaves('storey');
+  // Must contain exactly the geometry leaves and must not contain 'pset1',
+  // which has no entry in scene.objects (a property set, not geometry).
+  expect(leaves.sort()).toEqual(['door', 'storey', 'wall']);
+  expect(leaves).not.toContain('pset1');
   expect(result.current.api!.expandToLeaves('wall')).toEqual(['wall']);
 });
 
