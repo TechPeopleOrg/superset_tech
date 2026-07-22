@@ -80,4 +80,15 @@ export interface XeokitApi {
   showAll(): void;
   // Current visibility of every object, keyed by objectId.
   getVisibility(): Record<string, boolean>;
+  // Set the RGB colorize multiplier (0..1) on the given objects. Non-existent
+  // ids are silently ignored.
+  colorize(objectIds: string[], rgb: [number, number, number]): void;
+  // Reset colorize to neutral [1,1,1] for the given objects, or all objects
+  // when omitted.
+  resetColors(objectIds?: string[]): void;
+  // Expand a metaObject id to the geometry object ids beneath it (or the id
+  // itself when it is a geometry leaf). Non-geometry ids are filtered out.
+  expandToLeaves(id: string): string[];
+  // Every geometry object id in the scene.
+  allObjectIds(): string[];
 }

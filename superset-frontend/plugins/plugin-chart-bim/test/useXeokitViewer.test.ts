@@ -23,9 +23,10 @@ import useXeokitViewer from '../src/useXeokitViewer';
 // Captures the 'loaded' callback so the test can fire it deterministically.
 let loadedCb: (() => void) | undefined;
 
-const objects: Record<string, { visible: boolean }> = {
-  wall: { visible: true },
-  door: { visible: true },
+const objects: Record<string, { visible: boolean; colorize: number[] }> = {
+  storey: { visible: true, colorize: [1, 1, 1] },
+  wall: { visible: true, colorize: [1, 1, 1] },
+  door: { visible: true, colorize: [1, 1, 1] },
 };
 
 const metaObjects = {
@@ -37,7 +38,12 @@ const metaObjects = {
 jest.mock('@xeokit/xeokit-sdk', () => ({
   Viewer: jest.fn().mockImplementation(() => ({
     scene: { objects, aabb: [0, 0, 0, 1, 1, 1] },
-    metaScene: { metaObjects },
+    metaScene: {
+      metaObjects,
+      // storey contains wall+door; leaves return themselves.
+      getObjectIDsInSubtree: (id: string) =>
+        id === 'storey' ? ['storey', 'wall', 'door'] : [id],
+    },
     camera: { eye: [0, 0, 0], look: [0, 0, 0], up: [0, 1, 0] },
     cameraControl: {},
     cameraFlight: { flyTo: jest.fn() },
@@ -55,8 +61,12 @@ jest.mock('@xeokit/xeokit-sdk', () => ({
 
 beforeEach(() => {
   loadedCb = undefined;
+  objects.storey.visible = true;
   objects.wall.visible = true;
   objects.door.visible = true;
+  objects.storey.colorize = [1, 1, 1];
+  objects.wall.colorize = [1, 1, 1];
+  objects.door.colorize = [1, 1, 1];
 });
 
 const renderViewer = () => {
@@ -108,6 +118,7 @@ test('api.showAll makes everything visible', async () => {
   act(() => result.current.api!.setVisible(['wall'], false));
   act(() => result.current.api!.showAll());
   expect(result.current.api!.getVisibility()).toEqual({
+    storey: true,
     wall: true,
     door: true,
   });
@@ -142,4 +153,47 @@ test('tree and api reset to undefined when modelUrl changes', async () => {
   await waitFor(() => expect(loadedCb).toBeDefined());
   act(() => loadedCb!());
   await waitFor(() => expect(result.current.tree).toBeDefined());
+});
+
+test('api.colorize sets colorize only on existing objects', async () => {
+  const { result } = renderViewer();
+  await waitFor(() => expect(result.current.api).toBeDefined());
+  act(() => result.current.api!.colorize(['wall', 'ghost'], [1, 0, 0]));
+  expect(objects.wall.colorize).toEqual([1, 0, 0]);
+  expect(objects.door.colorize).toEqual([1, 1, 1]);
+});
+
+test('api.resetColors with no args resets all objects', async () => {
+  const { result } = renderViewer();
+  await waitFor(() => expect(result.current.api).toBeDefined());
+  act(() => result.current.api!.colorize(['wall', 'door'], [1, 0, 0]));
+  act(() => result.current.api!.resetColors());
+  expect(objects.wall.colorize).toEqual([1, 1, 1]);
+  expect(objects.door.colorize).toEqual([1, 1, 1]);
+});
+
+test('api.resetColors with ids resets only those', async () => {
+  const { result } = renderViewer();
+  await waitFor(() => expect(result.current.api).toBeDefined());
+  act(() => result.current.api!.colorize(['wall', 'door'], [1, 0, 0]));
+  act(() => result.current.api!.resetColors(['wall']));
+  expect(objects.wall.colorize).toEqual([1, 1, 1]);
+  expect(objects.door.colorize).toEqual([1, 0, 0]);
+});
+
+test('api.expandToLeaves returns geometry leaves under a container', async () => {
+  const { result } = renderViewer();
+  await waitFor(() => expect(result.current.api).toBeDefined());
+  expect(result.current.api!.expandToLeaves('storey').sort()).toEqual(
+    ['door', 'storey', 'wall'],
+  );
+  expect(result.current.api!.expandToLeaves('wall')).toEqual(['wall']);
+});
+
+test('api.allObjectIds returns every scene object id', async () => {
+  const { result } = renderViewer();
+  await waitFor(() => expect(result.current.api).toBeDefined());
+  expect(result.current.api!.allObjectIds().sort()).toEqual(
+    ['door', 'storey', 'wall'],
+  );
 });

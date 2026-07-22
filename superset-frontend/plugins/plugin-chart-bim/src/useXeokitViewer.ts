@@ -93,7 +93,10 @@ export default function useXeokitViewer(
         cc.followPointer = navMode !== 'firstPerson';
 
         const scene = viewer.scene as unknown as {
-          objects: Record<string, { visible: boolean }>;
+          objects: Record<string, { visible: boolean; colorize: number[] }>;
+        };
+        const metaScene2 = viewer.metaScene as unknown as {
+          getObjectIDsInSubtree: (id: string) => string[];
         };
         // api is declared before the 'loaded' handler so the handler closes
         // over it. This makes the final setState in 'loaded' atomic regardless
@@ -124,6 +127,24 @@ export default function useXeokitViewer(
             });
             return out;
           },
+          colorize: (ids, rgb) => {
+            ids.forEach(id => {
+              const obj = scene.objects[id];
+              if (obj) obj.colorize = rgb;
+            });
+          },
+          resetColors: ids => {
+            const target = ids ?? Object.keys(scene.objects);
+            target.forEach(id => {
+              const obj = scene.objects[id];
+              if (obj) obj.colorize = [1, 1, 1];
+            });
+          },
+          expandToLeaves: id =>
+            metaScene2
+              .getObjectIDsInSubtree(id)
+              .filter(oid => !!scene.objects[oid]),
+          allObjectIds: () => Object.keys(scene.objects),
         };
 
         const loader = new XKTLoaderPlugin(viewer);
