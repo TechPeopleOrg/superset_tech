@@ -60,3 +60,31 @@ test('transformProps returns empty modelUrl when cell is null', () => {
   );
   expect(result.modelUrl).toBe('');
 });
+
+test('passes rows, link/color columns and a colorFn to props', () => {
+  const props = transformProps({
+    width: 100,
+    height: 100,
+    formData: {
+      link_column: 'gid',
+      color_by: 'status',
+      color_overrides: '[{"value":"Done","color":"#00ff00"}]',
+    },
+    queriesData: [{ data: [{ gid: 'a', status: 'Done' }] }],
+  } as any);
+  expect(props.rows).toEqual([{ gid: 'a', status: 'Done' }]);
+  expect(props.linkColumn).toBe('gid');
+  expect(props.colorBy).toBe('status');
+  expect(props.overrides).toEqual([{ value: 'Done', color: '#00ff00' }]);
+  expect(typeof props.colorFn).toBe('function');
+});
+
+test('overrides default to [] on invalid or empty json', () => {
+  const props = transformProps({
+    width: 1,
+    height: 1,
+    formData: { color_overrides: 'not json' },
+    queriesData: [{ data: [] }],
+  } as any);
+  expect(props.overrides).toEqual([]);
+});

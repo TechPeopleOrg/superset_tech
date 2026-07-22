@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { QueryFormData } from '@superset-ui/core';
+import { QueryFormData, DataRecord } from '@superset-ui/core';
 
 export interface BimStylesProps {
   height: number;
@@ -59,6 +59,19 @@ export type BimChartProps = BimStylesProps & {
   backgroundColor?: string;
   showEdges?: boolean;
   navMode?: 'orbit' | 'firstPerson' | 'planView';
+  // --- Data-binding props (link elements to dataset rows and color them) ---
+  // Query result rows, passed through unchanged for row-level lookups.
+  rows: DataRecord[];
+  // Column whose values match xeokit object/metaObject ids.
+  linkColumn?: string;
+  // Column whose values are mapped to colors.
+  colorBy?: string;
+  // Resolves a data value to a hex color, backed by Superset's shared
+  // categorical palette (CategoricalColorNamespace) — no hardcoded colors.
+  colorFn: (value: string) => string;
+  // Explicit value -> color overrides, parsed from the color_overrides
+  // control; takes priority over colorFn for matching values.
+  overrides: { value: string; color: string }[];
 };
 
 // A node in the model's IFC containment hierarchy, built from xeokit metadata.

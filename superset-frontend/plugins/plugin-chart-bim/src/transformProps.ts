@@ -16,7 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ChartProps, DataRecord } from '@superset-ui/core';
+import {
+  ChartProps,
+  DataRecord,
+  CategoricalColorNamespace,
+} from '@superset-ui/core';
 import { BimChartProps, BimFormData } from './types';
 
 // Build the model download URL from a storage UUID. Kept as a named export so
@@ -33,6 +37,26 @@ export default function transformProps(chartProps: ChartProps): BimChartProps {
   // Superset camelCases control names into formData (e.g. `model_column` →
   // `modelColumn`), but some paths preserve snake_case — read both to be safe.
   const modelColumn = fd.modelColumn ?? fd.model_column;
+
+  const linkColumn = fd.linkColumn ?? fd.link_column;
+  const colorBy = fd.colorBy ?? fd.color_by;
+
+  // Same categorical palette every Superset chart uses; no hardcoded colors.
+  const colorScheme = (fd.color_scheme ?? fd.colorScheme) as string | undefined;
+  const scale = CategoricalColorNamespace.getScale(colorScheme as string);
+  const colorFn = (value: string) => scale.getColor(value) as string;
+
+  let overrides: { value: string; color: string }[] = [];
+  const rawOverrides = fd.colorOverrides ?? fd.color_overrides;
+  if (rawOverrides) {
+    try {
+      const parsed = JSON.parse(rawOverrides);
+      if (Array.isArray(parsed)) overrides = parsed;
+    } catch {
+      // Invalid JSON: fall back to the automatic palette only.
+      overrides = [];
+    }
+  }
 
   let modelUrl = '';
   // TEMPORARY (manual testing without a dataset): a directly-entered model UUID
@@ -57,5 +81,10 @@ export default function transformProps(chartProps: ChartProps): BimChartProps {
     backgroundColor: fd.backgroundColor ?? fd.background_color ?? '#ffffff',
     showEdges: fd.showEdges ?? fd.show_edges ?? false,
     navMode: fd.navMode ?? fd.nav_mode ?? 'firstPerson',
+    rows: data,
+    linkColumn,
+    colorBy,
+    colorFn,
+    overrides,
   };
 }
