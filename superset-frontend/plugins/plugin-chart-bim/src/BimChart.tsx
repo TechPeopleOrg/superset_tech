@@ -82,6 +82,16 @@ export default function BimChart(props: BimChartProps) {
     navMode,
   });
 
+  // Content-based key for the color mapping. transformProps runs on every
+  // chart re-render (resize, refresh, filter changes), not only when the
+  // underlying data changes, and it hands back a new `colorFn` reference and
+  // a new `overrides` array/reference each time even when their content is
+  // identical. Keying the memo below off serialized content (rather than off
+  // those references directly) means the mapping — and the paint effect that
+  // depends on it — only recomputes when rows/linkColumn/colorBy/overrides
+  // actually change, not on every re-render.
+  const mappingKey = JSON.stringify({ rows, linkColumn, colorBy, overrides });
+
   // Value -> color mapping derived from the query rows; empty when the chart
   // isn't configured for data-binding yet (no link/color-by column chosen).
   const { colorById, legend } = useMemo(() => {
@@ -92,7 +102,15 @@ export default function BimChart(props: BimChartProps) {
       };
     }
     return buildColorMapping({ rows, linkColumn, colorBy, colorFn, overrides });
-  }, [rows, linkColumn, colorBy, colorFn, overrides]);
+    // mappingKey already encodes rows/linkColumn/colorBy/overrides by content,
+    // so it is the only dependency that should trigger a recompute. colorFn is
+    // deterministic for a given value (backed by the shared categorical
+    // palette) and is intentionally excluded: transformProps hands back a new
+    // colorFn/overrides reference on every re-render, and depending on those
+    // references directly would rebuild the mapping (and re-run the paint
+    // effect below) on every render instead of only when the data changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mappingKey]);
 
   const [matched, setMatched] = useState<{ m: number; n: number } | null>(null);
 

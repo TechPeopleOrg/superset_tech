@@ -197,6 +197,52 @@ test('shows a matched X of Y diagnostic', async () => {
   );
 });
 
+test('does not repaint on a re-render with the same data but new colorFn/overrides references', async () => {
+  jest.spyOn(viewerHook, 'default').mockReturnValue({
+    loading: false,
+    tree: undefined,
+    error: undefined,
+    api: paintingApi,
+  });
+  const rows = [{ gid: 'wall', status: 'Done' }];
+  const { rerender } = render(
+    <BimChart
+      {...baseProps({
+        modelUrl: '/model',
+        rows,
+        linkColumn: 'gid',
+        colorBy: 'status',
+        colorFn: () => '#00ff00',
+        overrides: [],
+      })}
+    />,
+  );
+  await waitFor(() => expect(colorize).toHaveBeenCalled());
+  const colorizeCallsAfterFirstPaint = colorize.mock.calls.length;
+  const resetColorsCallsAfterFirstPaint = resetColors.mock.calls.length;
+
+  // Same row content, but brand-new colorFn and overrides array references —
+  // exactly what transformProps produces on every re-render even when the
+  // underlying data is unchanged.
+  rerender(
+    <BimChart
+      {...baseProps({
+        modelUrl: '/model',
+        rows,
+        linkColumn: 'gid',
+        colorBy: 'status',
+        colorFn: () => '#00ff00',
+        overrides: [],
+      })}
+    />,
+  );
+
+  // Give any (unwanted) effect a chance to run before asserting it didn't.
+  await Promise.resolve();
+  expect(colorize.mock.calls.length).toBe(colorizeCallsAfterFirstPaint);
+  expect(resetColors.mock.calls.length).toBe(resetColorsCallsAfterFirstPaint);
+});
+
 test('no legend and no painting when colorBy is absent', async () => {
   jest.spyOn(viewerHook, 'default').mockReturnValue({
     loading: false,
