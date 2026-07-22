@@ -38,6 +38,13 @@ export interface UseXeokitViewerState {
   error?: string;
   tree?: TreeNode[];
   api?: XeokitApi;
+  // True only once the 'loaded' event has fired and scene/metaScene are
+  // populated. `api` is exposed earlier (right after loader.load()) so
+  // callers can register handlers, but its methods walk an empty scene until
+  // this flips true. Consumers that read scene contents through `api` (e.g.
+  // data-driven coloring) must wait for `ready` rather than react to `api`
+  // alone, since `api` is the same stable reference before and after load.
+  ready?: boolean;
 }
 
 // All xeokit access is isolated here. The engine is dynamically imported so its
@@ -203,13 +210,17 @@ export default function useXeokitViewer(
             loading: false,
             api,
             tree: roots.length ? roots : undefined,
+            ready: true,
           }));
         });
 
         if (cancelled) return;
         // Expose api immediately after loader.load() returns so callers can
-        // call visibility methods before the 'loaded' event fires. The
-        // 'loaded' handler re-applies api (from closure) alongside tree and
+        // call visibility methods before the 'loaded' event fires. `ready` is
+        // intentionally left unset here: the scene is still empty at this
+        // point, and only the 'loaded' handler above (setting ready: true)
+        // marks it safe to read scene contents through `api`. The 'loaded'
+        // handler re-applies api (from closure) alongside tree, ready, and
         // loading:false in a single update, keeping state consistent whether
         // 'loaded' fires synchronously or asynchronously.
         setState(prev => ({ ...prev, api }));

@@ -76,7 +76,7 @@ export default function BimChart(props: BimChartProps) {
   // Bump to force the hook effect to re-run on retry without changing modelUrl.
   const [retryKey, setRetryKey] = useState(0);
 
-  const { loading, error, tree, api } = useXeokitViewer(containerRef, {
+  const { loading, error, tree, api, ready } = useXeokitViewer(containerRef, {
     modelUrl: modelUrl ? `${modelUrl}#${retryKey}` : '',
     backgroundColor,
     showEdges,
@@ -130,7 +130,7 @@ export default function BimChart(props: BimChartProps) {
   // neutral base (so unmatched elements read as "no data"), then paint every
   // matched GlobalId's geometry leaves with its mapped color.
   useEffect(() => {
-    if (!api || !colorById.size) {
+    if (!api || !ready || !colorById.size) {
       setMatched(null);
       return;
     }
@@ -154,7 +154,7 @@ export default function BimChart(props: BimChartProps) {
       }
     });
     setMatched({ m: matchedKeys, n: colorById.size });
-  }, [api, colorById, theme]);
+  }, [api, colorById, theme, ready]);
 
   return (
     <Container style={{ width, height, background: backgroundColor }}>

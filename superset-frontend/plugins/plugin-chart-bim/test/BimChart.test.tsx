@@ -126,6 +126,7 @@ test('paints neutral base then colored matches, in order', async () => {
     tree: undefined,
     error: undefined,
     api: paintingApi,
+    ready: true,
   });
   render(
     <BimChart
@@ -157,6 +158,7 @@ test('expands a container GlobalId to its leaves before painting', async () => {
     tree: undefined,
     error: undefined,
     api: paintingApi,
+    ready: true,
   });
   render(
     <BimChart
@@ -179,6 +181,7 @@ test('shows a matched X of Y diagnostic, counted by data key', async () => {
     tree: undefined,
     error: undefined,
     api: paintingApi,
+    ready: true,
   });
   render(
     <BimChart
@@ -212,6 +215,7 @@ test('counts a container GlobalId as one matched key, not one per expanded leaf'
     tree: undefined,
     error: undefined,
     api: paintingApi,
+    ready: true,
   });
   render(
     <BimChart
@@ -244,6 +248,7 @@ test('does not repaint on a re-render with the same data but new colorFn/overrid
     tree: undefined,
     error: undefined,
     api: paintingApi,
+    ready: true,
   });
   const rows = [{ gid: 'wall', status: 'Done' }];
   const { rerender } = render(
@@ -290,6 +295,7 @@ test('repaints on a re-render with the same data but a different colorScheme', a
     tree: undefined,
     error: undefined,
     api: paintingApi,
+    ready: true,
   });
   const rows = [{ gid: 'wall', status: 'Done' }];
   const { rerender } = render(
@@ -333,12 +339,79 @@ test('repaints on a re-render with the same data but a different colorScheme', a
   );
 });
 
+test('does not paint while api is present but the scene is not ready, then paints once ready', async () => {
+  // Reproduces the live bug: useXeokitViewer sets state with `api` twice for
+  // the same load — once right after loader.load() (scene still empty) and
+  // once inside the 'loaded' handler (scene populated) alongside `ready`.
+  // The mock below models both moments explicitly via `ready`.
+  const mockUseXeokitViewer = jest.spyOn(viewerHook, 'default');
+  mockUseXeokitViewer.mockReturnValue({
+    loading: false,
+    tree: undefined,
+    error: undefined,
+    api: paintingApi,
+    ready: false,
+  });
+  const rows = [{ gid: 'wall', status: 'Done' }];
+  const { rerender } = render(
+    <BimChart
+      {...baseProps({
+        modelUrl: '/model',
+        rows,
+        linkColumn: 'gid',
+        colorBy: 'status',
+        colorFn: () => '#00ff00',
+        overrides: [],
+      })}
+    />,
+  );
+
+  // Give the paint effect a chance to run before asserting it did not.
+  await Promise.resolve();
+  expect(resetColors).not.toHaveBeenCalled();
+  expect(colorize).not.toHaveBeenCalled();
+  expect(screen.queryByTestId('bim-diagnostic')).not.toBeInTheDocument();
+
+  // Same api reference, same colorById-driving props — only `ready` flips.
+  // This is exactly what happens when the 'loaded' event fires: the hook's
+  // second setState carries the identical `api` closure plus ready: true.
+  mockUseXeokitViewer.mockReturnValue({
+    loading: false,
+    tree: undefined,
+    error: undefined,
+    api: paintingApi,
+    ready: true,
+  });
+  rerender(
+    <BimChart
+      {...baseProps({
+        modelUrl: '/model',
+        rows,
+        linkColumn: 'gid',
+        colorBy: 'status',
+        colorFn: () => '#00ff00',
+        overrides: [],
+      })}
+    />,
+  );
+
+  await waitFor(() => expect(colorize).toHaveBeenCalled());
+  expect(resetColors).toHaveBeenCalled();
+  expect(colorize.mock.calls[0][0]).toEqual(['storey', 'wall', 'door']);
+  await waitFor(() =>
+    expect(screen.getByTestId('bim-diagnostic')).toHaveTextContent(
+      'Matched 1 of 1',
+    ),
+  );
+});
+
 test('no legend and no painting when colorBy is absent', async () => {
   jest.spyOn(viewerHook, 'default').mockReturnValue({
     loading: false,
     tree: undefined,
     error: undefined,
     api: paintingApi,
+    ready: true,
   });
   render(
     <BimChart
