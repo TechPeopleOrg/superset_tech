@@ -148,7 +148,11 @@ export default function useXeokitViewer(
         };
 
         const loader = new XKTLoaderPlugin(viewer);
-        model = loader.load({ id: 'bim-model', src: modelUrl, edges: showEdges });
+        model = loader.load({
+          id: 'bim-model',
+          src: modelUrl,
+          edges: showEdges,
+        });
 
         // Once geometry is in, position the camera relative to the model's real
         // world bounds (IFC/xkt models rarely sit at the origin).
@@ -232,10 +236,10 @@ export default function useXeokitViewer(
       }
       if (node) node.innerHTML = '';
     };
-  // containerRef is intentionally excluded from the dep array: ref objects
-  // change identity on every render but their `.current` is stable; including
-  // the ref would cause infinite re-renders when using createRef() in tests.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // containerRef is intentionally excluded from the dep array: ref objects
+    // change identity on every render but their `.current` is stable; including
+    // the ref would cause infinite re-renders when using createRef() in tests.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modelUrl, showEdges, navMode]);
 
   return state;

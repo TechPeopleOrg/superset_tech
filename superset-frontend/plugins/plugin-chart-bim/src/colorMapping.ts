@@ -46,9 +46,7 @@ export default function buildColorMapping(
   input: ColorMappingInput,
 ): ColorMappingResult {
   const { rows, linkColumn, colorBy, colorFn, overrides } = input;
-  const overrideMap = new Map(
-    (overrides ?? []).map(o => [o.value, o.color]),
-  );
+  const overrideMap = new Map((overrides ?? []).map(o => [o.value, o.color]));
 
   const colorById = new Map<string, [number, number, number]>();
   const legendColors = new Map<string, string>(); // value -> hex, first-seen order
