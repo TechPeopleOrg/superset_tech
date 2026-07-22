@@ -16,22 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { buildQueryContext, QueryFormData } from '@superset-ui/core';
+import buildQuery from '../src/buildQuery';
 
-export default function buildQuery(formData: QueryFormData) {
-  const linkColumn = (formData.link_column ?? formData.linkColumn) as
-    | string
-    | undefined;
-  const colorBy = (formData.color_by ?? formData.colorBy) as
-    | string
-    | undefined;
-  return buildQueryContext(formData, baseQueryObject => [
-    {
-      ...baseQueryObject,
-      columns:
-        linkColumn && colorBy
-          ? [linkColumn, colorBy]
-          : baseQueryObject.columns,
-    },
-  ]);
-}
+const base = {
+  datasource: '1__table',
+  viz_type: 'bim',
+} as any;
+
+test('adds link_column and color_by to groupby when both set', () => {
+  const q = buildQuery({ ...base, link_column: 'gid', color_by: 'status' });
+  expect(q.queries[0].columns).toEqual(['gid', 'status']);
+});
+
+test('no groupby when link_column or color_by missing', () => {
+  const q = buildQuery({ ...base, link_column: 'gid' });
+  expect(q.queries[0].columns ?? []).toEqual([]);
+});

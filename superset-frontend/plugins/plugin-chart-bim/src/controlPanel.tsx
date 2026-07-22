@@ -66,6 +66,59 @@ const config: ControlPanelConfig = {
       ],
     },
     {
+      label: t('Data binding'),
+      expanded: true,
+      controlSetRows: [
+        [
+          {
+            name: 'link_column',
+            config: {
+              type: 'SelectControl',
+              label: t('Element GlobalId column'),
+              description: t(
+                'Dataset column holding the element IFC GlobalId. Required for coloring.',
+              ),
+              default: null,
+              mapStateToProps: (state: ControlPanelState) => ({
+                choices: columnChoices(state.datasource),
+              }),
+            },
+          },
+        ],
+        [
+          {
+            name: 'color_by',
+            config: {
+              type: 'SelectControl',
+              label: t('Color by column'),
+              description: t(
+                'Dataset column whose value drives element color. Leave empty for no coloring.',
+              ),
+              default: null,
+              mapStateToProps: (state: ControlPanelState) => ({
+                choices: columnChoices(state.datasource),
+              }),
+            },
+          },
+        ],
+        [
+          {
+            name: 'color_overrides',
+            config: {
+              type: 'TextAreaControl',
+              language: 'json',
+              label: t('Color overrides (JSON)'),
+              description: t(
+                'Optional JSON array of {"value","color"} pairs overriding the automatic palette, e.g. [{"value":"Done","color":"#00ff00"}].',
+              ),
+              default: '',
+              renderTrigger: true,
+            },
+          },
+        ],
+      ],
+    },
+    {
       label: t('Viewer'),
       expanded: true,
       controlSetRows: [

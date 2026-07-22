@@ -43,11 +43,13 @@ export type BimFormData = QueryFormData &
     backgroundColor?: string;
     showEdges?: boolean;
     navMode?: 'orbit' | 'firstPerson' | 'planView';
-    // --- Reserved for the data-binding stage (NOT implemented in this MVP) ---
-    // link_column?: string;       // dataset column with element GlobalId
-    // category_column?: string;   // column whose value drives element color
-    // color_map?: { value: string; color: string }[];
-    // cross_filter_mode?: 'data_mask' | 'native_filters';
+    // --- Data-binding controls (link elements to dataset rows and color them) ---
+    link_column?: string;
+    color_by?: string;
+    color_overrides?: string; // JSON string of { value, color }[]
+    linkColumn?: string;
+    colorBy?: string;
+    colorOverrides?: string;
   };
 
 export type BimChartProps = BimStylesProps & {
