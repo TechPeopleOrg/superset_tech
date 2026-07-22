@@ -173,7 +173,7 @@ test('expands a container GlobalId to its leaves before painting', async () => {
   await waitFor(() => expect(expandToLeaves).toHaveBeenCalledWith('storey'));
 });
 
-test('shows a matched X of Y diagnostic', async () => {
+test('shows a matched X of Y diagnostic, counted by data key', async () => {
   jest.spyOn(viewerHook, 'default').mockReturnValue({
     loading: false,
     tree: undefined,
@@ -192,9 +192,50 @@ test('shows a matched X of Y diagnostic', async () => {
       })}
     />,
   );
+  // One data key ('wall') maps to exactly one leaf, so m and n agree here;
+  // the container case below is what distinguishes key-counting from
+  // leaf-counting.
   await waitFor(() =>
-    expect(screen.getByTestId('bim-diagnostic')).toHaveTextContent('1'),
+    expect(screen.getByTestId('bim-diagnostic')).toHaveTextContent(
+      'Matched 1 of 1',
+    ),
   );
+});
+
+test('counts a container GlobalId as one matched key, not one per expanded leaf', async () => {
+  // 'storey' is a single data key that expands to two geometry leaves
+  // ('wall', 'door'). The diagnostic must report matched *data keys*
+  // (1 of 1), not matched geometry leaves (which would read "2 of 1" and
+  // violate m <= n).
+  jest.spyOn(viewerHook, 'default').mockReturnValue({
+    loading: false,
+    tree: undefined,
+    error: undefined,
+    api: paintingApi,
+  });
+  render(
+    <BimChart
+      {...baseProps({
+        modelUrl: '/model',
+        rows: [{ gid: 'storey', status: 'Done' }],
+        linkColumn: 'gid',
+        colorBy: 'status',
+        colorFn: () => '#00ff00',
+        overrides: [],
+      })}
+    />,
+  );
+  await waitFor(() =>
+    expect(screen.getByTestId('bim-diagnostic')).toHaveTextContent(
+      'Matched 1 of 1',
+    ),
+  );
+  // Both leaves are still painted with the mapped color.
+  expect(
+    colorize.mock.calls.some(
+      c => JSON.stringify(c[0]) === JSON.stringify(['wall', 'door']),
+    ),
+  ).toBe(true);
 });
 
 test('does not repaint on a re-render with the same data but new colorFn/overrides references', async () => {
@@ -241,6 +282,55 @@ test('does not repaint on a re-render with the same data but new colorFn/overrid
   await Promise.resolve();
   expect(colorize.mock.calls.length).toBe(colorizeCallsAfterFirstPaint);
   expect(resetColors.mock.calls.length).toBe(resetColorsCallsAfterFirstPaint);
+});
+
+test('repaints on a re-render with the same data but a different colorScheme', async () => {
+  jest.spyOn(viewerHook, 'default').mockReturnValue({
+    loading: false,
+    tree: undefined,
+    error: undefined,
+    api: paintingApi,
+  });
+  const rows = [{ gid: 'wall', status: 'Done' }];
+  const { rerender } = render(
+    <BimChart
+      {...baseProps({
+        modelUrl: '/model',
+        rows,
+        linkColumn: 'gid',
+        colorBy: 'status',
+        colorFn: () => '#00ff00',
+        overrides: [],
+        colorScheme: 'supersetColors',
+      })}
+    />,
+  );
+  await waitFor(() => expect(colorize).toHaveBeenCalled());
+  const colorizeCallsAfterFirstPaint = colorize.mock.calls.length;
+
+  // Same rows/linkColumn/colorBy/overrides, but a different dashboard-level
+  // color scheme — this is what a colorFn returning different colors for the
+  // same value looks like from the chart's perspective. The mapping must be
+  // recomputed and the model repainted, not left stale.
+  rerender(
+    <BimChart
+      {...baseProps({
+        modelUrl: '/model',
+        rows,
+        linkColumn: 'gid',
+        colorBy: 'status',
+        colorFn: () => '#ff00ff',
+        overrides: [],
+        colorScheme: 'googleCategory10c',
+      })}
+    />,
+  );
+
+  await waitFor(() =>
+    expect(colorize.mock.calls.length).toBeGreaterThan(
+      colorizeCallsAfterFirstPaint,
+    ),
+  );
 });
 
 test('no legend and no painting when colorBy is absent', async () => {

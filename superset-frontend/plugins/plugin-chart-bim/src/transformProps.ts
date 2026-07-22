@@ -86,5 +86,6 @@ export default function transformProps(chartProps: ChartProps): BimChartProps {
     colorBy,
     colorFn,
     overrides,
+    colorScheme,
   };
 }

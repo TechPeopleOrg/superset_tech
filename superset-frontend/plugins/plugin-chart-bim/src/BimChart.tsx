@@ -69,6 +69,7 @@ export default function BimChart(props: BimChartProps) {
     colorBy,
     colorFn,
     overrides,
+    colorScheme,
   } = props;
   const theme = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -89,8 +90,18 @@ export default function BimChart(props: BimChartProps) {
   // identical. Keying the memo below off serialized content (rather than off
   // those references directly) means the mapping — and the paint effect that
   // depends on it — only recomputes when rows/linkColumn/colorBy/overrides
-  // actually change, not on every re-render.
-  const mappingKey = JSON.stringify({ rows, linkColumn, colorBy, overrides });
+  // actually change, not on every re-render. `colorScheme` is included so a
+  // dashboard-level palette change invalidates the key too: colorFn resolves
+  // against the scheme but is intentionally excluded from the memo's deps
+  // (see below), so without the scheme string here a scheme change would
+  // leave stale colors on the model.
+  const mappingKey = JSON.stringify({
+    rows,
+    linkColumn,
+    colorBy,
+    overrides,
+    colorScheme,
+  });
 
   // Value -> color mapping derived from the query rows; empty when the chart
   // isn't configured for data-binding yet (no link/color-by column chosen).
@@ -102,13 +113,14 @@ export default function BimChart(props: BimChartProps) {
       };
     }
     return buildColorMapping({ rows, linkColumn, colorBy, colorFn, overrides });
-    // mappingKey already encodes rows/linkColumn/colorBy/overrides by content,
-    // so it is the only dependency that should trigger a recompute. colorFn is
-    // deterministic for a given value (backed by the shared categorical
-    // palette) and is intentionally excluded: transformProps hands back a new
-    // colorFn/overrides reference on every re-render, and depending on those
-    // references directly would rebuild the mapping (and re-run the paint
-    // effect below) on every render instead of only when the data changes.
+    // mappingKey already encodes rows/linkColumn/colorBy/overrides/colorScheme
+    // by content, so it is the only dependency that should trigger a
+    // recompute. colorFn is deterministic for a given value and scheme
+    // (backed by the shared categorical palette) and is intentionally
+    // excluded: transformProps hands back a new colorFn/overrides reference
+    // on every re-render, and depending on those references directly would
+    // rebuild the mapping (and re-run the paint effect below) on every render
+    // instead of only when the data or scheme changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mappingKey]);
 
@@ -127,15 +139,21 @@ export default function BimChart(props: BimChartProps) {
     const allIds = api.allObjectIds();
     api.colorize(allIds, neutral);
     const present = new Set(allIds);
-    const matchedIds = new Set<string>();
+    // Diagnostic counts data keys, not geometry leaves: a single container
+    // GlobalId (e.g. a storey) can expand into many leaves, and counting
+    // leaves for `m` while `n` counts data keys produces a nonsensical
+    // "Matched 50 of 1". Counting a data key as matched once it has at least
+    // one present leaf keeps m <= n and reports something a user can reason
+    // about ("this many of my rows landed on the model").
+    let matchedKeys = 0;
     colorById.forEach((rgb, gid) => {
       const leaves = api.expandToLeaves(gid).filter(id => present.has(id));
       if (leaves.length) {
         api.colorize(leaves, rgb);
-        leaves.forEach(id => matchedIds.add(id));
+        matchedKeys += 1;
       }
     });
-    setMatched({ m: matchedIds.size, n: colorById.size });
+    setMatched({ m: matchedKeys, n: colorById.size });
   }, [api, colorById, theme]);
 
   return (

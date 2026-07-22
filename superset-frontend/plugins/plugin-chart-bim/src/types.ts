@@ -62,6 +62,12 @@ export type BimChartProps = BimStylesProps & {
   // --- Data-binding props (link elements to dataset rows and color them) ---
   // Query result rows, passed through unchanged for row-level lookups.
   rows: DataRecord[];
+  // Dashboard/chart color scheme id (e.g. from the `color_scheme` control).
+  // Not consumed directly for painting (colorFn already resolves colors
+  // against it) — it exists so the color-mapping cache key can detect a
+  // scheme change even though colorFn's own reference is excluded from that
+  // key's dependencies.
+  colorScheme?: string;
   // Column whose values match xeokit object/metaObject ids.
   linkColumn?: string;
   // Column whose values are mapped to colors.
