@@ -69,6 +69,7 @@ test('passes rows, link/color columns and a colorFn to props', () => {
       link_column: 'gid',
       color_by: 'status',
       color_overrides: '[{"value":"Done","color":"#00ff00"}]',
+      color_scheme: 'supersetColors',
     },
     queriesData: [{ data: [{ gid: 'a', status: 'Done' }] }],
   } as any);
@@ -77,6 +78,8 @@ test('passes rows, link/color columns and a colorFn to props', () => {
   expect(props.colorBy).toBe('status');
   expect(props.overrides).toEqual([{ value: 'Done', color: '#00ff00' }]);
   expect(typeof props.colorFn).toBe('function');
+  // colorScheme is passed through so BimChart can key its color mapping by it.
+  expect(props.colorScheme).toBe('supersetColors');
 });
 
 test('overrides default to [] on invalid or empty json', () => {
