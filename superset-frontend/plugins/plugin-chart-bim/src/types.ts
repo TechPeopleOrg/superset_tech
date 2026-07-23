@@ -112,4 +112,11 @@ export interface XeokitApi {
   expandToLeaves(id: string): string[];
   // Every geometry object id in the scene.
   allObjectIds(): string[];
+  // Subscribe to element clicks. The callback receives the picked element's
+  // bare GlobalId (metaObject id), or null when the click hits empty space.
+  // Returns an unsubscribe function that removes the listener.
+  onPick(cb: (globalId: string | null) => void): () => void;
+  // Highlight exactly the given objects (expanded to their geometry leaves),
+  // clearing any previous highlight first. An empty array clears all.
+  highlight(objectIds: string[]): void;
 }

@@ -42,6 +42,8 @@ const makeApi = (): XeokitApi => ({
   resetColors: jest.fn(),
   expandToLeaves: jest.fn(() => []),
   allObjectIds: jest.fn(() => []),
+  onPick: jest.fn(() => jest.fn()),
+  highlight: jest.fn(),
 });
 
 test('panel is closed by default and opens on the toggle', async () => {

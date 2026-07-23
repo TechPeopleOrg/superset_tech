@@ -23,10 +23,13 @@ import useXeokitViewer from '../src/useXeokitViewer';
 // Captures the 'loaded' callback so the test can fire it deterministically.
 let loadedCb: (() => void) | undefined;
 
-const objects: Record<string, { visible: boolean; colorize: number[] }> = {
-  storey: { visible: true, colorize: [1, 1, 1] },
-  wall: { visible: true, colorize: [1, 1, 1] },
-  door: { visible: true, colorize: [1, 1, 1] },
+const objects: Record<
+  string,
+  { visible: boolean; colorize: number[]; highlighted: boolean }
+> = {
+  storey: { visible: true, colorize: [1, 1, 1], highlighted: false },
+  wall: { visible: true, colorize: [1, 1, 1], highlighted: false },
+  door: { visible: true, colorize: [1, 1, 1], highlighted: false },
 };
 
 const metaObjects = {
@@ -35,9 +38,28 @@ const metaObjects = {
   door: { id: 'door', name: 'Door', type: 'IfcDoor', parent: { id: 'proj' } },
 };
 
+// Records 'mouseclicked' handlers registered via scene.input.on so tests can
+// invoke them deterministically, mirroring xeokit's subscription-id API.
+const mockPickHandlers: Array<(coords: unknown) => void> = [];
+const mockScenePick = jest.fn();
+const mockSceneInput = {
+  on: (event: string, cb: (coords: unknown) => void) => {
+    if (event === 'mouseclicked') mockPickHandlers.push(cb);
+    return mockPickHandlers.length - 1;
+  },
+  off: (id: number) => {
+    mockPickHandlers[id] = () => {};
+  },
+};
+
 jest.mock('@xeokit/xeokit-sdk', () => ({
   Viewer: jest.fn().mockImplementation(() => ({
-    scene: { objects, aabb: [0, 0, 0, 1, 1, 1] },
+    scene: {
+      objects,
+      aabb: [0, 0, 0, 1, 1, 1],
+      input: mockSceneInput,
+      pick: mockScenePick,
+    },
     metaScene: {
       metaObjects,
       // storey contains wall+door plus 'pset1', a property set with no
@@ -70,15 +92,18 @@ beforeEach(() => {
   objects.storey.colorize = [1, 1, 1];
   objects.wall.colorize = [1, 1, 1];
   objects.door.colorize = [1, 1, 1];
+  objects.storey.highlighted = false;
+  objects.wall.highlighted = false;
+  objects.door.highlighted = false;
+  mockPickHandlers.length = 0;
+  mockScenePick.mockReset();
 });
 
 const renderViewer = () => {
   const ref = createRef<HTMLDivElement>();
   // The hook needs a real element to attach the canvas to.
   (ref as { current: HTMLDivElement }).current = document.createElement('div');
-  return renderHook(() =>
-    useXeokitViewer(ref, { modelUrl: '/model' }),
-  );
+  return renderHook(() => useXeokitViewer(ref, { modelUrl: '/model' }));
 };
 
 test('exposes a containment tree once the model loads', async () => {
@@ -132,8 +157,7 @@ test('tree and api reset to undefined when modelUrl changes', async () => {
   (ref as { current: HTMLDivElement }).current = document.createElement('div');
 
   const { result, rerender } = renderHook(
-    ({ url }: { url: string }) =>
-      useXeokitViewer(ref, { modelUrl: url }),
+    ({ url }: { url: string }) => useXeokitViewer(ref, { modelUrl: url }),
     { initialProps: { url: '/model-a' } },
   );
 
@@ -198,7 +222,58 @@ test('api.expandToLeaves returns geometry leaves under a container', async () =>
 test('api.allObjectIds returns every scene object id', async () => {
   const { result } = renderViewer();
   await waitFor(() => expect(result.current.api).toBeDefined());
-  expect(result.current.api!.allObjectIds().sort()).toEqual(
-    ['door', 'storey', 'wall'],
-  );
+  expect(result.current.api!.allObjectIds().sort()).toEqual([
+    'door',
+    'storey',
+    'wall',
+  ]);
+});
+
+test('api.onPick fires the callback with the picked metaObject id', async () => {
+  const { result } = renderViewer();
+  await waitFor(() => expect(result.current.api).toBeDefined());
+  mockScenePick.mockReturnValue({ entity: { metaObject: { id: 'gid-1' } } });
+  const cb = jest.fn();
+  act(() => {
+    result.current.api!.onPick(cb);
+  });
+  act(() => mockPickHandlers[0]({ x: 1, y: 2 }));
+  expect(cb).toHaveBeenCalledWith('gid-1');
+});
+
+test('api.onPick fires the callback with null when the click hits nothing', async () => {
+  const { result } = renderViewer();
+  await waitFor(() => expect(result.current.api).toBeDefined());
+  mockScenePick.mockReturnValue(undefined);
+  const cb = jest.fn();
+  act(() => {
+    result.current.api!.onPick(cb);
+  });
+  act(() => mockPickHandlers[0]({ x: 1, y: 2 }));
+  expect(cb).toHaveBeenCalledWith(null);
+});
+
+test('api.onPick returns an unsubscribe that removes the listener', async () => {
+  const { result } = renderViewer();
+  await waitFor(() => expect(result.current.api).toBeDefined());
+  mockScenePick.mockReturnValue({ entity: { metaObject: { id: 'gid-1' } } });
+  const cb = jest.fn();
+  let unsubscribe: () => void = () => {};
+  act(() => {
+    unsubscribe = result.current.api!.onPick(cb);
+  });
+  act(() => unsubscribe());
+  act(() => mockPickHandlers[0]({ x: 1, y: 2 }));
+  expect(cb).not.toHaveBeenCalled();
+});
+
+test('api.highlight sets highlighted on leaves and clears previous highlight', async () => {
+  const { result } = renderViewer();
+  await waitFor(() => expect(result.current.api).toBeDefined());
+  act(() => result.current.api!.highlight(['wall']));
+  expect(objects.wall.highlighted).toBe(true);
+  expect(objects.door.highlighted).toBe(false);
+  act(() => result.current.api!.highlight([]));
+  expect(objects.wall.highlighted).toBe(false);
+  expect(objects.door.highlighted).toBe(false);
 });

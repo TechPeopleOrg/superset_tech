@@ -100,11 +100,32 @@ export default function useXeokitViewer(
         cc.followPointer = navMode !== 'firstPerson';
 
         const scene = viewer.scene as unknown as {
-          objects: Record<string, { visible: boolean; colorize: number[] }>;
+          objects: Record<
+            string,
+            { visible: boolean; colorize: number[]; highlighted: boolean }
+          >;
+          input: {
+            on: (event: string, cb: (coords: unknown) => void) => number;
+            off: (id: number) => void;
+          };
+          pick: (params: { canvasPos: unknown }) => {
+            entity?: { metaObject?: { id?: string } };
+          } | null;
         };
         const metaScene2 = viewer.metaScene as unknown as {
           getObjectIDsInSubtree: (id: string) => string[];
         };
+        // Expand a metaObject id to its geometry leaves. Shared by
+        // api.expandToLeaves and api.highlight (kept as a standalone function,
+        // not a call through `api`, to avoid a use-before-assign reference to
+        // the `api` const from within its own object literal).
+        const expandToLeaves = (id: string): string[] =>
+          metaScene2
+            .getObjectIDsInSubtree(id)
+            .filter(oid => !!scene.objects[oid]);
+        // Tracks the geometry leaf ids currently highlighted so api.highlight
+        // can clear exactly those before applying a new selection.
+        const highlightedIds = new Set<string>();
         // api is declared before the 'loaded' handler so the handler closes
         // over it. This makes the final setState in 'loaded' atomic regardless
         // of whether the event fires synchronously (inside loader.load) or
@@ -147,11 +168,34 @@ export default function useXeokitViewer(
               if (obj) obj.colorize = [1, 1, 1];
             });
           },
-          expandToLeaves: id =>
-            metaScene2
-              .getObjectIDsInSubtree(id)
-              .filter(oid => !!scene.objects[oid]),
+          expandToLeaves,
           allObjectIds: () => Object.keys(scene.objects),
+          onPick: cb => {
+            const subId = scene.input.on('mouseclicked', coords => {
+              const hit = scene.pick({ canvasPos: coords });
+              const gid = hit?.entity?.metaObject?.id;
+              cb(gid ?? null);
+            });
+            return () => scene.input.off(subId);
+          },
+          highlight: objectIds => {
+            // Clear previous highlight.
+            highlightedIds.forEach(id => {
+              const obj = scene.objects[id];
+              if (obj) obj.highlighted = false;
+            });
+            highlightedIds.clear();
+            // Apply new highlight on the geometry leaves of each id.
+            objectIds.forEach(gid => {
+              expandToLeaves(gid).forEach(leaf => {
+                const obj = scene.objects[leaf];
+                if (obj) {
+                  obj.highlighted = true;
+                  highlightedIds.add(leaf);
+                }
+              });
+            });
+          },
         };
 
         const loader = new XKTLoaderPlugin(viewer);
