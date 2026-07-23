@@ -17,9 +17,11 @@
  * under the License.
  */
 import { render, screen, waitFor } from 'spec/helpers/testing-library';
+import { DataMask } from '@superset-ui/core';
 import BimChart from '../src/BimChart';
 import * as viewerHook from '../src/useXeokitViewer';
 import { BimChartProps } from '../src/types';
+import { buildCrossFilterDataMask } from '../src/crossFilter';
 
 const baseProps = (overrides: Partial<BimChartProps> = {}): BimChartProps => ({
   width: 800,
@@ -39,12 +41,23 @@ const expandToLeaves = jest.fn((id: string) =>
   id === 'storey' ? ['wall', 'door'] : [id],
 );
 const allObjectIds = jest.fn(() => ['storey', 'wall', 'door']);
+const highlight = jest.fn();
+// Captures the pick callback so tests can simulate a click by invoking it
+// directly, mirroring how the real xeokit input handler would.
+let capturedOnPick: ((gid: string | null) => void) | undefined;
+const onPick = jest.fn((cb: (gid: string | null) => void) => {
+  capturedOnPick = cb;
+  return jest.fn();
+});
 
 beforeEach(() => {
   colorize.mockClear();
   resetColors.mockClear();
   expandToLeaves.mockClear();
   allObjectIds.mockClear();
+  highlight.mockClear();
+  onPick.mockClear();
+  capturedOnPick = undefined;
 });
 
 test('shows a hint when there is no model URL', () => {
@@ -119,6 +132,8 @@ const paintingApi = {
   resetColors,
   expandToLeaves,
   allObjectIds,
+  onPick,
+  highlight,
 };
 
 test('paints neutral base then colored matches, in order', async () => {
@@ -426,4 +441,158 @@ test('no legend and no painting when colorBy is absent', async () => {
   );
   await waitFor(() => expect(screen.queryByTestId('bim-legend')).toBeNull());
   expect(colorize).not.toHaveBeenCalled();
+});
+
+// --- Click -> cross-filter and filterState -> highlight ---
+
+test('clicking an element emits a cross-filter when enabled', () => {
+  jest.spyOn(viewerHook, 'default').mockReturnValue({
+    loading: false,
+    api: paintingApi,
+    ready: true,
+  });
+  const setDataMask = jest.fn();
+  render(
+    <BimChart
+      {...baseProps({
+        modelUrl: '/model',
+        linkColumn: 'gid',
+        emitCrossFilters: true,
+        setDataMask,
+      })}
+    />,
+  );
+  expect(capturedOnPick).toBeDefined();
+  capturedOnPick?.('gid-1');
+  expect(setDataMask).toHaveBeenCalledWith(
+    buildCrossFilterDataMask('gid', 'gid-1'),
+  );
+});
+
+test('clicking does not emit when cross-filtering is disabled', () => {
+  jest.spyOn(viewerHook, 'default').mockReturnValue({
+    loading: false,
+    api: paintingApi,
+    ready: true,
+  });
+  const setDataMask = jest.fn();
+  render(
+    <BimChart
+      {...baseProps({
+        modelUrl: '/model',
+        linkColumn: 'gid',
+        emitCrossFilters: false,
+        setDataMask,
+      })}
+    />,
+  );
+  expect(capturedOnPick).toBeDefined();
+  capturedOnPick?.('gid-1');
+  expect(setDataMask).not.toHaveBeenCalled();
+  // Disabled mode highlights locally instead of emitting a filter.
+  expect(highlight).toHaveBeenCalledWith(['gid-1']);
+});
+
+test('clicking the same element twice clears the filter', () => {
+  jest.spyOn(viewerHook, 'default').mockReturnValue({
+    loading: false,
+    api: paintingApi,
+    ready: true,
+  });
+  const setDataMask = jest.fn();
+  render(
+    <BimChart
+      {...baseProps({
+        modelUrl: '/model',
+        linkColumn: 'gid',
+        emitCrossFilters: true,
+        setDataMask,
+      })}
+    />,
+  );
+  capturedOnPick?.('gid-1');
+  capturedOnPick?.('gid-1');
+  const calls = setDataMask.mock.calls as [DataMask][];
+  expect(calls[calls.length - 1][0]).toEqual(
+    buildCrossFilterDataMask('gid', null),
+  );
+});
+
+test('clicking empty space clears the filter', () => {
+  jest.spyOn(viewerHook, 'default').mockReturnValue({
+    loading: false,
+    api: paintingApi,
+    ready: true,
+  });
+  const setDataMask = jest.fn();
+  render(
+    <BimChart
+      {...baseProps({
+        modelUrl: '/model',
+        linkColumn: 'gid',
+        emitCrossFilters: true,
+        setDataMask,
+      })}
+    />,
+  );
+  capturedOnPick?.(null);
+  expect(setDataMask).toHaveBeenCalledWith(
+    buildCrossFilterDataMask('gid', null),
+  );
+});
+
+test('filterState drives highlight when cross-filtering is enabled', () => {
+  jest.spyOn(viewerHook, 'default').mockReturnValue({
+    loading: false,
+    api: paintingApi,
+    ready: true,
+  });
+  render(
+    <BimChart
+      {...baseProps({
+        modelUrl: '/model',
+        linkColumn: 'gid',
+        emitCrossFilters: true,
+        filterState: { value: ['gid-1'] },
+      })}
+    />,
+  );
+  expect(highlight).toHaveBeenCalledWith(['gid-1']);
+});
+
+test('does not highlight until the scene is ready', () => {
+  const mockUseXeokitViewer = jest.spyOn(viewerHook, 'default');
+  mockUseXeokitViewer.mockReturnValue({
+    loading: false,
+    api: paintingApi,
+    ready: false,
+  });
+  const { rerender } = render(
+    <BimChart
+      {...baseProps({
+        modelUrl: '/model',
+        linkColumn: 'gid',
+        emitCrossFilters: true,
+        filterState: { value: ['gid-1'] },
+      })}
+    />,
+  );
+  expect(highlight).not.toHaveBeenCalled();
+
+  mockUseXeokitViewer.mockReturnValue({
+    loading: false,
+    api: paintingApi,
+    ready: true,
+  });
+  rerender(
+    <BimChart
+      {...baseProps({
+        modelUrl: '/model',
+        linkColumn: 'gid',
+        emitCrossFilters: true,
+        filterState: { value: ['gid-1'] },
+      })}
+    />,
+  );
+  expect(highlight).toHaveBeenCalledWith(['gid-1']);
 });

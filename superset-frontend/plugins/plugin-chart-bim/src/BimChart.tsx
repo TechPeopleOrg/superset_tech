@@ -26,6 +26,10 @@ import ModelTree from './ModelTree';
 import buildColorMapping, { hexToRgb01 } from './colorMapping';
 import ColorLegend from './ColorLegend';
 import { BimChartProps } from './types';
+import {
+  buildCrossFilterDataMask,
+  selectedGlobalIdsFromFilterState,
+} from './crossFilter';
 
 const Container = styled.div`
   position: relative;
@@ -70,6 +74,9 @@ export default function BimChart(props: BimChartProps) {
     colorFn,
     overrides,
     colorScheme,
+    emitCrossFilters,
+    setDataMask,
+    filterState,
   } = props;
   const theme = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -155,6 +162,52 @@ export default function BimChart(props: BimChartProps) {
     });
     setMatched({ m: matchedKeys, n: colorById.size });
   }, [api, colorById, theme, ready]);
+
+  // Current single selection, kept outside React state so the outgoing pick
+  // handler (closed over once per api/ready/linkColumn combination) can read
+  // the latest value for the toggle-off comparison without re-subscribing.
+  const selectedRef = useRef<string | null>(null);
+
+  // Outgoing: clicking an element emits a cross-filter (or, when
+  // cross-filtering is disabled, highlights locally instead). Single-select:
+  // clicking the currently-selected element or empty space clears it.
+  useEffect(() => {
+    if (!api || !ready || !linkColumn) return undefined;
+    const unsubscribe = api.onPick(gid => {
+      const next = gid && gid !== selectedRef.current ? gid : null;
+      selectedRef.current = next;
+      if (emitCrossFilters) {
+        setDataMask(buildCrossFilterDataMask(linkColumn, next));
+      } else {
+        // No round-trip through filterState in this mode: highlight locally.
+        api.highlight(next ? [next] : []);
+      }
+    });
+    return unsubscribe;
+  }, [api, ready, linkColumn, emitCrossFilters, setDataMask]);
+
+  // Incoming: when cross-filtering is on, highlight follows filterState —
+  // the source of truth, since the click's own selection round-trips back
+  // through Superset into filterState. When cross-filtering is off, this
+  // effect is inert; the outgoing handler above covers local highlight.
+  const incomingIds = emitCrossFilters
+    ? selectedGlobalIdsFromFilterState(filterState)
+    : null;
+  const incomingKey = JSON.stringify(incomingIds);
+  useEffect(() => {
+    // This effect syncs the scene highlight to an external system (the
+    // dashboard's filterState), not to a local component event, so the
+    // guard clause below is not the "effect as event handler" anti-pattern
+    // the no-event-handler rule targets — its heuristic cannot distinguish
+    // the two, so it is disabled for this line specifically.
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler
+    if (!api || !ready || incomingIds === null) return;
+    api.highlight(incomingIds);
+    // Keep the ref in sync so a toggle-off click compares against what's shown.
+    selectedRef.current = incomingIds[0] ?? null;
+    // incomingKey encodes incomingIds by content; api/ready gate scene access.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [api, ready, incomingKey]);
 
   return (
     <Container style={{ width, height, background: backgroundColor }}>
