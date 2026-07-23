@@ -22,16 +22,29 @@ export default function buildQuery(formData: QueryFormData) {
   const linkColumn = (formData.link_column ?? formData.linkColumn) as
     | string
     | undefined;
-  const colorBy = (formData.color_by ?? formData.colorBy) as
-    | string
-    | undefined;
-  return buildQueryContext(formData, baseQueryObject => [
+  const colorBy = (formData.color_by ?? formData.colorBy) as string | undefined;
+
+  // Strip cross-filter/native filter clauses from extra_form_data so the
+  // viewer's own query always covers the full dataset: coloring reflects every
+  // element's state and does not flicker when another chart cross-filters.
+  // Incoming filters still reach the chart via filterState and only drive
+  // highlighting. `extra_form_data` also carries non-filter fields (e.g.
+  // time_grain) that we keep untouched.
+  const extra = {
+    ...((formData.extra_form_data as Record<string, unknown>) ?? {}),
+  };
+  delete extra.filters;
+  delete extra.adhoc_filters;
+  const cleanedFormData: QueryFormData = {
+    ...formData,
+    extra_form_data: extra,
+  };
+
+  return buildQueryContext(cleanedFormData, baseQueryObject => [
     {
       ...baseQueryObject,
       columns:
-        linkColumn && colorBy
-          ? [linkColumn, colorBy]
-          : baseQueryObject.columns,
+        linkColumn && colorBy ? [linkColumn, colorBy] : baseQueryObject.columns,
     },
   ]);
 }
