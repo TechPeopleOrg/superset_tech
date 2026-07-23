@@ -32,6 +32,12 @@ export interface ColorMappingResult {
   stats: { dataKeys: number };
 }
 
+// True only for a #rrggbb hex string. Named CSS colors ("red") and other
+// formats are rejected so they never reach hexToRgb01 and produce NaN colors.
+export function isHexColor(color: string): boolean {
+  return /^#[0-9a-fA-F]{6}$/.test(color);
+}
+
 // Convert a #rrggbb hex string to an rgb triple in the 0..1 range that
 // xeokit's `entity.colorize` expects.
 export function hexToRgb01(hex: string): [number, number, number] {
@@ -46,7 +52,14 @@ export default function buildColorMapping(
   input: ColorMappingInput,
 ): ColorMappingResult {
   const { rows, linkColumn, colorBy, colorFn, overrides } = input;
-  const overrideMap = new Map((overrides ?? []).map(o => [o.value, o.color]));
+  // Only keep overrides whose color is a valid #rrggbb hex; anything else
+  // (e.g. a CSS name like "red") falls through to the automatic palette
+  // instead of producing NaN colors that xeokit renders as black.
+  const overrideMap = new Map(
+    (overrides ?? [])
+      .filter(o => isHexColor(o.color))
+      .map(o => [o.value, o.color]),
+  );
 
   const colorById = new Map<string, [number, number, number]>();
   const legendColors = new Map<string, string>(); // value -> hex, first-seen order

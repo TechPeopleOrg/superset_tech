@@ -19,7 +19,7 @@
 import buildColorMapping, { hexToRgb01 } from '../src/colorMapping';
 
 const colorFn = (v: string) =>
-  ({ Done: '#00ff00', Late: '#ff0000' }[v] ?? '#0000ff');
+  ({ Done: '#00ff00', Late: '#ff0000' })[v] ?? '#0000ff';
 
 test('hexToRgb01 converts hex to 0..1 rgb', () => {
   expect(hexToRgb01('#ff0000')).toEqual([1, 0, 0]);
@@ -67,6 +67,20 @@ test('overrides win over colorFn for the given value', () => {
   });
   expect(colorById.get('a')).toEqual([0, 0, 1]);
   expect(legend).toEqual([{ value: 'Done', color: '#0000ff' }]);
+});
+
+test('ignores override with a non-hex color and falls back to the palette', () => {
+  const { colorById, legend } = buildColorMapping({
+    rows: [{ gid: 'a', status: 'Done' }],
+    linkColumn: 'gid',
+    colorBy: 'status',
+    colorFn,
+    // "red" is a CSS name, not a #rrggbb hex — must not produce NaN colors.
+    overrides: [{ value: 'Done', color: 'red' }],
+  });
+  // Falls back to colorFn('Done') = #00ff00 instead of [NaN, ..., NaN].
+  expect(colorById.get('a')).toEqual([0, 1, 0]);
+  expect(legend).toEqual([{ value: 'Done', color: '#00ff00' }]);
 });
 
 test('skips rows with null/empty color value', () => {

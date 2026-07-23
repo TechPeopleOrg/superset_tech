@@ -113,7 +113,7 @@ const config: ControlPanelConfig = {
               language: 'json',
               label: t('Color overrides (JSON)'),
               description: t(
-                'Optional JSON array of {"value","color"} pairs overriding the automatic palette, e.g. [{"value":"Done","color":"#00ff00"}].',
+                'Optional JSON mapping values to #rrggbb hex colors, overriding the automatic palette, e.g. {"Done":"#00ff00","Late":"#ff0000"}. Colors must be hex (#rrggbb); CSS names like "red" are ignored. An array form [{"value","color"}] is also accepted.',
               ),
               default: '',
               renderTrigger: true,

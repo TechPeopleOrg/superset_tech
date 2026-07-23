@@ -51,7 +51,16 @@ export default function transformProps(chartProps: ChartProps): BimChartProps {
   if (rawOverrides) {
     try {
       const parsed = JSON.parse(rawOverrides);
-      if (Array.isArray(parsed)) overrides = parsed;
+      if (Array.isArray(parsed)) {
+        // Explicit array form: [{"value":"Done","color":"#00ff00"}].
+        overrides = parsed;
+      } else if (parsed && typeof parsed === 'object') {
+        // Object-map form: {"Done":"#00ff00"} — the natural way to write it.
+        overrides = Object.entries(parsed).map(([value, color]) => ({
+          value,
+          color: String(color),
+        }));
+      }
     } catch {
       // Invalid JSON: fall back to the automatic palette only.
       overrides = [];

@@ -50,7 +50,9 @@ test('transformProps returns empty modelUrl when no model_column', () => {
 });
 
 test('transformProps returns empty modelUrl when no rows', () => {
-  const result = transformProps(baseChartProps({ queriesData: [{ data: [] }] }));
+  const result = transformProps(
+    baseChartProps({ queriesData: [{ data: [] }] }),
+  );
   expect(result.modelUrl).toBe('');
 });
 
@@ -90,4 +92,19 @@ test('overrides default to [] on invalid or empty json', () => {
     queriesData: [{ data: [] }],
   } as any);
   expect(props.overrides).toEqual([]);
+});
+
+test('accepts the object-map form {value: color}', () => {
+  const props = transformProps({
+    width: 1,
+    height: 1,
+    formData: {
+      color_overrides: '{"Отставание":"#ff0000","Готово":"#00ff00"}',
+    },
+    queriesData: [{ data: [] }],
+  } as any);
+  expect(props.overrides).toEqual([
+    { value: 'Отставание', color: '#ff0000' },
+    { value: 'Готово', color: '#00ff00' },
+  ]);
 });
