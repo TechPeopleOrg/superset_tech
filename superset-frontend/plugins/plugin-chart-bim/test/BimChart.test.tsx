@@ -29,6 +29,7 @@ const baseProps = (overrides: Partial<BimChartProps> = {}): BimChartProps => ({
   rows: [],
   overrides: [],
   colorFn: () => '#000',
+  setDataMask: () => {},
   ...overrides,
 });
 

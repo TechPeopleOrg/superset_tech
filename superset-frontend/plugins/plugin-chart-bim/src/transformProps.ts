@@ -67,6 +67,16 @@ export default function transformProps(chartProps: ChartProps): BimChartProps {
     }
   }
 
+  const { emitCrossFilters = false } = chartProps as {
+    emitCrossFilters?: boolean;
+  };
+  const { filterState } = chartProps as {
+    filterState?: { value?: unknown };
+  };
+  const setDataMask =
+    (chartProps as { hooks?: { setDataMask?: (dm: unknown) => void } }).hooks
+      ?.setDataMask ?? (() => {});
+
   let modelUrl = '';
   // TEMPORARY (manual testing without a dataset): a directly-entered model UUID
   // takes priority over the dataset column, so different models can be tried by
@@ -96,5 +106,8 @@ export default function transformProps(chartProps: ChartProps): BimChartProps {
     colorFn,
     overrides,
     colorScheme,
+    emitCrossFilters,
+    setDataMask: setDataMask as BimChartProps['setDataMask'],
+    filterState,
   };
 }

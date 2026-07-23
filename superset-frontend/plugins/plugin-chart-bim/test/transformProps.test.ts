@@ -108,3 +108,30 @@ test('accepts the object-map form {value: color}', () => {
     { value: 'Готово', color: '#00ff00' },
   ]);
 });
+
+test('passes cross-filter plumbing through to props', () => {
+  const setDataMask = jest.fn();
+  const props = transformProps({
+    width: 1,
+    height: 1,
+    formData: { link_column: 'gid', emit_cross_filters: true },
+    queriesData: [{ data: [] }],
+    emitCrossFilters: true,
+    filterState: { value: ['gid-1'] },
+    hooks: { setDataMask },
+  } as any);
+  expect(props.emitCrossFilters).toBe(true);
+  expect(props.setDataMask).toBe(setDataMask);
+  expect(props.filterState).toEqual({ value: ['gid-1'] });
+});
+
+test('setDataMask defaults to a no-op when hooks omit it', () => {
+  const props = transformProps({
+    width: 1,
+    height: 1,
+    formData: {},
+    queriesData: [{ data: [] }],
+  } as any);
+  expect(typeof props.setDataMask).toBe('function');
+  expect(() => props.setDataMask({} as any)).not.toThrow();
+});

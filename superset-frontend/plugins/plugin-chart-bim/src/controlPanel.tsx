@@ -120,6 +120,20 @@ const config: ControlPanelConfig = {
             },
           },
         ],
+        [
+          {
+            name: 'emit_cross_filters',
+            config: {
+              type: 'CheckboxControl',
+              label: t('Enable cross-filtering'),
+              description: t(
+                'Clicking a 3D element emits a cross-filter on the link column, filtering the other charts on the dashboard.',
+              ),
+              default: true,
+              renderTrigger: true,
+            },
+          },
+        ],
       ],
     },
     {

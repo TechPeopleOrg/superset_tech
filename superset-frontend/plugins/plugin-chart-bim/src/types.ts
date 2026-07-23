@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { QueryFormData, DataRecord } from '@superset-ui/core';
+import { QueryFormData, DataRecord, DataMask } from '@superset-ui/core';
 
 export interface BimStylesProps {
   height: number;
@@ -50,6 +50,8 @@ export type BimFormData = QueryFormData &
     linkColumn?: string;
     colorBy?: string;
     colorOverrides?: string;
+    emit_cross_filters?: boolean;
+    emitCrossFilters?: boolean;
   };
 
 export type BimChartProps = BimStylesProps & {
@@ -78,6 +80,13 @@ export type BimChartProps = BimStylesProps & {
   // Explicit value -> color overrides, parsed from the color_overrides
   // control; takes priority over colorFn for matching values.
   overrides: { value: string; color: string }[];
+  // When true, clicking an element emits a Superset cross-filter.
+  emitCrossFilters?: boolean;
+  // Emits a cross-filter DataMask to the dashboard. A no-op when unavailable.
+  setDataMask: (dataMask: DataMask) => void;
+  // Incoming filter on the link column (our own click, round-tripped, or an
+  // external filter). Used to highlight matching elements in the scene.
+  filterState?: { value?: unknown };
 };
 
 // A node in the model's IFC containment hierarchy, built from xeokit metadata.
