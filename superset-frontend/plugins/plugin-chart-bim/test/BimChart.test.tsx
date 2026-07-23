@@ -111,6 +111,8 @@ test('renders the model tree toggle once a model is present', () => {
       resetColors: jest.fn(),
       expandToLeaves: jest.fn(() => []),
       allObjectIds: jest.fn(() => []),
+      onPick: jest.fn(() => () => {}),
+      highlight: jest.fn(),
     },
   });
   render(<BimChart {...baseProps()} />);
