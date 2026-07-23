@@ -17,7 +17,7 @@
  * under the License.
  */
 import { t } from '@apache-superset/core/translation';
-import { ChartMetadata, ChartPlugin } from '@superset-ui/core';
+import { Behavior, ChartMetadata, ChartPlugin } from '@superset-ui/core';
 import transformProps from './transformProps';
 import controlPanel from './controlPanel';
 import buildQuery from './buildQuery';
@@ -28,6 +28,9 @@ import { BimFormData } from './types';
 export * from './types';
 
 const metadata = new ChartMetadata({
+  // InteractiveChart tells Superset this chart emits cross-filters, so the
+  // dashboard turns on cross-filtering (chartProps.emitCrossFilters) for it.
+  behaviors: [Behavior.InteractiveChart],
   category: t('BIM'),
   description: t('Renders a BIM model (.xkt) from file-storage using xeokit.'),
   name: t('BIM Viewer'),

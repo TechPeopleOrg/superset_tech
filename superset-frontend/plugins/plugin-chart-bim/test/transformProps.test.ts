@@ -114,8 +114,10 @@ test('passes cross-filter plumbing through to props', () => {
   const props = transformProps({
     width: 1,
     height: 1,
-    formData: { link_column: 'gid', emit_cross_filters: true },
+    formData: { link_column: 'gid' },
     queriesData: [{ data: [] }],
+    // emitCrossFilters is a chartProps-level flag set by the dashboard when
+    // cross-filtering is enabled — not a chart control.
     emitCrossFilters: true,
     filterState: { value: ['gid-1'] },
     hooks: { setDataMask },

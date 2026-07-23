@@ -52,37 +52,46 @@ const mockSceneInput = {
   },
 };
 
-jest.mock('@xeokit/xeokit-sdk', () => ({
-  Viewer: jest.fn().mockImplementation(() => ({
-    scene: {
-      objects,
-      aabb: [0, 0, 0, 1, 1, 1],
-      input: mockSceneInput,
-      pick: mockScenePick,
-    },
-    metaScene: {
-      metaObjects,
-      // storey contains wall+door plus 'pset1', a property set with no
-      // geometry entity in scene.objects — exercises the
-      // `.filter(oid => !!scene.objects[oid])` non-geometry filtering in
-      // expandToLeaves. Leaves return themselves.
-      getObjectIDsInSubtree: (id: string) =>
-        id === 'storey' ? ['storey', 'wall', 'door', 'pset1'] : [id],
-    },
-    camera: { eye: [0, 0, 0], look: [0, 0, 0], up: [0, 1, 0] },
-    cameraControl: {},
-    cameraFlight: { flyTo: jest.fn() },
-    destroy: jest.fn(),
-  })),
-  XKTLoaderPlugin: jest.fn().mockImplementation(() => ({
-    load: jest.fn().mockImplementation(() => ({
-      on: (event: string, cb: () => void) => {
-        if (event === 'loaded') loadedCb = cb;
+// Holds the scene object of the most recently created Viewer so tests can
+// simulate xeokit nulling scene.input on destroy (see the unsubscribe-after-
+// destroy test). Prefixed `mock` so jest.mock's factory may reference it.
+const mockSceneHolder: { scene?: { input: unknown } } = {};
+
+jest.mock('@xeokit/xeokit-sdk', () => {
+  const scene = {
+    objects,
+    aabb: [0, 0, 0, 1, 1, 1],
+    input: mockSceneInput as unknown,
+    pick: mockScenePick,
+  };
+  mockSceneHolder.scene = scene;
+  return {
+    Viewer: jest.fn().mockImplementation(() => ({
+      scene,
+      metaScene: {
+        metaObjects,
+        // storey contains wall+door plus 'pset1', a property set with no
+        // geometry entity in scene.objects — exercises the
+        // `.filter(oid => !!scene.objects[oid])` non-geometry filtering in
+        // expandToLeaves. Leaves return themselves.
+        getObjectIDsInSubtree: (id: string) =>
+          id === 'storey' ? ['storey', 'wall', 'door', 'pset1'] : [id],
       },
+      camera: { eye: [0, 0, 0], look: [0, 0, 0], up: [0, 1, 0] },
+      cameraControl: {},
+      cameraFlight: { flyTo: jest.fn() },
       destroy: jest.fn(),
     })),
-  })),
-}));
+    XKTLoaderPlugin: jest.fn().mockImplementation(() => ({
+      load: jest.fn().mockImplementation(() => ({
+        on: (event: string, cb: () => void) => {
+          if (event === 'loaded') loadedCb = cb;
+        },
+        destroy: jest.fn(),
+      })),
+    })),
+  };
+});
 
 beforeEach(() => {
   loadedCb = undefined;
@@ -97,6 +106,8 @@ beforeEach(() => {
   objects.door.highlighted = false;
   mockPickHandlers.length = 0;
   mockScenePick.mockReset();
+  // Restore scene.input in case a prior test simulated destroy by nulling it.
+  if (mockSceneHolder.scene) mockSceneHolder.scene.input = mockSceneInput;
 });
 
 const renderViewer = () => {
@@ -229,10 +240,10 @@ test('api.allObjectIds returns every scene object id', async () => {
   ]);
 });
 
-test('api.onPick fires the callback with the picked metaObject id', async () => {
+test('api.onPick fires the callback with the picked entity id', async () => {
   const { result } = renderViewer();
   await waitFor(() => expect(result.current.api).toBeDefined());
-  mockScenePick.mockReturnValue({ entity: { metaObject: { id: 'gid-1' } } });
+  mockScenePick.mockReturnValue({ entity: { id: 'gid-1' } });
   const cb = jest.fn();
   act(() => {
     result.current.api!.onPick(cb);
@@ -256,7 +267,7 @@ test('api.onPick fires the callback with null when the click hits nothing', asyn
 test('api.onPick returns an unsubscribe that removes the listener', async () => {
   const { result } = renderViewer();
   await waitFor(() => expect(result.current.api).toBeDefined());
-  mockScenePick.mockReturnValue({ entity: { metaObject: { id: 'gid-1' } } });
+  mockScenePick.mockReturnValue({ entity: { id: 'gid-1' } });
   const cb = jest.fn();
   let unsubscribe: () => void = () => {};
   act(() => {
@@ -265,6 +276,19 @@ test('api.onPick returns an unsubscribe that removes the listener', async () => 
   act(() => unsubscribe());
   act(() => mockPickHandlers[0]({ x: 1, y: 2 }));
   expect(cb).not.toHaveBeenCalled();
+});
+
+test('unsubscribe after the scene is destroyed does not throw', async () => {
+  const { result } = renderViewer();
+  await waitFor(() => expect(result.current.api).toBeDefined());
+  let unsubscribe: () => void = () => {};
+  act(() => {
+    unsubscribe = result.current.api!.onPick(jest.fn());
+  });
+  // xeokit nulls scene.input inside viewer.destroy(); a consumer's cleanup can
+  // still fire afterwards. The unsubscribe must tolerate the dead scene.
+  mockSceneHolder.scene!.input = null;
+  expect(() => unsubscribe()).not.toThrow();
 });
 
 test('api.highlight sets highlighted on leaves and clears previous highlight', async () => {

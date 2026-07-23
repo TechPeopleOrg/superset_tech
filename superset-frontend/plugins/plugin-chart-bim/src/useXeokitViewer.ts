@@ -104,12 +104,14 @@ export default function useXeokitViewer(
             string,
             { visible: boolean; colorize: number[]; highlighted: boolean }
           >;
+          // input is nulled out by xeokit when the viewer is destroyed, so a
+          // late unsubscribe must treat it as possibly-null.
           input: {
             on: (event: string, cb: (coords: unknown) => void) => number;
             off: (id: number) => void;
-          };
+          } | null;
           pick: (params: { canvasPos: unknown }) => {
-            entity?: { metaObject?: { id?: string } };
+            entity?: { id?: string };
           } | null;
         };
         const metaScene2 = viewer.metaScene as unknown as {
@@ -171,12 +173,21 @@ export default function useXeokitViewer(
           expandToLeaves,
           allObjectIds: () => Object.keys(scene.objects),
           onPick: cb => {
+            // Subscription happens while the scene is alive (BimChart gates on
+            // `ready`); if input is somehow gone, hand back a no-op unsubscribe.
+            if (!scene.input) return () => {};
             const subId = scene.input.on('mouseclicked', coords => {
               const hit = scene.pick({ canvasPos: coords });
-              const gid = hit?.entity?.metaObject?.id;
+              // A picked SceneModelEntity's `id` is the bare GlobalId — the same
+              // key scene.objects/coloring use (globalizeObjectIds=false).
+              const gid = hit?.entity?.id;
               cb(gid ?? null);
             });
-            return () => scene.input.off(subId);
+            // scene.input is nulled out when the viewer is destroyed (model
+            // switch / unmount). A consumer's unsubscribe can fire after that
+            // teardown, so guard against the dead scene: the subscription is
+            // already gone with the scene, nothing to detach.
+            return () => scene.input?.off(subId);
           },
           highlight: objectIds => {
             // Clear previous highlight.

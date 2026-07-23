@@ -50,8 +50,6 @@ export type BimFormData = QueryFormData &
     linkColumn?: string;
     colorBy?: string;
     colorOverrides?: string;
-    emit_cross_filters?: boolean;
-    emitCrossFilters?: boolean;
   };
 
 export type BimChartProps = BimStylesProps & {
