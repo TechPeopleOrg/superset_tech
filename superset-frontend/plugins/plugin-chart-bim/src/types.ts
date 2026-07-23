@@ -30,7 +30,6 @@ export type BimFormData = QueryFormData &
     // camelCases them into formData, so the camelCase variants below are what
     // transformProps actually reads; both are kept for safety.
     model_column?: string;
-    background_color?: string;
     show_edges?: boolean;
     nav_mode?: 'orbit' | 'firstPerson' | 'planView';
     // TEMPORARY (manual testing without a dataset): a directly-entered model
@@ -40,7 +39,6 @@ export type BimFormData = QueryFormData &
     // camelCased variants Superset puts into formData.
     modelColumn?: string;
     modelUuid?: string;
-    backgroundColor?: string;
     showEdges?: boolean;
     navMode?: 'orbit' | 'firstPerson' | 'planView';
     // --- Data-binding controls (link elements to dataset rows and color them) ---
@@ -50,13 +48,26 @@ export type BimFormData = QueryFormData &
     linkColumn?: string;
     colorBy?: string;
     colorOverrides?: string;
+    context_mode?: 'faded' | 'opaque' | 'hidden';
+    context_opacity?: number;
+    no_data_color?: string;
+    highlight_color?: string;
+    show_tree?: boolean;
+    show_legend?: boolean;
+    show_matched?: boolean;
+    contextMode?: 'faded' | 'opaque' | 'hidden';
+    contextOpacity?: number;
+    noDataColor?: string;
+    highlightColor?: string;
+    showTree?: boolean;
+    showLegend?: boolean;
+    showMatched?: boolean;
   };
 
 export type BimChartProps = BimStylesProps & {
   formData: BimFormData;
   // Resolved model URL (empty string when no UUID is available).
   modelUrl: string;
-  backgroundColor?: string;
   showEdges?: boolean;
   navMode?: 'orbit' | 'firstPerson' | 'planView';
   // --- Data-binding props (link elements to dataset rows and color them) ---
@@ -85,6 +96,22 @@ export type BimChartProps = BimStylesProps & {
   // Incoming filter on the link column (our own click, round-tripped, or an
   // external filter). Used to highlight matching elements in the scene.
   filterState?: { value?: unknown };
+  // Cross-filters from other charts (on any column, e.g. a pie's status
+  // dimension), read from extra_form_data. Resolved to GlobalIds via rows to
+  // highlight the matching elements.
+  appliedFilters?: { col: string; val: unknown }[];
+  // How to render elements with no matching data row.
+  contextMode: 'faded' | 'opaque' | 'hidden';
+  // Opacity (0..1) for faded no-data elements.
+  contextOpacity: number;
+  // Hex color for no-data elements.
+  noDataColor: string;
+  // Hex color for cross-filter highlighting.
+  highlightColor: string;
+  // Overlay visibility toggles.
+  showTree: boolean;
+  showLegend: boolean;
+  showMatched: boolean;
 };
 
 // A node in the model's IFC containment hierarchy, built from xeokit metadata.
@@ -111,6 +138,9 @@ export interface XeokitApi {
   // Set the RGB colorize multiplier (0..1) on the given objects. Non-existent
   // ids are silently ignored.
   colorize(objectIds: string[], rgb: [number, number, number]): void;
+  // Set the opacity factor (0..1) on the given objects, e.g. to fade
+  // "no data" context elements. Non-existent ids are silently ignored.
+  setOpacity(objectIds: string[], opacity: number): void;
   // Reset colorize to neutral [1,1,1] for the given objects, or all objects
   // when omitted.
   resetColors(objectIds?: string[]): void;
@@ -126,4 +156,6 @@ export interface XeokitApi {
   // Highlight exactly the given objects (expanded to their geometry leaves),
   // clearing any previous highlight first. An empty array clears all.
   highlight(objectIds: string[]): void;
+  // Set the cross-filter highlight colour (#rrggbb hex).
+  setHighlightColor(hex: string): void;
 }

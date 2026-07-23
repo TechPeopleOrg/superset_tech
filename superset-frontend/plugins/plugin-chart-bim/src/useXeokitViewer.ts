@@ -18,13 +18,13 @@
  */
 import { RefObject, useEffect, useState } from 'react';
 import buildTree, { MetaObjectLike } from './buildTree';
+import { hexToRgb01 } from './colorMapping';
 import { TreeNode, XeokitApi } from './types';
 
 export type NavMode = 'orbit' | 'firstPerson' | 'planView';
 
 export interface UseXeokitViewerOptions {
   modelUrl: string;
-  backgroundColor?: string;
   showEdges?: boolean;
   // xeokit CameraControl navigation mode. 'orbit' rotates around a pivot (good
   // for inspecting a model from outside); 'firstPerson' rotates around the
@@ -84,9 +84,33 @@ export default function useXeokitViewer(
         const { Viewer, XKTLoaderPlugin } = await import('@xeokit/xeokit-sdk');
         if (cancelled) return;
 
-        // NOTE: backgroundColor is reserved and will be applied in the
-        // data-binding stage.
         viewer = new Viewer({ canvasElement: canvas, transparent: false });
+
+        // The default highlight material is a faint 20%-alpha grey fill, nearly
+        // invisible over data-coloured elements. Make cross-filter highlighting
+        // clearly visible: a strong fill with bright edges and glowThrough so
+        // highlighted elements read even when occluded by walls. The colour is
+        // set from the control via api.setHighlightColor (default applied here).
+        const highlightMaterial = viewer.scene.highlightMaterial as unknown as {
+          fill: boolean;
+          fillColor: number[];
+          fillAlpha: number;
+          edges: boolean;
+          edgeColor: number[];
+          edgeAlpha: number;
+          glowThrough: boolean;
+        };
+        highlightMaterial.fill = true;
+        highlightMaterial.fillAlpha = 0.7;
+        highlightMaterial.edges = true;
+        highlightMaterial.edgeAlpha = 1.0;
+        highlightMaterial.glowThrough = true;
+        const applyHighlightColor = (hex: string) => {
+          const [r, g, b] = hexToRgb01(hex);
+          highlightMaterial.fillColor = [r, g, b];
+          highlightMaterial.edgeColor = [r * 0.6, g * 0.6, b * 0.6];
+        };
+        applyHighlightColor('#00d9ff');
 
         // Navigation mode. In 'orbit'/'planView' the camera rotates around a
         // pivot and following the pointer keeps a model placed away from the
@@ -102,7 +126,12 @@ export default function useXeokitViewer(
         const scene = viewer.scene as unknown as {
           objects: Record<
             string,
-            { visible: boolean; colorize: number[]; highlighted: boolean }
+            {
+              visible: boolean;
+              colorize: number[];
+              highlighted: boolean;
+              opacity: number;
+            }
           >;
           // input is nulled out by xeokit when the viewer is destroyed, so a
           // late unsubscribe must treat it as possibly-null.
@@ -163,11 +192,20 @@ export default function useXeokitViewer(
               if (obj) obj.colorize = rgb;
             });
           },
+          setOpacity: (ids, opacity) => {
+            ids.forEach(id => {
+              const obj = scene.objects[id];
+              if (obj) obj.opacity = opacity;
+            });
+          },
           resetColors: ids => {
             const target = ids ?? Object.keys(scene.objects);
             target.forEach(id => {
               const obj = scene.objects[id];
-              if (obj) obj.colorize = [1, 1, 1];
+              if (obj) {
+                obj.colorize = [1, 1, 1];
+                obj.opacity = 1;
+              }
             });
           },
           expandToLeaves,
@@ -207,6 +245,7 @@ export default function useXeokitViewer(
               });
             });
           },
+          setHighlightColor: applyHighlightColor,
         };
 
         const loader = new XKTLoaderPlugin(viewer);

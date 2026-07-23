@@ -63,6 +63,15 @@ jest.mock('@xeokit/xeokit-sdk', () => {
     aabb: [0, 0, 0, 1, 1, 1],
     input: mockSceneInput as unknown,
     pick: mockScenePick,
+    highlightMaterial: {
+      fill: true,
+      fillColor: [0, 0, 0],
+      fillAlpha: 0,
+      edges: true,
+      edgeColor: [0, 0, 0],
+      edgeAlpha: 0,
+      glowThrough: true,
+    },
   };
   mockSceneHolder.scene = scene;
   return {

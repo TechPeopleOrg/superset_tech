@@ -33,17 +33,20 @@ test('no groupby when link_column or color_by missing', () => {
   expect(q.queries[0].columns ?? []).toEqual([]);
 });
 
-test('ignores incoming cross-filters so coloring stays over the full dataset', () => {
-  // A cross-filter from another chart lands in extra_form_data.filters. The
-  // BIM viewer must not let it shrink its own query — the model is coloured
-  // over the whole dataset; the incoming filter only drives highlighting.
+test('lets dashboard filters flow into the query (they filter the data)', () => {
+  // Native dashboard filters land in extra_form_data.filters and must reach the
+  // query so they filter the viewer's data/coloring like any other chart.
+  // Cross-filters are excluded upstream (dashboard layer) for this chart type,
+  // not here, so buildQuery itself passes extra_form_data through unchanged.
   const q = buildQuery({
     ...base,
     link_column: 'gid',
     color_by: 'status',
     extra_form_data: {
-      filters: [{ col: 'status', op: 'IN', val: ['Late'] }],
+      filters: [{ col: 'floor', op: 'IN', val: ['3'] }],
     },
   } as any);
-  expect(q.queries[0].filters ?? []).toEqual([]);
+  expect(q.queries[0].filters).toEqual([
+    { col: 'floor', op: 'IN', val: ['3'] },
+  ]);
 });

@@ -67,9 +67,7 @@ export default function buildTree(
   // Prune branches with no geometric leaf. Returns the node when it or any
   // descendant has geometry, otherwise undefined.
   const prune = (node: TreeNode): TreeNode | undefined => {
-    const kids = node.children
-      .map(prune)
-      .filter((c): c is TreeNode => !!c);
+    const kids = node.children.map(prune).filter((c): c is TreeNode => !!c);
     if (geometryIds.has(node.id) || kids.length) {
       return { ...node, children: kids };
     }

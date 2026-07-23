@@ -18,9 +18,7 @@
  */
 import buildTree, { MetaObjectLike } from '../src/buildTree';
 
-const meta = (
-  entries: MetaObjectLike[],
-): Record<string, MetaObjectLike> =>
+const meta = (entries: MetaObjectLike[]): Record<string, MetaObjectLike> =>
   entries.reduce<Record<string, MetaObjectLike>>((acc, e) => {
     acc[e.id] = e;
     return acc;

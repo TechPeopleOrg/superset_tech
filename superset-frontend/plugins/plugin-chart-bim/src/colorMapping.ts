@@ -39,8 +39,12 @@ export function isHexColor(color: string): boolean {
 }
 
 // Convert a #rrggbb hex string to an rgb triple in the 0..1 range that
-// xeokit's `entity.colorize` expects.
+// xeokit's `entity.colorize` expects. A non-hex input (e.g. an rgba() theme
+// token or a CSS name) would parse to NaN channels, which xeokit renders as a
+// solid colour ([NaN, x, NaN] -> green); guard against that with a neutral
+// grey fallback so a bad colour never silently paints the whole model.
 export function hexToRgb01(hex: string): [number, number, number] {
+  if (!isHexColor(hex)) return [0.8, 0.8, 0.8];
   const h = hex.replace('#', '');
   const r = parseInt(h.slice(0, 2), 16) / 255;
   const g = parseInt(h.slice(2, 4), 16) / 255;

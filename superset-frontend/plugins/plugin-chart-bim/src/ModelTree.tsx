@@ -24,7 +24,12 @@ import {
 } from 'react';
 import { t } from '@apache-superset/core/translation';
 import { styled } from '@apache-superset/core/theme';
-import { Button, Input, Tree, type TreeDataNode } from '@superset-ui/core/components';
+import {
+  Button,
+  Input,
+  Tree,
+  type TreeDataNode,
+} from '@superset-ui/core/components';
 import { TreeNode, XeokitApi } from './types';
 
 const DEFAULT_PANEL_WIDTH = 280;
@@ -331,14 +336,9 @@ export default function ModelTree({
             onSelect={keys => setSelected(keys[0] as string | undefined)}
           />
         ) : open ? (
-          <Empty>
-            {t('No element hierarchy available for this model.')}
-          </Empty>
+          <Empty>{t('No element hierarchy available for this model.')}</Empty>
         ) : null}
-        <ResizeHandle
-          data-test="model-tree-resize"
-          onMouseDown={startResize}
-        />
+        <ResizeHandle data-test="model-tree-resize" onMouseDown={startResize} />
       </Panel>
       <Toggle
         open={open}

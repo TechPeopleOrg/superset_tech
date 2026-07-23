@@ -39,11 +39,13 @@ const makeApi = (): XeokitApi => ({
   showAll: jest.fn(),
   getVisibility: jest.fn().mockReturnValue({ wall: true, door: true }),
   colorize: jest.fn(),
+  setOpacity: jest.fn(),
   resetColors: jest.fn(),
   expandToLeaves: jest.fn(() => []),
   allObjectIds: jest.fn(() => []),
   onPick: jest.fn(() => jest.fn()),
   highlight: jest.fn(),
+  setHighlightColor: jest.fn(),
 });
 
 test('panel is closed by default and opens on the toggle', async () => {

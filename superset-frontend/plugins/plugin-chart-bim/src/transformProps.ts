@@ -42,9 +42,12 @@ export default function transformProps(chartProps: ChartProps): BimChartProps {
   const colorBy = fd.colorBy ?? fd.color_by;
 
   // Same categorical palette every Superset chart uses; no hardcoded colors.
+  // Pass sliceId so colors are keyed to this chart's label-color map (matches
+  // how the built-in charts resolve categorical colors).
   const colorScheme = (fd.color_scheme ?? fd.colorScheme) as string | undefined;
+  const sliceId = (fd.slice_id ?? fd.sliceId) as number | undefined;
   const scale = CategoricalColorNamespace.getScale(colorScheme as string);
-  const colorFn = (value: string) => scale.getColor(value) as string;
+  const colorFn = (value: string) => scale.getColor(value, sliceId) as string;
 
   let overrides: { value: string; color: string }[] = [];
   const rawOverrides = fd.colorOverrides ?? fd.color_overrides;
@@ -77,6 +80,23 @@ export default function transformProps(chartProps: ChartProps): BimChartProps {
     (chartProps as { hooks?: { setDataMask?: (dm: unknown) => void } }).hooks
       ?.setDataMask ?? (() => {});
 
+  // Cross-filters from other charts (e.g. a pie chart's status dimension) reach
+  // this chart through `cross_filters_data` — the dashboard keeps them out of
+  // extra_form_data (so they don't re-query/re-color the model, Power BI-style)
+  // and hands them here separately for highlighting. Native dashboard filters
+  // stay in extra_form_data and filter the data normally. Superset camelCases
+  // the field into formData as `crossFiltersData`; read both spellings.
+  const cfShape = fd as {
+    crossFiltersData?: { filters?: { col: string; val: unknown }[] };
+    cross_filters_data?: { filters?: { col: string; val: unknown }[] };
+  };
+  const crossFiltersData =
+    cfShape.crossFiltersData ?? cfShape.cross_filters_data;
+  const appliedFilters = (crossFiltersData?.filters ?? []).map(f => ({
+    col: f.col,
+    val: f.val,
+  }));
+
   let modelUrl = '';
   // TEMPORARY (manual testing without a dataset): a directly-entered model UUID
   // takes priority over the dataset column, so different models can be tried by
@@ -97,7 +117,6 @@ export default function transformProps(chartProps: ChartProps): BimChartProps {
     height,
     formData: fd,
     modelUrl,
-    backgroundColor: fd.backgroundColor ?? fd.background_color ?? '#ffffff',
     showEdges: fd.showEdges ?? fd.show_edges ?? false,
     navMode: fd.navMode ?? fd.nav_mode ?? 'firstPerson',
     rows: data,
@@ -109,5 +128,14 @@ export default function transformProps(chartProps: ChartProps): BimChartProps {
     emitCrossFilters,
     setDataMask: setDataMask as BimChartProps['setDataMask'],
     filterState,
+    appliedFilters,
+    contextMode: fd.contextMode ?? fd.context_mode ?? 'faded',
+    // Slider gives 0..100; the viewer wants 0..1.
+    contextOpacity: (fd.contextOpacity ?? fd.context_opacity ?? 25) / 100,
+    noDataColor: fd.noDataColor ?? fd.no_data_color ?? '#cccccc',
+    highlightColor: fd.highlightColor ?? fd.highlight_color ?? '#00d9ff',
+    showTree: fd.showTree ?? fd.show_tree ?? true,
+    showLegend: fd.showLegend ?? fd.show_legend ?? true,
+    showMatched: fd.showMatched ?? fd.show_matched ?? true,
   };
 }

@@ -18,7 +18,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { t } from '@apache-superset/core/translation';
-import { styled, useTheme } from '@apache-superset/core/theme';
+import { styled } from '@apache-superset/core/theme';
 import { Alert } from '@apache-superset/core/components';
 import { Button, Loading } from '@superset-ui/core/components';
 import useXeokitViewer from './useXeokitViewer';
@@ -29,6 +29,7 @@ import { BimChartProps } from './types';
 import {
   buildCrossFilterDataMask,
   selectedGlobalIdsFromFilterState,
+  globalIdsFromAppliedFilters,
 } from './crossFilter';
 
 const Container = styled.div`
@@ -60,12 +61,34 @@ const Diagnostic = styled.div`
   border-radius: ${({ theme }) => theme.borderRadius}px;
 `;
 
+// Small non-intrusive badge shown while the chart re-fetches data (e.g. a
+// cross-filter from another chart). The heavy 3D model is intentionally kept
+// mounted rather than reloaded, so without this hint the viewer would look
+// frozen. Sits in the top-right corner, above the scene.
+const RefreshBadge = styled.div`
+  position: absolute;
+  top: ${({ theme }) => theme.sizeUnit * 2}px;
+  right: ${({ theme }) => theme.sizeUnit * 2}px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.sizeUnit}px;
+  padding: ${({ theme }) => theme.sizeUnit}px
+    ${({ theme }) => theme.sizeUnit * 2}px;
+  font-size: ${({ theme }) => theme.fontSizeSM}px;
+  color: ${({ theme }) => theme.colorTextSecondary};
+  background: ${({ theme }) => theme.colorBgElevated};
+  border: 1px solid ${({ theme }) => theme.colorBorderSecondary};
+  border-radius: ${({ theme }) => theme.borderRadius}px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  pointer-events: none;
+`;
+
 export default function BimChart(props: BimChartProps) {
   const {
     width,
     height,
     modelUrl,
-    backgroundColor,
     showEdges,
     navMode,
     rows,
@@ -77,15 +100,21 @@ export default function BimChart(props: BimChartProps) {
     emitCrossFilters,
     setDataMask,
     filterState,
+    appliedFilters,
+    contextMode,
+    contextOpacity,
+    noDataColor,
+    highlightColor,
+    showTree,
+    showLegend,
+    showMatched,
   } = props;
-  const theme = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
   // Bump to force the hook effect to re-run on retry without changing modelUrl.
   const [retryKey, setRetryKey] = useState(0);
 
   const { loading, error, tree, api, ready } = useXeokitViewer(containerRef, {
     modelUrl: modelUrl ? `${modelUrl}#${retryKey}` : '',
-    backgroundColor,
     showEdges,
     navMode,
   });
@@ -142,9 +171,19 @@ export default function BimChart(props: BimChartProps) {
       return;
     }
     api.resetColors();
-    const neutral = hexToRgb01(theme.colorFillSecondary ?? '#cccccc');
+    api.showAll();
+    // Neutral "no data" look for elements with no matching row. hexToRgb01
+    // guards against non-hex input (a bad value can't paint the model green).
+    const neutral = hexToRgb01(noDataColor);
     const allIds = api.allObjectIds();
-    api.colorize(allIds, neutral);
+    if (contextMode === 'hidden') {
+      // Show only the matched elements; hide the rest as context.
+      api.setVisible(allIds, false);
+    } else {
+      api.colorize(allIds, neutral);
+      // faded => reduced opacity; opaque => fully solid grey.
+      api.setOpacity(allIds, contextMode === 'faded' ? contextOpacity : 1);
+    }
     const present = new Set(allIds);
     // Diagnostic counts data keys, not geometry leaves: a single container
     // GlobalId (e.g. a storey) can expand into many leaves, and counting
@@ -156,12 +195,23 @@ export default function BimChart(props: BimChartProps) {
     colorById.forEach((rgb, gid) => {
       const leaves = api.expandToLeaves(gid).filter(id => present.has(id));
       if (leaves.length) {
+        // In hidden mode matched elements were hidden with the rest; show them.
+        if (contextMode === 'hidden') api.setVisible(leaves, true);
         api.colorize(leaves, rgb);
+        // Matched elements are fully opaque so they stand out from the context.
+        api.setOpacity(leaves, 1);
         matchedKeys += 1;
       }
     });
     setMatched({ m: matchedKeys, n: colorById.size });
-  }, [api, colorById, theme, ready]);
+  }, [api, colorById, ready, contextMode, contextOpacity, noDataColor]);
+
+  // Apply the highlight colour from the control whenever it changes, without
+  // recreating the (heavy) viewer.
+  useEffect(() => {
+    if (!api) return;
+    api.setHighlightColor(highlightColor);
+  }, [api, highlightColor]);
 
   // Current single selection, kept outside React state so the outgoing pick
   // handler (closed over once per api/ready/linkColumn combination) can read
@@ -186,13 +236,35 @@ export default function BimChart(props: BimChartProps) {
     return unsubscribe;
   }, [api, ready, linkColumn, emitCrossFilters, setDataMask]);
 
-  // Incoming: when cross-filtering is on, highlight follows filterState —
-  // the source of truth, since the click's own selection round-trips back
-  // through Superset into filterState. When cross-filtering is off, this
-  // effect is inert; the outgoing handler above covers local highlight.
+  // Incoming: when cross-filtering is on, highlight follows two sources, both
+  // resolved to GlobalIds:
+  //  - this chart's own click, round-tripped by Superset into filterState;
+  //  - cross-filters from other charts (e.g. a pie's status dimension), which
+  //    arrive via appliedFilters (extra_form_data) on a foreign column and are
+  //    mapped to GlobalIds through the chart's own rows.
+  // When cross-filtering is off, this effect is inert; the outgoing handler
+  // above covers local highlight.
+  const hasAppliedFilters = (appliedFilters ?? []).length > 0;
+  const ownSelection = selectedGlobalIdsFromFilterState(filterState);
   const incomingIds = emitCrossFilters
-    ? selectedGlobalIdsFromFilterState(filterState)
+    ? Array.from(
+        new Set([
+          ...ownSelection,
+          ...globalIdsFromAppliedFilters(
+            appliedFilters ?? [],
+            rows,
+            linkColumn,
+          ),
+        ]),
+      )
     : null;
+  // During a re-fetch rows momentarily empties, which would resolve applied
+  // filters to zero GlobalIds and briefly clear the highlight (a flicker).
+  // When there ARE applied filters but rows is empty, skip the update and keep
+  // the previous highlight until the data returns. A genuine empty selection
+  // (no filters and no own selection) still clears.
+  const staleDuringRefetch =
+    hasAppliedFilters && rows.length === 0 && ownSelection.length === 0;
   const incomingKey = JSON.stringify(incomingIds);
   useEffect(() => {
     // This effect syncs the scene highlight to an external system (the
@@ -201,26 +273,43 @@ export default function BimChart(props: BimChartProps) {
     // the no-event-handler rule targets — its heuristic cannot distinguish
     // the two, so it is disabled for this line specifically.
     // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler
-    if (!api || !ready || incomingIds === null) return;
+    if (!api || !ready || incomingIds === null || staleDuringRefetch) return;
     api.highlight(incomingIds);
     // Keep the ref in sync so a toggle-off click compares against what's shown.
     selectedRef.current = incomingIds[0] ?? null;
     // incomingKey encodes incomingIds by content; api/ready gate scene access.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api, ready, incomingKey]);
+  }, [api, ready, incomingKey, staleDuringRefetch]);
+
+  // The model is kept mounted across re-fetches (a deliberate optimization for
+  // the heavy 3D viewer — see the SuppressRefetchSpinner behavior). During a
+  // re-fetch queriesData momentarily empties while the model stays on screen;
+  // detect that to show a small "updating" hint so the viewer doesn't look
+  // frozen. Only when the chart is data-bound (linkColumn set) and already
+  // rendered (api ready, not in initial load/error).
+  const refreshing =
+    !!api && !!ready && !loading && !error && !!linkColumn && rows.length === 0;
 
   return (
-    <Container style={{ width, height, background: backgroundColor }}>
+    <Container style={{ width, height, background: '#ffffff' }}>
       <div
         ref={containerRef}
         style={{ width, height }}
         data-test="bim-container"
       />
-      {modelUrl && !loading && !error && api && (
+      {refreshing && (
+        <RefreshBadge data-test="bim-refreshing">
+          <Loading position="inline-centered" size="s" />
+          {t('Updating…')}
+        </RefreshBadge>
+      )}
+      {showTree && modelUrl && !loading && !error && api && (
         <ModelTree tree={tree} api={api} />
       )}
-      {modelUrl && !loading && !error && api && <ColorLegend legend={legend} />}
-      {matched && (
+      {showLegend && modelUrl && !loading && !error && api && (
+        <ColorLegend legend={legend} />
+      )}
+      {showMatched && matched && (
         <Diagnostic data-test="bim-diagnostic" data-testid="bim-diagnostic">
           {t('Matched %s of %s', matched.m, matched.n)}
         </Diagnostic>

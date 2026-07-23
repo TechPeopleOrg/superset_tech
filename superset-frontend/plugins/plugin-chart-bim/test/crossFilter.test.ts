@@ -19,6 +19,7 @@
 import {
   buildCrossFilterDataMask,
   selectedGlobalIdsFromFilterState,
+  globalIdsFromAppliedFilters,
 } from '../src/crossFilter';
 
 test('buildCrossFilterDataMask builds an IN filter for a selection', () => {
@@ -57,4 +58,69 @@ test('selectedGlobalIdsFromFilterState returns [] for null/empty/undefined', () 
   expect(selectedGlobalIdsFromFilterState(undefined)).toEqual([]);
   expect(selectedGlobalIdsFromFilterState({ value: null })).toEqual([]);
   expect(selectedGlobalIdsFromFilterState({ value: [] })).toEqual([]);
+});
+
+const bimRows = [
+  { gid: 'g1', status: 'Late', floor: '1' },
+  { gid: 'g2', status: 'Done', floor: '1' },
+  { gid: 'g3', status: 'Late', floor: '2' },
+  { gid: 'g4', status: 'Done', floor: '2' },
+];
+
+test('globalIdsFromAppliedFilters maps a foreign-column filter to GlobalIds', () => {
+  // A pie chart filters status=Late; highlight every element with that status.
+  const ids = globalIdsFromAppliedFilters(
+    [{ col: 'status', val: ['Late'] }],
+    bimRows,
+    'gid',
+  );
+  expect(ids.sort()).toEqual(['g1', 'g3']);
+});
+
+test('globalIdsFromAppliedFilters handles a scalar val', () => {
+  const ids = globalIdsFromAppliedFilters(
+    [{ col: 'status', val: 'Done' }],
+    bimRows,
+    'gid',
+  );
+  expect(ids.sort()).toEqual(['g2', 'g4']);
+});
+
+test('globalIdsFromAppliedFilters ANDs multiple filters', () => {
+  const ids = globalIdsFromAppliedFilters(
+    [
+      { col: 'status', val: ['Late'] },
+      { col: 'floor', val: ['2'] },
+    ],
+    bimRows,
+    'gid',
+  );
+  expect(ids).toEqual(['g3']);
+});
+
+test('globalIdsFromAppliedFilters works when the filter is on linkColumn itself', () => {
+  const ids = globalIdsFromAppliedFilters(
+    [{ col: 'gid', val: ['g2', 'g4'] }],
+    bimRows,
+    'gid',
+  );
+  expect(ids.sort()).toEqual(['g2', 'g4']);
+});
+
+test('globalIdsFromAppliedFilters returns [] for no filters/linkColumn/matches', () => {
+  expect(globalIdsFromAppliedFilters([], bimRows, 'gid')).toEqual([]);
+  expect(
+    globalIdsFromAppliedFilters(
+      [{ col: 'status', val: ['Late'] }],
+      bimRows,
+      undefined,
+    ),
+  ).toEqual([]);
+  expect(
+    globalIdsFromAppliedFilters(
+      [{ col: 'status', val: ['Nope'] }],
+      bimRows,
+      'gid',
+    ),
+  ).toEqual([]);
 });

@@ -28,7 +28,12 @@ const mockDestroyViewer = jest.fn();
 
 jest.mock('@xeokit/xeokit-sdk', () => ({
   Viewer: jest.fn().mockImplementation(() => ({
-    scene: { canvas: {}, clearLights: jest.fn(), aabb: [0, 0, 0, 1, 1, 1] },
+    scene: {
+      canvas: {},
+      clearLights: jest.fn(),
+      aabb: [0, 0, 0, 1, 1, 1],
+      highlightMaterial: {},
+    },
     camera: {},
     cameraFlight: { flyTo: jest.fn() },
     cameraControl: {},

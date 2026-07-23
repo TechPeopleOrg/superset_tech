@@ -124,6 +124,7 @@ const config: ControlPanelConfig = {
     },
     {
       label: t('Viewer'),
+      tabOverride: 'customize',
       expanded: true,
       controlSetRows: [
         [
@@ -148,23 +149,121 @@ const config: ControlPanelConfig = {
         ],
         [
           {
-            name: 'background_color',
+            name: 'show_edges',
             config: {
-              type: 'TextControl',
-              label: t('Background color'),
-              description: t('Scene background (CSS color, e.g. #ffffff).'),
-              default: '#ffffff',
+              type: 'CheckboxControl',
+              label: t('Show edges'),
+              default: false,
               renderTrigger: true,
             },
           },
         ],
         [
           {
-            name: 'show_edges',
+            name: 'show_tree',
             config: {
               type: 'CheckboxControl',
-              label: t('Show edges'),
-              default: false,
+              label: t('Show model tree'),
+              description: t('Show the model tree panel toggle.'),
+              default: true,
+              renderTrigger: true,
+            },
+          },
+        ],
+        [
+          {
+            name: 'show_legend',
+            config: {
+              type: 'CheckboxControl',
+              label: t('Show color legend'),
+              description: t('Show the data coloring legend overlay.'),
+              default: true,
+              renderTrigger: true,
+            },
+          },
+        ],
+        [
+          {
+            name: 'show_matched',
+            config: {
+              type: 'CheckboxControl',
+              label: t('Show matched count'),
+              description: t(
+                'Show the "Matched M of N" diagnostic in the corner.',
+              ),
+              default: true,
+              renderTrigger: true,
+            },
+          },
+        ],
+      ],
+    },
+    {
+      label: t('Data coloring'),
+      tabOverride: 'customize',
+      expanded: true,
+      controlSetRows: [
+        [
+          {
+            name: 'context_mode',
+            config: {
+              type: 'SelectControl',
+              label: t('No-data elements'),
+              description: t(
+                'How to show elements that have no matching data row: fade them (see coloured elements through the context), keep them solid grey, or hide them entirely.',
+              ),
+              clearable: false,
+              renderTrigger: true,
+              default: 'faded',
+              choices: [
+                ['faded', t('Semi-transparent')],
+                ['opaque', t('Solid grey')],
+                ['hidden', t('Hidden')],
+              ],
+            },
+          },
+        ],
+        [
+          {
+            name: 'context_opacity',
+            config: {
+              type: 'SliderControl',
+              label: t('No-data opacity'),
+              description: t(
+                'Opacity of the semi-transparent no-data elements (only used when "No-data elements" is Semi-transparent).',
+              ),
+              min: 0,
+              max: 100,
+              step: 5,
+              default: 25,
+              renderTrigger: true,
+            },
+          },
+        ],
+        [
+          {
+            name: 'no_data_color',
+            config: {
+              type: 'TextControl',
+              label: t('No-data color'),
+              description: t(
+                'Color for elements with no matching data (#rrggbb hex). Invalid values fall back to grey.',
+              ),
+              default: '#cccccc',
+              renderTrigger: true,
+            },
+          },
+        ],
+        [
+          {
+            name: 'highlight_color',
+            config: {
+              type: 'TextControl',
+              label: t('Highlight color'),
+              description: t(
+                'Color used to highlight elements selected by a cross-filter (#rrggbb hex).',
+              ),
+              default: '#00d9ff',
               renderTrigger: true,
             },
           },

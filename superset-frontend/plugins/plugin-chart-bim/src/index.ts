@@ -30,7 +30,9 @@ export * from './types';
 const metadata = new ChartMetadata({
   // InteractiveChart tells Superset this chart emits cross-filters, so the
   // dashboard turns on cross-filtering (chartProps.emitCrossFilters) for it.
-  behaviors: [Behavior.InteractiveChart],
+  // SuppressRefetchSpinner keeps the heavy 3D viewer mounted during re-fetches
+  // (filter/cross-filter changes) so the model is not reloaded every time.
+  behaviors: [Behavior.InteractiveChart, Behavior.SuppressRefetchSpinner],
   category: t('BIM'),
   description: t('Renders a BIM model (.xkt) from file-storage using xeokit.'),
   name: t('BIM Viewer'),

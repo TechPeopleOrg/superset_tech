@@ -32,10 +32,20 @@ const baseProps = (overrides: Partial<BimChartProps> = {}): BimChartProps => ({
   overrides: [],
   colorFn: () => '#000',
   setDataMask: () => {},
+  contextMode: 'faded',
+  contextOpacity: 0.25,
+  noDataColor: '#cccccc',
+  highlightColor: '#00d9ff',
+  showTree: true,
+  showLegend: true,
+  showMatched: true,
   ...overrides,
 });
 
 const colorize = jest.fn();
+const setOpacity = jest.fn();
+const setVisible = jest.fn();
+const setHighlightColor = jest.fn();
 const resetColors = jest.fn();
 const expandToLeaves = jest.fn((id: string) =>
   id === 'storey' ? ['wall', 'door'] : [id],
@@ -52,6 +62,9 @@ const onPick = jest.fn((cb: (gid: string | null) => void) => {
 
 beforeEach(() => {
   colorize.mockClear();
+  setOpacity.mockClear();
+  setVisible.mockClear();
+  setHighlightColor.mockClear();
   resetColors.mockClear();
   expandToLeaves.mockClear();
   allObjectIds.mockClear();
@@ -108,11 +121,13 @@ test('renders the model tree toggle once a model is present', () => {
       showAll: jest.fn(),
       getVisibility: jest.fn().mockReturnValue({}),
       colorize: jest.fn(),
+      setOpacity: jest.fn(),
       resetColors: jest.fn(),
       expandToLeaves: jest.fn(() => []),
       allObjectIds: jest.fn(() => []),
       onPick: jest.fn(() => () => {}),
       highlight: jest.fn(),
+      setHighlightColor: jest.fn(),
     },
   });
   render(<BimChart {...baseProps()} />);
@@ -126,16 +141,18 @@ test('does not render the model tree when there is no model URL', () => {
 });
 
 const paintingApi = {
-  setVisible: jest.fn(),
+  setVisible,
   isolate: jest.fn(),
   showAll: jest.fn(),
   getVisibility: jest.fn().mockReturnValue({}),
   colorize,
+  setOpacity,
   resetColors,
   expandToLeaves,
   allObjectIds,
   onPick,
   highlight,
+  setHighlightColor,
 };
 
 test('paints neutral base then colored matches, in order', async () => {
@@ -597,4 +614,163 @@ test('does not highlight until the scene is ready', () => {
     />,
   );
   expect(highlight).toHaveBeenCalledWith(['gid-1']);
+});
+
+test('shows the updating badge while re-fetching (model mounted, rows empty)', () => {
+  jest.spyOn(viewerHook, 'default').mockReturnValue({
+    loading: false,
+    error: undefined,
+    api: paintingApi,
+    ready: true,
+  });
+  render(
+    <BimChart
+      {...baseProps({
+        modelUrl: '/model',
+        rows: [],
+        linkColumn: 'gid',
+        colorBy: 'status',
+      })}
+    />,
+  );
+  expect(screen.getByTestId('bim-refreshing')).toBeInTheDocument();
+});
+
+test('hides the updating badge once data is present', () => {
+  jest.spyOn(viewerHook, 'default').mockReturnValue({
+    loading: false,
+    error: undefined,
+    api: paintingApi,
+    ready: true,
+  });
+  render(
+    <BimChart
+      {...baseProps({
+        modelUrl: '/model',
+        rows: [{ gid: 'wall', status: 'Done' }],
+        linkColumn: 'gid',
+        colorBy: 'status',
+      })}
+    />,
+  );
+  expect(screen.queryByTestId('bim-refreshing')).not.toBeInTheDocument();
+});
+
+test('hidden context mode hides no-data elements and shows matched ones', async () => {
+  jest.spyOn(viewerHook, 'default').mockReturnValue({
+    loading: false,
+    api: paintingApi,
+    ready: true,
+  });
+  render(
+    <BimChart
+      {...baseProps({
+        modelUrl: '/model',
+        rows: [{ gid: 'wall', status: 'Done' }],
+        linkColumn: 'gid',
+        colorBy: 'status',
+        contextMode: 'hidden',
+      })}
+    />,
+  );
+  // All hidden first, then matched leaves made visible again.
+  await waitFor(() =>
+    expect(setVisible).toHaveBeenCalledWith(['storey', 'wall', 'door'], false),
+  );
+  expect(
+    setVisible.mock.calls.some(
+      c => JSON.stringify(c[0]) === JSON.stringify(['wall']) && c[1] === true,
+    ),
+  ).toBe(true);
+});
+
+test('faded context mode fades no-data elements with the given opacity', async () => {
+  jest.spyOn(viewerHook, 'default').mockReturnValue({
+    loading: false,
+    api: paintingApi,
+    ready: true,
+  });
+  render(
+    <BimChart
+      {...baseProps({
+        modelUrl: '/model',
+        rows: [{ gid: 'wall', status: 'Done' }],
+        linkColumn: 'gid',
+        colorBy: 'status',
+        contextMode: 'faded',
+        contextOpacity: 0.3,
+      })}
+    />,
+  );
+  await waitFor(() =>
+    expect(setOpacity).toHaveBeenCalledWith(['storey', 'wall', 'door'], 0.3),
+  );
+});
+
+test('opaque context mode keeps no-data elements fully opaque', async () => {
+  jest.spyOn(viewerHook, 'default').mockReturnValue({
+    loading: false,
+    api: paintingApi,
+    ready: true,
+  });
+  render(
+    <BimChart
+      {...baseProps({
+        modelUrl: '/model',
+        rows: [{ gid: 'wall', status: 'Done' }],
+        linkColumn: 'gid',
+        colorBy: 'status',
+        contextMode: 'opaque',
+      })}
+    />,
+  );
+  await waitFor(() =>
+    expect(setOpacity).toHaveBeenCalledWith(['storey', 'wall', 'door'], 1),
+  );
+});
+
+test('applies the highlight color from the control', () => {
+  jest.spyOn(viewerHook, 'default').mockReturnValue({
+    loading: false,
+    api: paintingApi,
+    ready: true,
+  });
+  render(
+    <BimChart
+      {...baseProps({ modelUrl: '/model', highlightColor: '#ff8800' })}
+    />,
+  );
+  expect(setHighlightColor).toHaveBeenCalledWith('#ff8800');
+});
+
+test('hides the model tree when show_tree is false', () => {
+  jest.spyOn(viewerHook, 'default').mockReturnValue({
+    loading: false,
+    tree: [{ id: 'a', name: 'A', type: 'IfcWall', children: [] }],
+    api: paintingApi,
+    ready: true,
+  });
+  render(<BimChart {...baseProps({ modelUrl: '/model', showTree: false })} />);
+  expect(screen.queryByTestId('model-tree-toggle')).not.toBeInTheDocument();
+});
+
+test('hides the matched diagnostic when show_matched is false', async () => {
+  jest.spyOn(viewerHook, 'default').mockReturnValue({
+    loading: false,
+    api: paintingApi,
+    ready: true,
+  });
+  render(
+    <BimChart
+      {...baseProps({
+        modelUrl: '/model',
+        rows: [{ gid: 'wall', status: 'Done' }],
+        linkColumn: 'gid',
+        colorBy: 'status',
+        showMatched: false,
+      })}
+    />,
+  );
+  await waitFor(() => expect(colorize).toHaveBeenCalled());
+  expect(screen.queryByTestId('bim-diagnostic')).not.toBeInTheDocument();
 });

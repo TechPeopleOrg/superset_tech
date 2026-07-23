@@ -26,6 +26,14 @@ test('hexToRgb01 converts hex to 0..1 rgb', () => {
   expect(hexToRgb01('#000000')).toEqual([0, 0, 0]);
 });
 
+test('hexToRgb01 falls back to grey for non-hex input (no NaN/green)', () => {
+  // rgba() theme tokens and CSS names would otherwise yield NaN channels that
+  // xeokit renders as solid green — must return a safe neutral grey instead.
+  expect(hexToRgb01('rgba(255, 255, 255, 0.06)')).toEqual([0.8, 0.8, 0.8]);
+  expect(hexToRgb01('red')).toEqual([0.8, 0.8, 0.8]);
+  expect(hexToRgb01('')).toEqual([0.8, 0.8, 0.8]);
+});
+
 test('maps each link id to the rgb of its category value', () => {
   const { colorById } = buildColorMapping({
     rows: [

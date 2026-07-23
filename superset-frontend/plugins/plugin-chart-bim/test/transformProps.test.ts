@@ -137,3 +137,45 @@ test('setDataMask defaults to a no-op when hooks omit it', () => {
   expect(typeof props.setDataMask).toBe('function');
   expect(() => props.setDataMask({} as any)).not.toThrow();
 });
+
+test('reads appliedFilters from crossFiltersData (camelCase, real Superset shape)', () => {
+  // The dashboard hands cross-filters separately as crossFiltersData (kept out
+  // of extra_form_data so they don't re-query). Superset camelCases the field.
+  const props = transformProps({
+    width: 1,
+    height: 1,
+    formData: {
+      link_column: 'gid',
+      crossFiltersData: {
+        filters: [{ col: 'status', op: 'IN', val: ['Late'] }],
+      },
+    },
+    queriesData: [{ data: [] }],
+  } as any);
+  expect(props.appliedFilters).toEqual([{ col: 'status', val: ['Late'] }]);
+});
+
+test('reads appliedFilters from snake_case cross_filters_data too', () => {
+  const props = transformProps({
+    width: 1,
+    height: 1,
+    formData: {
+      link_column: 'gid',
+      cross_filters_data: {
+        filters: [{ col: 'status', op: 'IN', val: ['Late'] }],
+      },
+    },
+    queriesData: [{ data: [] }],
+  } as any);
+  expect(props.appliedFilters).toEqual([{ col: 'status', val: ['Late'] }]);
+});
+
+test('appliedFilters defaults to [] when no cross_filters_data', () => {
+  const props = transformProps({
+    width: 1,
+    height: 1,
+    formData: { link_column: 'gid' },
+    queriesData: [{ data: [] }],
+  } as any);
+  expect(props.appliedFilters).toEqual([]);
+});
