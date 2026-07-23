@@ -487,10 +487,25 @@ function ChartRendererComponent({
     Object.keys(ownState.agGridFilterModel).length > 0;
 
   const currentFormDataExtended = currentFormData as JsonObject;
-  const bypassNoResult = !(
-    currentFormDataExtended?.server_pagination &&
-    (hasSearchText || hasAgGridFilters)
+  // Charts declaring SuppressRefetchSpinner keep their (expensive) render alive
+  // across re-fetches. During a re-fetch queriesData is momentarily empty,
+  // which would make SuperChart swap in NoResultsComponent and unmount the
+  // chart — reloading a heavy 3D viewer every time. Disable the no-results
+  // branch while such a chart is loading so it stays mounted; NoResults still
+  // applies once the query settles (success/rendered with truly empty data).
+  const suppressesRefetchSpinner = Boolean(
+    getChartMetadataRegistry()
+      .get(vizType)
+      ?.behaviors?.includes(Behavior.SuppressRefetchSpinner),
   );
+  const keepMountedDuringRefetch =
+    suppressesRefetchSpinner && chartStatus === 'loading';
+  const bypassNoResult =
+    !keepMountedDuringRefetch &&
+    !(
+      currentFormDataExtended?.server_pagination &&
+      (hasSearchText || hasAgGridFilters)
+    );
 
   return (
     <>

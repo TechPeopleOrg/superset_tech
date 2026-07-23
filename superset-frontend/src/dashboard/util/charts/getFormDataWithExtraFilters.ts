@@ -17,11 +17,13 @@
  * under the License.
  */
 import {
+  Behavior,
   DataMask,
   DataMaskStateWithId,
   DataRecordFilters,
   DataRecordValue,
   ensureIsArray,
+  getChartMetadataRegistry,
   getColumnLabel,
   JsonObject,
   PartialFilters,
@@ -462,11 +464,29 @@ export default function getFormDataWithExtraFilters({
     .filter(([, activeFilter]) => activeFilter.scope.includes(chart.id))
     .map(([filterId]) => filterId);
 
-  if (filterIdsAppliedOnChart.length) {
-    const aggregatedFormData = getExtraFormData(
-      dataMask,
-      filterIdsAppliedOnChart,
-    );
+  // Charts declaring SuppressRefetchSpinner (e.g. the heavy 3D BIM viewer)
+  // treat cross-filters from other charts as a highlight signal, not a data
+  // filter — like Power BI's cross-highlighting. Native dashboard filters still
+  // filter the data/coloring normally, but cross-filters are kept OUT of the
+  // query's extra_form_data (so they don't re-color the model) and instead
+  // handed to the chart separately as `cross_filters_data` for highlighting.
+  // A cross-filter's id is the numeric id of the emitting chart (present in
+  // chartConfiguration); a native filter's id is a UUID.
+  const suppressesRefetchSpinner = Boolean(
+    getChartMetadataRegistry()
+      .get(chart.form_data?.viz_type)
+      ?.behaviors?.includes(Behavior.SuppressRefetchSpinner),
+  );
+  const isCrossFilterId = (filterId: string) =>
+    !nativeFilters?.[filterId] &&
+    chartConfiguration?.[parseInt(filterId, 10)]?.crossFilters != null;
+
+  const queryFilterIds = suppressesRefetchSpinner
+    ? filterIdsAppliedOnChart.filter(id => !isCrossFilterId(id))
+    : filterIdsAppliedOnChart;
+
+  if (queryFilterIds.length) {
+    const aggregatedFormData = getExtraFormData(dataMask, queryFilterIds);
     extraData = {
       extra_form_data: aggregatedFormData,
     };
@@ -483,6 +503,16 @@ export default function getFormDataWithExtraFilters({
       );
       extraData.filter_data_mapping = filterDataMapping;
     }
+  }
+
+  // For SuppressRefetchSpinner charts, hand the excluded cross-filters to the
+  // chart separately (they were kept out of extra_form_data above) so it can
+  // highlight the matching elements without re-querying. Empty when there are
+  // no cross-filters in scope.
+  if (suppressesRefetchSpinner) {
+    const crossFilterIds = filterIdsAppliedOnChart.filter(isCrossFilterId);
+    const crossFiltersData = getExtraFormData(dataMask, crossFilterIds);
+    extraData.cross_filters_data = crossFiltersData;
   }
 
   let layerFilterScope: { [filterId: string]: number[] } | undefined;

@@ -27,7 +27,7 @@ import {
   RefObject,
 } from 'react';
 import type { ChartCustomization, JsonObject } from '@superset-ui/core';
-import { VizType } from '@superset-ui/core';
+import { Behavior, getChartMetadataRegistry, VizType } from '@superset-ui/core';
 import { styled } from '@apache-superset/core/theme';
 import { t } from '@apache-superset/core/translation';
 import { debounce } from 'lodash';
@@ -244,7 +244,18 @@ const Chart = (props: ChartProps) => {
       (state.dashboardInfo?.metadata as JsonObject)?.show_chart_timestamps ??
       false,
   );
-  const suppressLoadingSpinner = useIsAutoRefreshing();
+  const isAutoRefreshing = useIsAutoRefreshing();
+  // Charts that declare SuppressRefetchSpinner (e.g. the heavy 3D BIM viewer)
+  // stay mounted through re-fetches instead of being swapped for a spinner, so
+  // their live state is not torn down on every filter/cross-filter change. The
+  // initial load still shows a spinner because there is no previous data yet
+  // (see hasValidPreviousData in ChartRenderer).
+  const suppressesRefetchSpinner = Boolean(
+    getChartMetadataRegistry()
+      .get(sliceVizType)
+      ?.behaviors?.includes(Behavior.SuppressRefetchSpinner),
+  );
+  const suppressLoadingSpinner = isAutoRefreshing || suppressesRefetchSpinner;
 
   const isCached: boolean[] = useMemo(
     () =>

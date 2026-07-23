@@ -33,6 +33,16 @@ export enum Behavior {
    */
   DrillToDetail = 'DRILL_TO_DETAIL',
   DrillBy = 'DRILL_BY',
+
+  /**
+   * Include `SUPPRESS_REFETCH_SPINNER` for charts whose render is expensive to
+   * recreate (e.g. a 3D/WebGL viewer). While a re-fetch is in flight and the
+   * chart already has data, the dashboard keeps the chart mounted instead of
+   * swapping in a loading spinner, so its live state is not torn down and
+   * rebuilt on every filter/cross-filter change. The initial load still shows
+   * a spinner (there is no previous data yet).
+   */
+  SuppressRefetchSpinner = 'SUPPRESS_REFETCH_SPINNER',
 }
 
 export interface ContextMenuFilters {
