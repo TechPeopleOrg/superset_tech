@@ -99,6 +99,7 @@ jest.mock('@xeokit/xeokit-sdk', () => {
         destroy: jest.fn(),
       })),
     })),
+    NavCubePlugin: jest.fn().mockImplementation(() => ({ destroy: jest.fn() })),
   };
 });
 

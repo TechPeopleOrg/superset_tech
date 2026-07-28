@@ -18,7 +18,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { t } from '@apache-superset/core/translation';
-import { styled } from '@apache-superset/core/theme';
+import { styled, useTheme, isThemeDark } from '@apache-superset/core/theme';
 import { Alert } from '@apache-superset/core/components';
 import { Button, Loading } from '@superset-ui/core/components';
 import useXeokitViewer from './useXeokitViewer';
@@ -110,6 +110,7 @@ export default function BimChart(props: BimChartProps) {
     showMatched,
   } = props;
   const containerRef = useRef<HTMLDivElement>(null);
+  const theme = useTheme();
   // Bump to force the hook effect to re-run on retry without changing modelUrl.
   const [retryKey, setRetryKey] = useState(0);
 
@@ -117,6 +118,7 @@ export default function BimChart(props: BimChartProps) {
     modelUrl: modelUrl ? `${modelUrl}#${retryKey}` : '',
     showEdges,
     navMode,
+    theme: isThemeDark(theme) ? 'dark' : 'light',
   });
 
   // Content-based key for the color mapping. transformProps runs on every

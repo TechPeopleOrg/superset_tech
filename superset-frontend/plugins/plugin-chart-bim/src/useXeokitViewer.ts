@@ -31,6 +31,9 @@ export interface UseXeokitViewerOptions {
   // camera itself (walk-through / look-around from inside a room); 'planView'
   // is a top-down style. Defaults to 'orbit'.
   navMode?: NavMode;
+  // Chart theme, used to colour the NavCube so it reads on both light and dark
+  // dashboard backgrounds. Defaults to light when unset.
+  theme?: 'light' | 'dark';
 }
 
 export interface UseXeokitViewerState {
@@ -76,15 +79,53 @@ export default function useXeokitViewer(
     (async () => {
       try {
         node.innerHTML = '';
+        // The container must establish a positioning context so the NavCube's
+        // absolutely-positioned canvas anchors to the viewer's top-right corner
+        // rather than the page.
+        if (getComputedStyle(node).position === 'static') {
+          node.style.position = 'relative';
+        }
         const canvas = document.createElement('canvas');
         canvas.style.width = '100%';
         canvas.style.height = '100%';
         node.appendChild(canvas);
 
-        const { Viewer, XKTLoaderPlugin } = await import('@xeokit/xeokit-sdk');
+        // Separate small canvas for the NavCube (orientation cube). It sits in
+        // the top-right corner over the main canvas; pointer events on it drive
+        // the NavCubePlugin without interfering with model interaction.
+        const navCubeCanvas = document.createElement('canvas');
+        navCubeCanvas.width = 130;
+        navCubeCanvas.height = 130;
+        navCubeCanvas.style.position = 'absolute';
+        navCubeCanvas.style.top = '10px';
+        navCubeCanvas.style.right = '10px';
+        navCubeCanvas.style.width = '130px';
+        navCubeCanvas.style.height = '130px';
+        navCubeCanvas.style.zIndex = '2';
+        node.appendChild(navCubeCanvas);
+
+        const { Viewer, XKTLoaderPlugin, NavCubePlugin } =
+          await import('@xeokit/xeokit-sdk');
         if (cancelled) return;
 
         viewer = new Viewer({ canvasElement: canvas, transparent: false });
+
+        // Orientation cube: click a face/edge/corner to fly the camera to that
+        // view (front/back/top/side/isometric). Colours follow the chart theme.
+        // Destroyed automatically when the viewer is destroyed in cleanup.
+        const dark = options.theme === 'dark';
+        // eslint-disable-next-line no-new
+        new NavCubePlugin(viewer, {
+          canvasElement: navCubeCanvas,
+          visible: true,
+          cameraFly: true,
+          cameraFlyDuration: 0.5,
+          cameraFitFOV: 45,
+          color: dark ? '#3a3f47' : '#e6e4de',
+          hoverColor: dark ? '#e89442' : '#d97e26',
+          textColor: dark ? '#eceae4' : '#1c1f24',
+          shadowVisible: false,
+        });
 
         // The default highlight material is a faint 20%-alpha grey fill, nearly
         // invisible over data-coloured elements. Make cross-filter highlighting
@@ -263,7 +304,7 @@ export default function useXeokitViewer(
         loadedModel.on?.('loaded', () => {
           if (cancelled || !viewer) return;
           try {
-            const aabb = viewer.scene.aabb;
+            const { aabb } = viewer.scene;
             if (navMode === 'firstPerson') {
               // Stand inside the model: place the eye at the center, looking
               // toward one side, so rotation is a look-around in place.

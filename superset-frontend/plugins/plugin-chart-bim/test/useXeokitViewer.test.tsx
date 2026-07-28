@@ -45,6 +45,7 @@ jest.mock('@xeokit/xeokit-sdk', () => ({
       return { destroy: mockDestroyModel, on: jest.fn() };
     },
   })),
+  NavCubePlugin: jest.fn().mockImplementation(() => ({ destroy: jest.fn() })),
 }));
 
 function Harness({ url }: { url: string }) {
