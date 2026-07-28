@@ -320,7 +320,8 @@ export default function useXeokitViewer(
               camera.look = [aabb[3], cy, cz];
               camera.up = [0, 1, 0];
             } else {
-              // Frame the whole model from outside.
+              // Frame the whole model from outside: let xeokit pick the fitting
+              // distance and its default viewing angle for the bounds.
               viewer.cameraFlight.flyTo({ aabb });
             }
           } catch {
