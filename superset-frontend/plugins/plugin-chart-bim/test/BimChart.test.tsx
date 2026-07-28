@@ -128,16 +128,17 @@ test('renders the model tree toggle once a model is present', () => {
       onPick: jest.fn(() => () => {}),
       highlight: jest.fn(),
       setHighlightColor: jest.fn(),
+      fit: jest.fn(),
     },
   });
   render(<BimChart {...baseProps()} />);
-  expect(screen.getByTestId('model-tree-toggle')).toBeInTheDocument();
+  expect(screen.getByTestId('bim-tree-toggle')).toBeInTheDocument();
 });
 
 test('does not render the model tree when there is no model URL', () => {
   jest.spyOn(viewerHook, 'default').mockReturnValue({ loading: false });
   render(<BimChart {...baseProps({ modelUrl: '' })} />);
-  expect(screen.queryByTestId('model-tree-toggle')).not.toBeInTheDocument();
+  expect(screen.queryByTestId('bim-tree-toggle')).not.toBeInTheDocument();
 });
 
 const paintingApi = {
@@ -153,6 +154,7 @@ const paintingApi = {
   onPick,
   highlight,
   setHighlightColor,
+  fit: jest.fn(),
 };
 
 test('paints neutral base then colored matches, in order', async () => {
@@ -751,7 +753,7 @@ test('hides the model tree when show_tree is false', () => {
     ready: true,
   });
   render(<BimChart {...baseProps({ modelUrl: '/model', showTree: false })} />);
-  expect(screen.queryByTestId('model-tree-toggle')).not.toBeInTheDocument();
+  expect(screen.queryByTestId('bim-tree-toggle')).not.toBeInTheDocument();
 });
 
 test('hides the matched diagnostic when show_matched is false', async () => {

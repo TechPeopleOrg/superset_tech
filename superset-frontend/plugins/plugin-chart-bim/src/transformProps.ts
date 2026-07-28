@@ -118,7 +118,10 @@ export default function transformProps(chartProps: ChartProps): BimChartProps {
     formData: fd,
     modelUrl,
     showEdges: fd.showEdges ?? fd.show_edges ?? false,
-    navMode: fd.navMode ?? fd.nav_mode ?? 'firstPerson',
+    // Initial navigation mode. Switchable at runtime from the viewer toolbar,
+    // so there is no chart-level control for it; orbit is the sensible default
+    // for inspecting a model from outside.
+    navMode: 'orbit',
     rows: data,
     linkColumn,
     colorBy,

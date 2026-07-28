@@ -18,13 +18,17 @@
  */
 import { useRef } from 'react';
 import { render, waitFor } from '@testing-library/react';
-import useXeokitViewer from '../src/useXeokitViewer';
+import { Viewer } from '@xeokit/xeokit-sdk';
+import useXeokitViewer, { type NavMode } from '../src/useXeokitViewer';
 
 // Prefixed with "mock" so babel-jest hoisting allows referencing them inside
 // the jest.mock() factory (variables not prefixed with mock are forbidden).
 const mockLoad = jest.fn();
 const mockDestroyModel = jest.fn();
 const mockDestroyViewer = jest.fn();
+// Shared cameraControl so a test can assert the navMode effect mutates it on
+// the live viewer (rather than a fresh object per Viewer construction).
+const mockCameraControl: { navMode?: string; followPointer?: boolean } = {};
 
 jest.mock('@xeokit/xeokit-sdk', () => ({
   Viewer: jest.fn().mockImplementation(() => ({
@@ -36,7 +40,7 @@ jest.mock('@xeokit/xeokit-sdk', () => ({
     },
     camera: {},
     cameraFlight: { flyTo: jest.fn() },
-    cameraControl: {},
+    cameraControl: mockCameraControl,
     destroy: mockDestroyViewer,
   })),
   XKTLoaderPlugin: jest.fn().mockImplementation(() => ({
@@ -48,9 +52,9 @@ jest.mock('@xeokit/xeokit-sdk', () => ({
   NavCubePlugin: jest.fn().mockImplementation(() => ({ destroy: jest.fn() })),
 }));
 
-function Harness({ url }: { url: string }) {
+function Harness({ url, navMode }: { url: string; navMode?: NavMode }) {
   const ref = useRef<HTMLDivElement>(null);
-  const state = useXeokitViewer(ref, { modelUrl: url });
+  const state = useXeokitViewer(ref, { modelUrl: url, navMode });
   return (
     <div>
       <div ref={ref} data-test="canvas" />
@@ -82,4 +86,39 @@ test('destroys the viewer on unmount', async () => {
   await waitFor(() => expect(mockLoad).toHaveBeenCalled());
   unmount();
   await waitFor(() => expect(mockDestroyViewer).toHaveBeenCalled());
+});
+
+test('applies the initial navMode to the live cameraControl', async () => {
+  render(
+    <Harness
+      url="/fileuploader/api/files/abc/content"
+      navMode="firstPerson"
+    />,
+  );
+  await waitFor(() =>
+    expect(mockCameraControl.navMode).toBe('firstPerson'),
+  );
+  expect(mockCameraControl.followPointer).toBe(false);
+});
+
+test('switching navMode updates the live viewer without rebuilding it', async () => {
+  (Viewer as unknown as jest.Mock).mockClear();
+  const { rerender } = render(
+    <Harness url="/fileuploader/api/files/abc/content" navMode="orbit" />,
+  );
+  await waitFor(() => expect(mockCameraControl.navMode).toBe('orbit'));
+  expect(mockCameraControl.followPointer).toBe(true);
+  const viewersBefore = (Viewer as unknown as jest.Mock).mock.calls.length;
+
+  rerender(
+    <Harness url="/fileuploader/api/files/abc/content" navMode="firstPerson" />,
+  );
+  await waitFor(() =>
+    expect(mockCameraControl.navMode).toBe('firstPerson'),
+  );
+  expect(mockCameraControl.followPointer).toBe(false);
+  // No new Viewer was constructed: the mode switched on the live viewer.
+  expect((Viewer as unknown as jest.Mock).mock.calls.length).toBe(
+    viewersBefore,
+  );
 });

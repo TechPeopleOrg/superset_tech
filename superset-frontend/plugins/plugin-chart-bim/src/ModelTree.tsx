@@ -26,6 +26,7 @@ import { t } from '@apache-superset/core/translation';
 import { styled } from '@apache-superset/core/theme';
 import {
   Button,
+  Icons,
   Input,
   Tree,
   type TreeDataNode,
@@ -82,20 +83,11 @@ const ResizeHandle = styled.div`
   }
 `;
 
-const Toggle = styled.button<{ open: boolean; width: number }>`
-  position: absolute;
-  top: 50%;
-  left: ${({ open, width }) => (open ? `${width}px` : '0')};
-  transform: translateY(-50%);
-  z-index: 11;
-  pointer-events: auto;
-  cursor: pointer;
-  border: 1px solid ${({ theme }) => theme.colorBorder};
-  border-left: none;
-  background: ${({ theme }) => theme.colorBgContainer};
-  padding: ${({ theme }) => theme.sizeUnit * 2}px
-    ${({ theme }) => theme.sizeUnit}px;
-  transition: left 200ms ease;
+// Search field + close button on one row at the top of the panel.
+const Header = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.sizeUnit}px;
 `;
 
 const Controls = styled.div`
@@ -183,11 +175,17 @@ function findNode(nodes: TreeNode[], id: string): TreeNode | undefined {
 export default function ModelTree({
   tree,
   api,
+  open,
+  onClose,
 }: {
   tree?: TreeNode[];
   api?: XeokitApi;
+  // Whether the panel is shown. Controlled by the parent so the viewer toolbar
+  // is the single place that toggles the tree.
+  open: boolean;
+  // Called when the panel's own close affordance is used.
+  onClose: () => void;
 }) {
-  const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<string | undefined>();
   const [width, setWidth] = useState(DEFAULT_PANEL_WIDTH);
@@ -289,12 +287,21 @@ export default function ModelTree({
   return (
     <Wrap>
       <Panel open={open} width={width} data-test="model-tree-panel">
-        <Input
-          placeholder={t('Search')}
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          allowClear
-        />
+        <Header>
+          <Input
+            placeholder={t('Search')}
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            allowClear
+          />
+          <Button
+            buttonSize="small"
+            data-test="model-tree-close"
+            aria-label={t('Close element tree')}
+            onClick={onClose}
+            icon={<Icons.CloseOutlined />}
+          />
+        </Header>
         <Controls>
           <Button
             buttonSize="small"
@@ -340,15 +347,6 @@ export default function ModelTree({
         ) : null}
         <ResizeHandle data-test="model-tree-resize" onMouseDown={startResize} />
       </Panel>
-      <Toggle
-        open={open}
-        width={width}
-        data-test="model-tree-toggle"
-        aria-label={t('Toggle element tree')}
-        onClick={() => setOpen(o => !o)}
-      >
-        {open ? '◀' : '▶'}
-      </Toggle>
     </Wrap>
   );
 }

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { RefObject, useEffect, useState } from 'react';
+import { RefObject, useEffect, useRef, useState } from 'react';
 import buildTree, { MetaObjectLike } from './buildTree';
 import { hexToRgb01 } from './colorMapping';
 import { TreeNode, XeokitApi } from './types';
@@ -59,6 +59,14 @@ export default function useXeokitViewer(
 ): UseXeokitViewerState {
   const { modelUrl, showEdges, navMode = 'orbit' } = options;
   const [state, setState] = useState<UseXeokitViewerState>({ loading: false });
+  // Holds the live viewer's cameraControl so navMode can be switched on the
+  // running viewer (see the navMode effect below) without tearing down and
+  // reloading the whole model. Populated when the viewer is created and cleared
+  // on teardown.
+  const cameraControlRef = useRef<{
+    navMode?: string;
+    followPointer?: boolean;
+  } | null>(null);
 
   useEffect(() => {
     const node = containerRef.current;
@@ -163,6 +171,9 @@ export default function useXeokitViewer(
         };
         cc.navMode = navMode;
         cc.followPointer = navMode !== 'firstPerson';
+        // Expose the live cameraControl so the navMode effect can switch modes
+        // on the running viewer without a full rebuild.
+        cameraControlRef.current = cc;
 
         const scene = viewer.scene as unknown as {
           objects: Record<
@@ -287,6 +298,16 @@ export default function useXeokitViewer(
             });
           },
           setHighlightColor: applyHighlightColor,
+          fit: () => {
+            // Frame the whole model: same fit used on load. Reads the current
+            // scene AABB so it also works after visibility changes.
+            if (!viewer) return;
+            try {
+              viewer.cameraFlight.flyTo({ aabb: viewer.scene.aabb });
+            } catch {
+              // camera/scene not ready; ignore.
+            }
+          },
         };
 
         const loader = new XKTLoaderPlugin(viewer);
@@ -381,13 +402,27 @@ export default function useXeokitViewer(
       } catch {
         // viewer may not have been created; ignore.
       }
+      cameraControlRef.current = null;
       if (node) node.innerHTML = '';
     };
-    // containerRef is intentionally excluded from the dep array: ref objects
+    // navMode is intentionally excluded: it is applied to the live viewer by a
+    // separate effect below, so switching modes does not rebuild the viewer and
+    // reload the (heavy) model. containerRef is also excluded: ref objects
     // change identity on every render but their `.current` is stable; including
     // the ref would cause infinite re-renders when using createRef() in tests.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modelUrl, showEdges, navMode]);
+  }, [modelUrl, showEdges]);
+
+  // Apply the navigation mode to the running viewer whenever it changes,
+  // without recreating the viewer. cameraControlRef is populated once the
+  // viewer exists; before that this is a no-op and the initial mode is set
+  // inline during viewer creation above.
+  useEffect(() => {
+    const cc = cameraControlRef.current;
+    if (!cc) return;
+    cc.navMode = navMode;
+    cc.followPointer = navMode !== 'firstPerson';
+  }, [navMode]);
 
   return state;
 }

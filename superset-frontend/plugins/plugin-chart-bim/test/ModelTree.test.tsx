@@ -46,20 +46,46 @@ const makeApi = (): XeokitApi => ({
   onPick: jest.fn(() => jest.fn()),
   highlight: jest.fn(),
   setHighlightColor: jest.fn(),
+  fit: jest.fn(),
 });
 
-test('panel is closed by default and opens on the toggle', async () => {
-  render(<ModelTree tree={tree} api={makeApi()} />);
-  // Tree content is hidden until the panel is opened.
+// The panel is now controlled by the parent: `open` and `onClose` are required.
+// Most tests want it open, so default to that and let callers override.
+const renderTree = (
+  props: Partial<Parameters<typeof ModelTree>[0]> = {},
+) => {
+  const onClose = jest.fn();
+  const result = render(
+    <ModelTree
+      tree={tree}
+      api={makeApi()}
+      open
+      onClose={onClose}
+      {...props}
+    />,
+  );
+  return { onClose, ...result };
+};
+
+test('tree content is hidden while the panel is closed', () => {
+  renderTree({ open: false });
   expect(screen.queryByText('Wall A')).not.toBeInTheDocument();
-  await userEvent.click(screen.getByTestId('model-tree-toggle'));
+});
+
+test('tree content is shown while the panel is open', () => {
+  renderTree({ open: true });
   expect(screen.getByText('Wall A')).toBeInTheDocument();
+});
+
+test('the close button calls onClose', async () => {
+  const { onClose } = renderTree({ open: true });
+  await userEvent.click(screen.getByTestId('model-tree-close'));
+  expect(onClose).toHaveBeenCalledTimes(1);
 });
 
 test('unchecking a leaf hides that element', async () => {
   const api = makeApi();
-  render(<ModelTree tree={tree} api={api} />);
-  await userEvent.click(screen.getByTestId('model-tree-toggle'));
+  renderTree({ api });
   // antd renders a checkbox per node; click the one associated with Wall A.
   const wallRow = screen.getByText('Wall A').closest('.ant-tree-treenode');
   const checkbox = wallRow!.querySelector('.ant-tree-checkbox');
@@ -72,16 +98,14 @@ test('unchecking a leaf hides that element', async () => {
 
 test('Show all calls api.showAll', async () => {
   const api = makeApi();
-  render(<ModelTree tree={tree} api={api} />);
-  await userEvent.click(screen.getByTestId('model-tree-toggle'));
+  renderTree({ api });
   await userEvent.click(screen.getByRole('button', { name: /show all/i }));
   expect(api.showAll).toHaveBeenCalled();
 });
 
 test('Isolate calls api.isolate with exactly the selected subtree leaves', async () => {
   const api = makeApi();
-  render(<ModelTree tree={tree} api={api} />);
-  await userEvent.click(screen.getByTestId('model-tree-toggle'));
+  renderTree({ api });
   await userEvent.click(screen.getByText('Project'));
   await userEvent.click(screen.getByRole('button', { name: /isolate/i }));
   // Must contain exactly wall and door — no extra ids like proj.
@@ -90,22 +114,19 @@ test('Isolate calls api.isolate with exactly the selected subtree leaves', async
 });
 
 test('search filters nodes by name', async () => {
-  render(<ModelTree tree={tree} api={makeApi()} />);
-  await userEvent.click(screen.getByTestId('model-tree-toggle'));
+  renderTree();
   await userEvent.type(screen.getByPlaceholderText(/search/i), 'door');
   expect(screen.getByText('Door B')).toBeInTheDocument();
   expect(screen.queryByText('Wall A')).not.toBeInTheDocument();
 });
 
 test('shows an empty-state message when there is no hierarchy', async () => {
-  render(<ModelTree tree={undefined} api={makeApi()} />);
-  await userEvent.click(screen.getByTestId('model-tree-toggle'));
+  renderTree({ tree: undefined });
   expect(screen.getByText(/no element hierarchy/i)).toBeInTheDocument();
 });
 
 test('IFC type is shown as secondary text next to node name', async () => {
-  render(<ModelTree tree={tree} api={makeApi()} />);
-  await userEvent.click(screen.getByTestId('model-tree-toggle'));
+  renderTree();
   // The name remains a standalone text node for RTL matching.
   expect(screen.getByText('Wall A')).toBeInTheDocument();
   // The IFC type appears as separate secondary text.
@@ -124,8 +145,7 @@ test('after Isolate checkedKeys sync from scene — door checkbox becomes unchec
   const api = makeApi();
   // After isolate("wall"), the scene will report door as hidden.
   (api.getVisibility as jest.Mock).mockReturnValue({ wall: true, door: false });
-  render(<ModelTree tree={tree} api={api} />);
-  await userEvent.click(screen.getByTestId('model-tree-toggle'));
+  renderTree({ api });
 
   // Select "Wall A" and click Isolate.
   await userEvent.click(screen.getByText('Wall A'));
@@ -151,8 +171,7 @@ test('after Show all checkedKeys sync from scene — all checkboxes become check
   const api = makeApi();
   // Initial state: door is hidden.
   (api.getVisibility as jest.Mock).mockReturnValue({ wall: true, door: false });
-  render(<ModelTree tree={tree} api={api} />);
-  await userEvent.click(screen.getByTestId('model-tree-toggle'));
+  renderTree({ api });
 
   // Now switch the mock to return all visible (what showAll produces in scene).
   (api.getVisibility as jest.Mock).mockReturnValue({ wall: true, door: true });
@@ -172,8 +191,7 @@ test('after Show all checkedKeys sync from scene — all checkboxes become check
 // removing Wall A while searching "wall" would also hide Door B.
 test('uncheck in filtered view does not hide nodes outside the filter', async () => {
   const api = makeApi();
-  render(<ModelTree tree={tree} api={api} />);
-  await userEvent.click(screen.getByTestId('model-tree-toggle'));
+  renderTree({ api });
 
   // Filter to show only Wall A.
   await userEvent.type(screen.getByPlaceholderText(/search/i), 'wall');

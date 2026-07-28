@@ -31,7 +31,6 @@ export type BimFormData = QueryFormData &
     // transformProps actually reads; both are kept for safety.
     model_column?: string;
     show_edges?: boolean;
-    nav_mode?: 'orbit' | 'firstPerson' | 'planView';
     // TEMPORARY (manual testing without a dataset): a directly-entered model
     // UUID that overrides `model_column`. Remove once dataset-driven use is the
     // norm.
@@ -40,7 +39,6 @@ export type BimFormData = QueryFormData &
     modelColumn?: string;
     modelUuid?: string;
     showEdges?: boolean;
-    navMode?: 'orbit' | 'firstPerson' | 'planView';
     // --- Data-binding controls (link elements to dataset rows and color them) ---
     link_column?: string;
     color_by?: string;
@@ -158,4 +156,6 @@ export interface XeokitApi {
   highlight(objectIds: string[]): void;
   // Set the cross-filter highlight colour (#rrggbb hex).
   setHighlightColor(hex: string): void;
+  // Frame the whole model in the viewport (fit to the current scene bounds).
+  fit(): void;
 }

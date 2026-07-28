@@ -21,8 +21,9 @@ import { t } from '@apache-superset/core/translation';
 import { styled, useTheme, isThemeDark } from '@apache-superset/core/theme';
 import { Alert } from '@apache-superset/core/components';
 import { Button, Loading } from '@superset-ui/core/components';
-import useXeokitViewer from './useXeokitViewer';
+import useXeokitViewer, { type NavMode } from './useXeokitViewer';
 import ModelTree from './ModelTree';
+import ViewerControls from './ViewerControls';
 import buildColorMapping, { hexToRgb01 } from './colorMapping';
 import ColorLegend from './ColorLegend';
 import { BimChartProps } from './types';
@@ -90,7 +91,7 @@ export default function BimChart(props: BimChartProps) {
     height,
     modelUrl,
     showEdges,
-    navMode,
+    navMode: navModeProp,
     rows,
     linkColumn,
     colorBy,
@@ -113,6 +114,14 @@ export default function BimChart(props: BimChartProps) {
   const theme = useTheme();
   // Bump to force the hook effect to re-run on retry without changing modelUrl.
   const [retryKey, setRetryKey] = useState(0);
+  // Navigation mode is switchable at runtime from the viewer controls. The
+  // chart's configured navMode is only the initial value; the hook applies
+  // changes to the live viewer without reloading the model.
+  const [navMode, setNavMode] = useState<NavMode>(navModeProp ?? 'orbit');
+  // Whether the model tree panel is open. Toggled from the viewer toolbar; the
+  // tree starts closed. Only meaningful when the chart enables the tree
+  // (showTree) and a model is loaded.
+  const [treeOpen, setTreeOpen] = useState(false);
 
   const { loading, error, tree, api, ready } = useXeokitViewer(containerRef, {
     modelUrl: modelUrl ? `${modelUrl}#${retryKey}` : '',
@@ -299,6 +308,15 @@ export default function BimChart(props: BimChartProps) {
         style={{ width, height }}
         data-test="bim-container"
       />
+      {modelUrl && !loading && !error && api && (
+        <ViewerControls
+          navMode={navMode}
+          onNavModeChange={setNavMode}
+          onFit={() => api.fit()}
+          treeOpen={showTree ? treeOpen : undefined}
+          onToggleTree={showTree ? () => setTreeOpen(o => !o) : undefined}
+        />
+      )}
       {refreshing && (
         <RefreshBadge data-test="bim-refreshing">
           <Loading position="inline-centered" size="s" />
@@ -306,7 +324,12 @@ export default function BimChart(props: BimChartProps) {
         </RefreshBadge>
       )}
       {showTree && modelUrl && !loading && !error && api && (
-        <ModelTree tree={tree} api={api} />
+        <ModelTree
+          tree={tree}
+          api={api}
+          open={treeOpen}
+          onClose={() => setTreeOpen(false)}
+        />
       )}
       {showLegend && modelUrl && !loading && !error && api && (
         <ColorLegend legend={legend} />

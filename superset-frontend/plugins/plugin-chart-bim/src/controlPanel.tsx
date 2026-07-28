@@ -129,26 +129,6 @@ const config: ControlPanelConfig = {
       controlSetRows: [
         [
           {
-            name: 'nav_mode',
-            config: {
-              type: 'SelectControl',
-              label: t('Navigation mode'),
-              description: t(
-                'Orbit rotates around a pivot (inspect from outside); First person rotates in place (walk-through/look-around); Plan view is top-down.',
-              ),
-              clearable: false,
-              renderTrigger: true,
-              default: 'firstPerson',
-              choices: [
-                ['firstPerson', t('First person')],
-                ['orbit', t('Orbit')],
-                ['planView', t('Plan view')],
-              ],
-            },
-          },
-        ],
-        [
-          {
             name: 'show_edges',
             config: {
               type: 'CheckboxControl',
