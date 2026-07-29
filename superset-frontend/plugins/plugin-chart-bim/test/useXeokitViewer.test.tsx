@@ -122,3 +122,15 @@ test('switching navMode updates the live viewer without rebuilding it', async ()
     viewersBefore,
   );
 });
+
+test('cancels page scroll for wheel events over the viewer', async () => {
+  const { getByTestId } = render(
+    <Harness url="/fileuploader/api/files/abc/content" />,
+  );
+  await waitFor(() => expect(mockLoad).toHaveBeenCalled());
+  const container = getByTestId('canvas');
+  const event = new WheelEvent('wheel', { bubbles: true, cancelable: true });
+  container.dispatchEvent(event);
+  // preventDefault was called, so the surrounding page would not scroll.
+  expect(event.defaultPrevented).toBe(true);
+});

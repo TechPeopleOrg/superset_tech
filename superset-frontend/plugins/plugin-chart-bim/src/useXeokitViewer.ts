@@ -82,6 +82,12 @@ export default function useXeokitViewer(
     let viewer: InstanceType<XeokitModule['Viewer']> | undefined;
     let model: { destroy: () => void } | undefined;
 
+    // xeokit's wheel listener is passive (can't preventDefault); cancel page scroll ourselves.
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+    };
+    node.addEventListener('wheel', onWheel, { passive: false });
+
     setState({ loading: true, error: undefined });
 
     (async () => {
@@ -403,6 +409,7 @@ export default function useXeokitViewer(
         // viewer may not have been created; ignore.
       }
       cameraControlRef.current = null;
+      node.removeEventListener('wheel', onWheel);
       if (node) node.innerHTML = '';
     };
     // navMode is intentionally excluded: it is applied to the live viewer by a
