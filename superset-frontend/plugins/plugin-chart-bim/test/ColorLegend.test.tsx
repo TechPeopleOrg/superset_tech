@@ -36,3 +36,27 @@ test('renders nothing when legend is empty', () => {
   const { container } = render(<ColorLegend legend={[]} />);
   expect(container).toBeEmptyDOMElement();
 });
+
+test('renders a gradient bar with min/max labels in gradient mode', () => {
+  render(
+    <ColorLegend
+      legend={[]}
+      gradient={{ scaleId: 'grey-green', min: 0, max: 100 }}
+    />,
+  );
+  expect(screen.getByTestId('bim-legend-gradient')).toBeInTheDocument();
+  expect(screen.getByText('0')).toBeInTheDocument();
+  expect(screen.getByText('100')).toBeInTheDocument();
+});
+
+test('gradient legend formats fractional bounds compactly', () => {
+  render(
+    <ColorLegend
+      legend={[]}
+      gradient={{ scaleId: 'blue', min: 1.23456, max: 9876.5 }}
+    />,
+  );
+  // Rounded to a compact form, not the raw float.
+  expect(screen.getByText('1.23')).toBeInTheDocument();
+  expect(screen.getByText('9,876.5')).toBeInTheDocument();
+});

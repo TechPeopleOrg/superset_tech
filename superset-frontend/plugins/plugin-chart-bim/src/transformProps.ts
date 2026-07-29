@@ -70,6 +70,21 @@ export default function transformProps(chartProps: ChartProps): BimChartProps {
     }
   }
 
+  // Coloring mode + gradient settings (all user-chosen, data-driven).
+  const colorMode =
+    (fd.colorMode ?? fd.color_mode) === 'gradient' ? 'gradient' : 'categorical';
+  const gradientScaleId = (fd.gradientScale ?? fd.gradient_scale) as
+    | string
+    | undefined;
+  // Empty/non-numeric → undefined (auto bounds).
+  const parseBound = (raw: string | number | undefined): number | undefined => {
+    if (raw === undefined || raw === null || raw === '') return undefined;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : undefined;
+  };
+  const gradientMin = parseBound(fd.gradientMin ?? fd.gradient_min);
+  const gradientMax = parseBound(fd.gradientMax ?? fd.gradient_max);
+
   const { emitCrossFilters = false } = chartProps as {
     emitCrossFilters?: boolean;
   };
@@ -127,6 +142,10 @@ export default function transformProps(chartProps: ChartProps): BimChartProps {
     colorBy,
     colorFn,
     overrides,
+    colorMode,
+    gradientScaleId,
+    gradientMin,
+    gradientMax,
     colorScheme,
     emitCrossFilters,
     setDataMask: setDataMask as BimChartProps['setDataMask'],

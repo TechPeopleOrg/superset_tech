@@ -17,6 +17,7 @@
  * under the License.
  */
 import { DataRecord } from '@superset-ui/core';
+import { sampleScale } from './gradientScales';
 
 export interface ColorMappingInput {
   rows: DataRecord[];
@@ -24,11 +25,28 @@ export interface ColorMappingInput {
   colorBy: string;
   colorFn: (value: string) => string;
   overrides?: { value: string; color: string }[];
+  // 'categorical' (default) = palette per value; 'gradient' = numeric column on a scale.
+  mode?: 'categorical' | 'gradient';
+  // Gradient mode only:
+  gradientScaleId?: string;
+  // Manual scale bounds; undefined means "derive from the data".
+  gradientMin?: number;
+  gradientMax?: number;
+}
+
+// Gradient legend: scale + resolved bounds.
+export interface GradientLegend {
+  scaleId: string;
+  min: number;
+  max: number;
 }
 
 export interface ColorMappingResult {
   colorById: Map<string, [number, number, number]>;
+  // Categorical legend entries; empty in gradient mode.
   legend: { value: string; color: string }[];
+  // Present only in gradient mode; drives the gradient legend bar.
+  gradientLegend?: GradientLegend;
   stats: { dataKeys: number };
 }
 
@@ -52,9 +70,51 @@ export function hexToRgb01(hex: string): [number, number, number] {
   return [r, g, b];
 }
 
+// Numeric column → normalized value → sampled scale. Bounds from data or manual.
+function buildGradientMapping(input: ColorMappingInput): ColorMappingResult {
+  const { rows, linkColumn, colorBy } = input;
+  const scaleId = input.gradientScaleId ?? '';
+
+  const numeric: { id: string; v: number }[] = [];
+  rows.forEach(row => {
+    const raw = row[colorBy];
+    if (raw === null || raw === undefined || raw === '') return;
+    const v = Number(raw);
+    if (!Number.isFinite(v)) return; // non-numeric -> "no data", skipped
+    numeric.push({ id: String(row[linkColumn]), v });
+  });
+
+  const colorById = new Map<string, [number, number, number]>();
+  if (numeric.length === 0) {
+    return { colorById, legend: [], stats: { dataKeys: 0 } };
+  }
+
+  const dataMin = Math.min(...numeric.map(n => n.v));
+  const dataMax = Math.max(...numeric.map(n => n.v));
+  const min = input.gradientMin ?? dataMin;
+  const max = input.gradientMax ?? dataMax;
+  const span = max - min;
+
+  numeric.forEach(({ id, v }) => {
+    // Degenerate range → midpoint, no divide-by-zero.
+    const t = span > 0 ? (v - min) / span : 0.5;
+    colorById.set(id, sampleScale(scaleId, t));
+  });
+
+  return {
+    colorById,
+    legend: [],
+    gradientLegend: { scaleId, min, max },
+    stats: { dataKeys: colorById.size },
+  };
+}
+
 export default function buildColorMapping(
   input: ColorMappingInput,
 ): ColorMappingResult {
+  if (input.mode === 'gradient') {
+    return buildGradientMapping(input);
+  }
   const { rows, linkColumn, colorBy, colorFn, overrides } = input;
   // Only keep overrides whose color is a valid #rrggbb hex; anything else
   // (e.g. a CSS name like "red") falls through to the automatic palette

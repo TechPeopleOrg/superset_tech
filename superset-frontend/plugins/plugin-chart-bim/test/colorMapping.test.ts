@@ -16,7 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import buildColorMapping, { hexToRgb01 } from '../src/colorMapping';
+import buildColorMapping, {
+  hexToRgb01,
+  type ColorMappingInput,
+} from '../src/colorMapping';
+import type { DataRecord } from '@superset-ui/core';
 
 const colorFn = (v: string) =>
   ({ Done: '#00ff00', Late: '#ff0000' })[v] ?? '#0000ff';
@@ -118,4 +122,117 @@ test('empty rows or empty colorBy yields empty map and legend', () => {
   expect(r.colorById.size).toBe(0);
   expect(r.legend).toEqual([]);
   expect(r.stats.dataKeys).toBe(0);
+});
+
+// --- gradient mode ---
+
+const gradientInput = (
+  rows: DataRecord[],
+  extra: Partial<ColorMappingInput> = {},
+): ColorMappingInput => ({
+  rows,
+  linkColumn: 'gid',
+  colorBy: 'pct',
+  colorFn,
+  mode: 'gradient',
+  gradientScaleId: 'grey-green',
+  ...extra,
+});
+
+test('gradient: derives auto min/max from data and reports them in the legend', () => {
+  const { gradientLegend } = buildColorMapping(
+    gradientInput([
+      { gid: 'a', pct: 20 },
+      { gid: 'b', pct: 80 },
+      { gid: 'c', pct: 50 },
+    ]),
+  );
+  expect(gradientLegend).toEqual({
+    scaleId: 'grey-green',
+    min: 20,
+    max: 80,
+  });
+});
+
+test('gradient: min value maps to the scale start, max to the scale end', () => {
+  const { colorById } = buildColorMapping(
+    gradientInput([
+      { gid: 'a', pct: 20 },
+      { gid: 'b', pct: 80 },
+    ]),
+  );
+  // grey-green starts at #c7ced6, ends at #137a3a.
+  expect(colorById.get('a')).toEqual(hexToRgb01('#c7ced6'));
+  expect(colorById.get('b')).toEqual(hexToRgb01('#137a3a'));
+});
+
+test('gradient: a mid value lands strictly between the endpoints', () => {
+  const { colorById } = buildColorMapping(
+    gradientInput([
+      { gid: 'a', pct: 0 },
+      { gid: 'b', pct: 100 },
+      { gid: 'c', pct: 50 },
+    ]),
+  );
+  const mid = colorById.get('c')!;
+  expect(mid).not.toEqual(colorById.get('a'));
+  expect(mid).not.toEqual(colorById.get('b'));
+});
+
+test('gradient: manual min/max override the data-derived bounds', () => {
+  const { colorById, gradientLegend } = buildColorMapping(
+    gradientInput(
+      [
+        { gid: 'a', pct: 20 },
+        { gid: 'b', pct: 80 },
+      ],
+      { gradientMin: 0, gradientMax: 100 },
+    ),
+  );
+  expect(gradientLegend).toEqual({ scaleId: 'grey-green', min: 0, max: 100 });
+  // With bounds 0..100, neither 20 nor 80 sits at an endpoint.
+  expect(colorById.get('a')).not.toEqual(hexToRgb01('#c7ced6'));
+  expect(colorById.get('b')).not.toEqual(hexToRgb01('#137a3a'));
+});
+
+test('gradient: non-numeric / null / empty values are skipped (no color)', () => {
+  const { colorById, stats } = buildColorMapping(
+    gradientInput([
+      { gid: 'a', pct: 10 },
+      { gid: 'b', pct: 'n/a' },
+      { gid: 'c', pct: null },
+      { gid: 'd', pct: '' },
+      { gid: 'e', pct: 90 },
+    ]),
+  );
+  expect(colorById.has('a')).toBe(true);
+  expect(colorById.has('e')).toBe(true);
+  expect(colorById.has('b')).toBe(false);
+  expect(colorById.has('c')).toBe(false);
+  expect(colorById.has('d')).toBe(false);
+  expect(stats.dataKeys).toBe(2);
+});
+
+test('gradient: a degenerate range (all equal) uses the scale midpoint, no NaN', () => {
+  const { colorById } = buildColorMapping(
+    gradientInput([
+      { gid: 'a', pct: 42 },
+      { gid: 'b', pct: 42 },
+    ]),
+  );
+  const c = colorById.get('a')!;
+  c.forEach(ch => expect(Number.isNaN(ch)).toBe(false));
+  // Both equal values get the same (midpoint) color.
+  expect(colorById.get('a')).toEqual(colorById.get('b'));
+});
+
+test('gradient: no gradientLegend leaks into categorical mode', () => {
+  const r = buildColorMapping({
+    rows: [{ gid: 'a', status: 'Done' }],
+    linkColumn: 'gid',
+    colorBy: 'status',
+    colorFn,
+  });
+  expect(r.gradientLegend).toBeUndefined();
+  expect(r.legend).toEqual([{ value: 'Done', color: '#00ff00' }]);
 });

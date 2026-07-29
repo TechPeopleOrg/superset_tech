@@ -21,7 +21,13 @@ import {
   ControlPanelConfig,
   columnChoices,
   ControlPanelState,
+  ControlPanelsContainerProps,
 } from '@superset-ui/chart-controls';
+import { GRADIENT_SCALES } from './gradientScales';
+
+// True when coloring mode is gradient; gates the gradient-only controls.
+const isGradientMode = ({ controls }: ControlPanelsContainerProps) =>
+  controls?.color_mode?.value === 'gradient';
 
 const config: ControlPanelConfig = {
   controlPanelSections: [
@@ -102,6 +108,70 @@ const config: ControlPanelConfig = {
               mapStateToProps: (state: ControlPanelState) => ({
                 choices: columnChoices(state.datasource),
               }),
+            },
+          },
+        ],
+        [
+          {
+            name: 'color_mode',
+            config: {
+              type: 'SelectControl',
+              label: t('Coloring mode'),
+              description: t(
+                'Categorical maps each distinct value to a palette color (status, contractor, …). Gradient treats the column as numeric and shades it along a scale (% complete, cost, …).',
+              ),
+              clearable: false,
+              renderTrigger: true,
+              default: 'categorical',
+              choices: [
+                ['categorical', t('Categorical')],
+                ['gradient', t('Gradient (numeric)')],
+              ],
+            },
+          },
+        ],
+        [
+          {
+            name: 'gradient_scale',
+            config: {
+              type: 'SelectControl',
+              label: t('Gradient scale'),
+              description: t(
+                'Color ramp used for gradient coloring, low value to high.',
+              ),
+              clearable: false,
+              renderTrigger: true,
+              default: GRADIENT_SCALES[0].id,
+              choices: GRADIENT_SCALES.map(s => [s.id, s.label]),
+              visibility: isGradientMode,
+            },
+          },
+        ],
+        [
+          {
+            name: 'gradient_min',
+            config: {
+              type: 'TextControl',
+              label: t('Gradient min (optional)'),
+              description: t(
+                'Lower bound of the gradient scale. Leave empty to use the smallest value in the data.',
+              ),
+              default: '',
+              renderTrigger: true,
+              visibility: isGradientMode,
+            },
+          },
+          {
+            name: 'gradient_max',
+            config: {
+              type: 'TextControl',
+              label: t('Gradient max (optional)'),
+              description: t(
+                'Upper bound of the gradient scale. Leave empty to use the largest value in the data.',
+              ),
+              default: '',
+              renderTrigger: true,
+              visibility: isGradientMode,
             },
           },
         ],

@@ -97,6 +97,10 @@ export default function BimChart(props: BimChartProps) {
     colorBy,
     colorFn,
     overrides,
+    colorMode,
+    gradientScaleId,
+    gradientMin,
+    gradientMax,
     colorScheme,
     emitCrossFilters,
     setDataMask,
@@ -148,18 +152,33 @@ export default function BimChart(props: BimChartProps) {
     colorBy,
     overrides,
     colorScheme,
+    colorMode,
+    gradientScaleId,
+    gradientMin,
+    gradientMax,
   });
 
   // Value -> color mapping derived from the query rows; empty when the chart
   // isn't configured for data-binding yet (no link/color-by column chosen).
-  const { colorById, legend } = useMemo(() => {
+  const { colorById, legend, gradientLegend } = useMemo(() => {
     if (!linkColumn || !colorBy) {
       return {
         colorById: new Map<string, [number, number, number]>(),
         legend: [] as { value: string; color: string }[],
+        gradientLegend: undefined,
       };
     }
-    return buildColorMapping({ rows, linkColumn, colorBy, colorFn, overrides });
+    return buildColorMapping({
+      rows,
+      linkColumn,
+      colorBy,
+      colorFn,
+      overrides,
+      mode: colorMode,
+      gradientScaleId,
+      gradientMin,
+      gradientMax,
+    });
     // mappingKey already encodes rows/linkColumn/colorBy/overrides/colorScheme
     // by content, so it is the only dependency that should trigger a
     // recompute. colorFn is deterministic for a given value and scheme
@@ -332,7 +351,7 @@ export default function BimChart(props: BimChartProps) {
         />
       )}
       {showLegend && modelUrl && !loading && !error && api && (
-        <ColorLegend legend={legend} />
+        <ColorLegend legend={legend} gradient={gradientLegend} />
       )}
       {showMatched && matched && (
         <Diagnostic data-test="bim-diagnostic" data-testid="bim-diagnostic">

@@ -43,9 +43,17 @@ export type BimFormData = QueryFormData &
     link_column?: string;
     color_by?: string;
     color_overrides?: string; // JSON string of { value, color }[]
+    color_mode?: 'categorical' | 'gradient';
+    gradient_scale?: string;
+    gradient_min?: string | number;
+    gradient_max?: string | number;
     linkColumn?: string;
     colorBy?: string;
     colorOverrides?: string;
+    colorMode?: 'categorical' | 'gradient';
+    gradientScale?: string;
+    gradientMin?: string | number;
+    gradientMax?: string | number;
     context_mode?: 'faded' | 'opaque' | 'hidden';
     context_opacity?: number;
     no_data_color?: string;
@@ -87,6 +95,13 @@ export type BimChartProps = BimStylesProps & {
   // Explicit value -> color overrides, parsed from the color_overrides
   // control; takes priority over colorFn for matching values.
   overrides: { value: string; color: string }[];
+  // 'categorical' (palette per value) or 'gradient' (numeric on a scale). Default categorical.
+  colorMode?: 'categorical' | 'gradient';
+  // Gradient scale id (from gradientScales) used in gradient mode.
+  gradientScaleId?: string;
+  // Manual gradient bounds; undefined means auto-derive from the data.
+  gradientMin?: number;
+  gradientMax?: number;
   // When true, clicking an element emits a Superset cross-filter.
   emitCrossFilters?: boolean;
   // Emits a cross-filter DataMask to the dashboard. A no-op when unavailable.

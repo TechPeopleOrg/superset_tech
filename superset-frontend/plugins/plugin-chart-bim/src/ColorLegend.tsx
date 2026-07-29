@@ -17,9 +17,13 @@
  * under the License.
  */
 import { styled } from '@apache-superset/core/theme';
+import type { GradientLegend } from './colorMapping';
+import { scaleCssGradient } from './gradientScales';
 
 export interface ColorLegendProps {
   legend: { value: string; color: string }[];
+  // Present → gradient legend (bar + bounds) instead of chips.
+  gradient?: GradientLegend;
 }
 
 const Wrap = styled.div`
@@ -51,7 +55,40 @@ const Swatch = styled.span<{ color: string }>`
   flex: none;
 `;
 
-export default function ColorLegend({ legend }: ColorLegendProps) {
+const Bar = styled.div<{ gradient: string }>`
+  width: ${({ theme }) => theme.sizeUnit * 24}px;
+  height: ${({ theme }) => theme.sizeUnit * 2}px;
+  border-radius: 2px;
+  background: ${({ gradient }) => gradient};
+`;
+
+const Bounds = styled.div`
+  display: flex;
+  justify-content: space-between;
+  margin-top: ${({ theme }) => theme.sizeUnit / 2}px;
+  font-size: ${({ theme }) => theme.fontSizeSM}px;
+  color: ${({ theme }) => theme.colorTextSecondary};
+  font-variant-numeric: tabular-nums;
+`;
+
+// Compact bounds format, any unit.
+const numberFmt = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
+
+export default function ColorLegend({ legend, gradient }: ColorLegendProps) {
+  if (gradient) {
+    return (
+      <Wrap data-test="bim-legend">
+        <Bar
+          data-test="bim-legend-gradient"
+          gradient={scaleCssGradient(gradient.scaleId)}
+        />
+        <Bounds>
+          <span>{numberFmt.format(gradient.min)}</span>
+          <span>{numberFmt.format(gradient.max)}</span>
+        </Bounds>
+      </Wrap>
+    );
+  }
   if (!legend.length) return null;
   return (
     <Wrap data-test="bim-legend">
