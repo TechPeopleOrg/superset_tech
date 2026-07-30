@@ -195,6 +195,23 @@ if os.getenv("CYPRESS_CONFIG") == "true":
 
     sys.path.pop(0)
 
+# Handlebars charts: allow inline bar styling. Default sanitizer strips `style`
+# and `width`; extend the schema so progress-bars can set fill width. Loosens
+# XSS protection for HTML/Markdown/Handlebars charts.
+HTML_SANITIZATION_SCHEMA_EXTENSIONS = {
+    "attributes": {
+        "*": ["style", "class"],
+    },
+    "css": {
+        "properties": {
+            "width": True,
+            "height": True,
+            "background-color": True,
+            "border-radius": True,
+        },
+    },
+}
+
 #
 # Optionally import superset_config_docker.py (which will have been included on
 # the PYTHONPATH) in order to allow for local settings to be overridden
