@@ -45,7 +45,9 @@ export interface NavCubeProps {
 const Stage = styled.div`
   position: absolute;
   right: ${({ theme }) => theme.sizeUnit * 3}px;
-  bottom: ${({ theme }) => theme.sizeUnit * 3}px;
+  /* Below the refresh badge's row so the two never overlap while it shows;
+     the colour legend owns the bottom-right corner. */
+  top: ${({ theme }) => theme.sizeUnit * 12}px;
   z-index: 10;
   width: ${HALF * 2}px;
   height: ${HALF * 2}px;

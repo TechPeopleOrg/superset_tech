@@ -109,6 +109,14 @@ test('setRotation is safe to call repeatedly, as during a camera drag', () => {
   expect(cube.style.transform).toBe('rotateX(20deg) rotateY(20deg)');
 });
 
+test('sits in the top-right, clear of the bottom-right colour legend', () => {
+  render(<NavCube onSelectArea={jest.fn()} />);
+  const style = getComputedStyle(screen.getByTestId('bim-navcube'));
+  expect(style.top).not.toBe('');
+  expect(style.right).not.toBe('');
+  expect(style.bottom).toBe('');
+});
+
 test('faces carry accessible labels', () => {
   render(<NavCube onSelectArea={jest.fn()} />);
   expect(screen.getByLabelText('Top')).toBeInTheDocument();
