@@ -19,6 +19,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type MouseEvent as ReactMouseEvent,
 } from 'react';
@@ -36,17 +37,16 @@ import { TreeNode, XeokitApi } from './types';
 const DEFAULT_PANEL_WIDTH = 280;
 const MIN_PANEL_WIDTH = 200;
 const MAX_PANEL_WIDTH = 600;
-// Height budget for the virtualized tree list. antd Tree virtualizes its rows
-// when a numeric `height` is set, so only visible rows hit the DOM — this is
-// what keeps large models (thousands of elements) from freezing the browser.
-const TREE_HEIGHT = 480;
+// antd renders no rows at height 0, which is what an unlaid-out panel measures.
+const MIN_TREE_HEIGHT = 120;
 
+// Above the other overlays (all at 10) so they don't show through the panel.
 const Wrap = styled.div`
   position: absolute;
   top: 0;
   left: 0;
   height: 100%;
-  z-index: 10;
+  z-index: 20;
   pointer-events: none;
 `;
 
@@ -95,6 +95,12 @@ const Controls = styled.div`
   gap: ${({ theme }) => theme.sizeUnit}px;
 `;
 
+// Leftover space below the header; min-height:0 lets it shrink below content.
+const TreeArea = styled.div`
+  flex: 1;
+  min-height: 0;
+`;
+
 const Empty = styled.div`
   color: ${({ theme }) => theme.colorTextTertiary};
   padding: ${({ theme }) => theme.sizeUnit * 2}px;
@@ -106,6 +112,22 @@ const NodeType = styled.small`
   font-size: 0.8em;
   margin-left: ${({ theme }) => theme.sizeUnit}px;
 `;
+
+// Element height, so the tree fits the panel instead of a fixed guess.
+function useMeasuredHeight(ref: React.RefObject<HTMLElement>): number {
+  const [height, setHeight] = useState(MIN_TREE_HEIGHT);
+  useEffect(() => {
+    const node = ref.current;
+    if (!node || typeof ResizeObserver === 'undefined') return undefined;
+    const measure = () =>
+      setHeight(Math.max(MIN_TREE_HEIGHT, Math.floor(node.clientHeight)));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [ref]);
+  return height;
+}
 
 // A leaf is a node with no children. Return the leaf ids reachable from `node`.
 function collectLeafIds(node: TreeNode): string[] {
@@ -192,6 +214,8 @@ export default function ModelTree({
   // Controlled expansion so the tree starts collapsed to its top level and
   // auto-expands to reveal matches while a search query is active.
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
+  const treeAreaRef = useRef<HTMLDivElement>(null);
+  const treeHeight = useMeasuredHeight(treeAreaRef);
 
   // Drag the right-edge handle to resize the panel. Listeners are attached to
   // the window during the drag so the pointer can leave the handle.
@@ -285,7 +309,7 @@ export default function ModelTree({
   };
 
   return (
-    <Wrap>
+    <Wrap data-test="model-tree-wrap">
       <Panel open={open} width={width} data-test="model-tree-panel">
         <Header>
           <Input
@@ -328,23 +352,25 @@ export default function ModelTree({
             {t('Isolate')}
           </Button>
         </Controls>
-        {open && tree ? (
-          <Tree
-            checkable
-            checkStrictly={false}
-            selectable
-            height={TREE_HEIGHT}
-            treeData={antdData}
-            checkedKeys={checkedKeys}
-            expandedKeys={expandedKeys}
-            selectedKeys={selected ? [selected] : []}
-            onExpand={keys => setExpandedKeys(keys as string[])}
-            onCheck={onCheck}
-            onSelect={keys => setSelected(keys[0] as string | undefined)}
-          />
-        ) : open ? (
-          <Empty>{t('No element hierarchy available for this model.')}</Empty>
-        ) : null}
+        <TreeArea ref={treeAreaRef} data-test="model-tree-area">
+          {open && tree ? (
+            <Tree
+              checkable
+              checkStrictly={false}
+              selectable
+              height={treeHeight}
+              treeData={antdData}
+              checkedKeys={checkedKeys}
+              expandedKeys={expandedKeys}
+              selectedKeys={selected ? [selected] : []}
+              onExpand={keys => setExpandedKeys(keys as string[])}
+              onCheck={onCheck}
+              onSelect={keys => setSelected(keys[0] as string | undefined)}
+            />
+          ) : open ? (
+            <Empty>{t('No element hierarchy available for this model.')}</Empty>
+          ) : null}
+        </TreeArea>
         <ResizeHandle data-test="model-tree-resize" onMouseDown={startResize} />
       </Panel>
     </Wrap>

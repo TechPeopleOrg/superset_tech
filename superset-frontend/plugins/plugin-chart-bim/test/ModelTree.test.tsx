@@ -53,18 +53,10 @@ const makeApi = (): XeokitApi => ({
 
 // The panel is now controlled by the parent: `open` and `onClose` are required.
 // Most tests want it open, so default to that and let callers override.
-const renderTree = (
-  props: Partial<Parameters<typeof ModelTree>[0]> = {},
-) => {
+const renderTree = (props: Partial<Parameters<typeof ModelTree>[0]> = {}) => {
   const onClose = jest.fn();
   const result = render(
-    <ModelTree
-      tree={tree}
-      api={makeApi()}
-      open
-      onClose={onClose}
-      {...props}
-    />,
+    <ModelTree tree={tree} api={makeApi()} open onClose={onClose} {...props} />,
   );
   return { onClose, ...result };
 };
@@ -210,4 +202,55 @@ test('uncheck in filtered view does not hide nodes outside the filter', async ()
   ) as [string[], boolean][];
   const hiddenIds = hideCalls.flatMap(([ids]) => ids);
   expect(hiddenIds).not.toContain('door');
+});
+
+// jsdom lacks ResizeObserver and sizes everything 0x0; stub both to measure.
+const withMeasuredHeight = (clientHeight: number) => {
+  const observers: (() => void)[] = [];
+  (global as unknown as { ResizeObserver: unknown }).ResizeObserver = class {
+    constructor(cb: () => void) {
+      observers.push(cb);
+    }
+
+    observe() {}
+
+    disconnect() {}
+  };
+  const spy = jest
+    .spyOn(HTMLElement.prototype, 'clientHeight', 'get')
+    .mockReturnValue(clientHeight);
+  return {
+    cleanup: () => {
+      spy.mockRestore();
+      delete (global as unknown as { ResizeObserver?: unknown }).ResizeObserver;
+    },
+  };
+};
+
+test('the tree is sized to the space the panel actually has', () => {
+  const { cleanup } = withMeasuredHeight(300);
+  try {
+    renderTree();
+    const holder = document.querySelector('.ant-tree-list-holder');
+    expect(holder?.getAttribute('style')).toContain('max-height: 300px');
+  } finally {
+    cleanup();
+  }
+});
+
+test('a collapsed panel measuring zero still renders rows', () => {
+  const { cleanup } = withMeasuredHeight(0);
+  try {
+    renderTree();
+    expect(screen.getByText('Project')).toBeInTheDocument();
+  } finally {
+    cleanup();
+  }
+});
+
+test('the panel stacks above the other viewer overlays', () => {
+  // Equal values would let the last-rendered "Matched" diagnostic win.
+  renderTree();
+  const wrap = screen.getByTestId('model-tree-wrap');
+  expect(Number(getComputedStyle(wrap).zIndex)).toBeGreaterThan(10);
 });
