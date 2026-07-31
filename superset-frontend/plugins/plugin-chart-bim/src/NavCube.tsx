@@ -40,8 +40,8 @@ export interface NavCubeProps {
 const Stage = styled.div`
   position: absolute;
   right: ${({ theme }) => theme.sizeUnit * 6}px;
-  /* Below the refresh badge; the colour legend owns the bottom-right. */
-  top: ${({ theme }) => theme.sizeUnit * 10}px;
+  /* Level with the toolbar; the colour legend owns the bottom-right. */
+  top: ${({ theme }) => theme.sizeUnit * 2}px;
   z-index: 10;
   width: ${HALF * 2}px;
   height: ${HALF * 2}px;

@@ -127,6 +127,7 @@ test('opposite faces are half a turn apart', () => {
 });
 
 test('sits in the top-right, clear of the bottom-right colour legend', () => {
+  // The refresh badge yields this corner and sits below the cube.
   render(<NavCube onSelectArea={jest.fn()} />);
   const style = getComputedStyle(screen.getByTestId('bim-navcube'));
   expect(style.top).not.toBe('');

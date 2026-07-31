@@ -67,10 +67,10 @@ const Diagnostic = styled.div`
 // Small non-intrusive badge shown while the chart re-fetches data (e.g. a
 // cross-filter from another chart). The heavy 3D model is intentionally kept
 // mounted rather than reloaded, so without this hint the viewer would look
-// frozen. Sits in the top-right corner, above the scene.
+// frozen. Sits below the orientation cube, which owns the top-right corner.
 const RefreshBadge = styled.div`
   position: absolute;
-  top: ${({ theme }) => theme.sizeUnit * 2}px;
+  top: ${({ theme }) => theme.sizeUnit * 16}px;
   right: ${({ theme }) => theme.sizeUnit * 2}px;
   z-index: 10;
   display: flex;
