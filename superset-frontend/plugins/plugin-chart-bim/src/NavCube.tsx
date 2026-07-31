@@ -22,9 +22,10 @@ import { styled } from '@apache-superset/core/theme';
 import { CORNER_AREAS, CubeRotation, FACE_AREAS, FaceId } from './navCubeMath';
 
 // Half the cube's edge length, in px: each face is translated out by this much.
-const HALF = 32;
-// Size of the square hit zone sitting over each corner of the cube's box.
-const CORNER = 16;
+const HALF = 22;
+// Size of the square hit zone sitting over each corner of the cube's box. Kept
+// large enough to stay comfortably clickable as the cube shrinks.
+const CORNER = 14;
 
 export interface NavCubeHandle {
   // Set the cube's orientation without going through React state. The camera
@@ -44,14 +45,16 @@ export interface NavCubeProps {
 // faces and corners re-enable them individually.
 const Stage = styled.div`
   position: absolute;
-  right: ${({ theme }) => theme.sizeUnit * 3}px;
+  right: ${({ theme }) => theme.sizeUnit * 6}px;
   /* Below the refresh badge's row so the two never overlap while it shows;
      the colour legend owns the bottom-right corner. */
-  top: ${({ theme }) => theme.sizeUnit * 12}px;
+  top: ${({ theme }) => theme.sizeUnit * 14}px;
   z-index: 10;
   width: ${HALF * 2}px;
   height: ${HALF * 2}px;
-  perspective: 320px;
+  /* Scaled with the cube: a fixed distance would exaggerate the perspective
+     as the cube shrinks. */
+  perspective: ${HALF * 10}px;
   pointer-events: none;
 `;
 
@@ -73,9 +76,11 @@ const Face = styled.button`
   padding: 0;
   cursor: pointer;
   pointer-events: auto;
-  font-size: ${({ theme }) => theme.fontSizeSM}px;
+  font-size: ${({ theme }) => theme.fontSizeXS}px;
   font-weight: ${({ theme }) => theme.fontWeightStrong};
   line-height: 1;
+  /* Labels must not spill past the face they belong to. */
+  overflow: hidden;
   color: ${({ theme }) => theme.colorTextSecondary};
   background: ${({ theme }) => theme.colorBgElevated};
   border: 1px solid ${({ theme }) => theme.colorBorderSecondary};
