@@ -16,7 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { render, screen, waitFor } from 'spec/helpers/testing-library';
+import {
+  render,
+  screen,
+  waitFor,
+  fireEvent,
+} from 'spec/helpers/testing-library';
 import { DataMask } from '@superset-ui/core';
 import BimChart from '../src/BimChart';
 import * as viewerHook from '../src/useXeokitViewer';
@@ -59,6 +64,19 @@ const onPick = jest.fn((cb: (gid: string | null) => void) => {
   capturedOnPick = cb;
   return jest.fn();
 });
+const flyToDir = jest.fn();
+// Captures the camera callback (and the unsubscribe) so tests can drive camera
+// movement directly and assert the subscription is cleaned up.
+let capturedOnCameraChange:
+  | ((eye: number[], look: number[], up: number[]) => void)
+  | undefined;
+const unsubscribeCamera = jest.fn();
+const onCameraChange = jest.fn(
+  (cb: (eye: number[], look: number[], up: number[]) => void) => {
+    capturedOnCameraChange = cb;
+    return unsubscribeCamera;
+  },
+);
 
 beforeEach(() => {
   colorize.mockClear();
@@ -71,6 +89,10 @@ beforeEach(() => {
   highlight.mockClear();
   onPick.mockClear();
   capturedOnPick = undefined;
+  flyToDir.mockClear();
+  onCameraChange.mockClear();
+  unsubscribeCamera.mockClear();
+  capturedOnCameraChange = undefined;
 });
 
 test('shows a hint when there is no model URL', () => {
@@ -129,6 +151,8 @@ test('renders the model tree toggle once a model is present', () => {
       highlight: jest.fn(),
       setHighlightColor: jest.fn(),
       fit: jest.fn(),
+      onCameraChange: jest.fn(() => () => {}),
+      flyToDir: jest.fn(),
     },
   });
   render(<BimChart {...baseProps()} />);
@@ -155,6 +179,8 @@ const paintingApi = {
   highlight,
   setHighlightColor,
   fit: jest.fn(),
+  onCameraChange,
+  flyToDir,
 };
 
 test('paints neutral base then colored matches, in order', async () => {
@@ -775,4 +801,83 @@ test('hides the matched diagnostic when show_matched is false', async () => {
   );
   await waitFor(() => expect(colorize).toHaveBeenCalled());
   expect(screen.queryByTestId('bim-diagnostic')).not.toBeInTheDocument();
+});
+
+test('renders the orientation cube once a model is loaded', () => {
+  jest
+    .spyOn(viewerHook, 'default')
+    .mockReturnValue({ loading: false, api: paintingApi, ready: true });
+  render(<BimChart {...baseProps({ modelUrl: '/model' })} />);
+  expect(screen.getByTestId('bim-navcube')).toBeInTheDocument();
+});
+
+test('does not render the orientation cube without a model', () => {
+  jest.spyOn(viewerHook, 'default').mockReturnValue({ loading: false });
+  render(<BimChart {...baseProps({ modelUrl: '' })} />);
+  expect(screen.queryByTestId('bim-navcube')).not.toBeInTheDocument();
+});
+
+test('clicking a cube face flies the camera to that view', () => {
+  jest
+    .spyOn(viewerHook, 'default')
+    .mockReturnValue({ loading: false, api: paintingApi, ready: true });
+  render(<BimChart {...baseProps({ modelUrl: '/model' })} />);
+
+  fireEvent.click(screen.getByTestId('bim-navcube-face-top'));
+
+  // Top view: camera above the model, looking down, with -Z up (a +Y up vector
+  // would be parallel to the view direction).
+  expect(flyToDir).toHaveBeenCalledWith([0, 1, 0], [0, 0, -1]);
+});
+
+test('clicking a cube corner flies to the isometric view', () => {
+  jest
+    .spyOn(viewerHook, 'default')
+    .mockReturnValue({ loading: false, api: paintingApi, ready: true });
+  render(<BimChart {...baseProps({ modelUrl: '/model' })} />);
+
+  fireEvent.click(screen.getByTestId('bim-navcube-corner-top-front-right'));
+
+  const [dir, up] = flyToDir.mock.calls[0];
+  expect(dir.every((v: number) => v > 0)).toBe(true);
+  expect(Math.hypot(...dir)).toBeCloseTo(1);
+  expect(up).toEqual([0, 1, 0]);
+});
+
+test('camera movement rotates the cube', () => {
+  jest
+    .spyOn(viewerHook, 'default')
+    .mockReturnValue({ loading: false, api: paintingApi, ready: true });
+  render(<BimChart {...baseProps({ modelUrl: '/model' })} />);
+
+  expect(onCameraChange).toHaveBeenCalled();
+  // Camera directly above the model tips the cube to show its top face.
+  capturedOnCameraChange!([0, 10, 0], [0, 0, 0], [0, 0, -1]);
+
+  const cube = screen.getByTestId('bim-navcube-cube');
+  expect(cube.style.transform).toMatch(/rotateX\(90/);
+});
+
+test('does not subscribe to the camera before the scene is ready', () => {
+  // `api` is a stable reference handed out before the scene is populated;
+  // subscribing then would read an empty scene (the timing bug that made
+  // data-driven colouring paint nothing).
+  jest
+    .spyOn(viewerHook, 'default')
+    .mockReturnValue({ loading: false, api: paintingApi, ready: false });
+  render(<BimChart {...baseProps({ modelUrl: '/model' })} />);
+  expect(onCameraChange).not.toHaveBeenCalled();
+});
+
+test('unsubscribes from the camera on unmount', () => {
+  jest
+    .spyOn(viewerHook, 'default')
+    .mockReturnValue({ loading: false, api: paintingApi, ready: true });
+  const { unmount } = render(
+    <BimChart {...baseProps({ modelUrl: '/model' })} />,
+  );
+
+  expect(onCameraChange).toHaveBeenCalled();
+  unmount();
+  expect(unsubscribeCamera).toHaveBeenCalled();
 });

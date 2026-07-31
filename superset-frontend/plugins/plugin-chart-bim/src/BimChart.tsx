@@ -24,6 +24,8 @@ import { Button, Loading } from '@superset-ui/core/components';
 import useXeokitViewer, { type NavMode } from './useXeokitViewer';
 import ModelTree from './ModelTree';
 import ViewerControls from './ViewerControls';
+import NavCube, { type NavCubeHandle } from './NavCube';
+import { AREAS, cameraToCubeRotation } from './navCubeMath';
 import buildColorMapping, { hexToRgb01 } from './colorMapping';
 import ColorLegend from './ColorLegend';
 import { BimChartProps } from './types';
@@ -243,6 +245,21 @@ export default function BimChart(props: BimChartProps) {
     api.setHighlightColor(highlightColor);
   }, [api, highlightColor]);
 
+  // Orientation cube. The camera fires on every frame of a drag, so the cube's
+  // rotation is pushed straight into the DOM through this handle instead of
+  // through state — re-rendering the chart that often would stutter the viewer.
+  const navCubeRef = useRef<NavCubeHandle>(null);
+
+  // Keep the cube in sync with the camera. Gated on `ready`: `api` is a stable
+  // reference handed out before the scene is populated, so subscribing earlier
+  // would read an empty scene.
+  useEffect(() => {
+    if (!api || !ready) return undefined;
+    return api.onCameraChange((eye, look, up) => {
+      navCubeRef.current?.setRotation(cameraToCubeRotation(eye, look, up));
+    });
+  }, [api, ready]);
+
   // Current single selection, kept outside React state so the outgoing pick
   // handler (closed over once per api/ready/linkColumn combination) can read
   // the latest value for the toggle-off comparison without re-subscribing.
@@ -334,6 +351,15 @@ export default function BimChart(props: BimChartProps) {
           onFit={() => api.fit()}
           treeOpen={showTree ? treeOpen : undefined}
           onToggleTree={showTree ? () => setTreeOpen(o => !o) : undefined}
+        />
+      )}
+      {modelUrl && !loading && !error && api && (
+        <NavCube
+          ref={navCubeRef}
+          onSelectArea={areaId => {
+            const area = AREAS[areaId];
+            if (area) api.flyToDir(area.dir, area.up);
+          }}
         />
       )}
       {refreshing && (

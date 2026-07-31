@@ -23,6 +23,11 @@ import { TreeNode, XeokitApi } from './types';
 
 export type NavMode = 'orbit' | 'firstPerson' | 'planView';
 
+// Field of view (degrees) used to derive the camera distance that frames the
+// whole model when flying to a NavCube view. Matches the built-in cube's
+// default so the framing feels the same.
+const FIT_FOV = 45;
+
 export interface UseXeokitViewerOptions {
   modelUrl: string;
   showEdges?: boolean;
@@ -31,8 +36,8 @@ export interface UseXeokitViewerOptions {
   // camera itself (walk-through / look-around from inside a room); 'planView'
   // is a top-down style. Defaults to 'orbit'.
   navMode?: NavMode;
-  // Chart theme, used to colour the NavCube so it reads on both light and dark
-  // dashboard backgrounds. Defaults to light when unset.
+  // Chart theme. Retained for callers and future theme-aware viewer chrome;
+  // currently informational (the NavCube that consumed it has been removed).
   theme?: 'light' | 'dark';
 }
 
@@ -93,9 +98,8 @@ export default function useXeokitViewer(
     (async () => {
       try {
         node.innerHTML = '';
-        // The container must establish a positioning context so the NavCube's
-        // absolutely-positioned canvas anchors to the viewer's top-right corner
-        // rather than the page.
+        // The container must establish a positioning context so the viewer's
+        // absolutely-positioned overlays anchor to it rather than the page.
         if (getComputedStyle(node).position === 'static') {
           node.style.position = 'relative';
         }
@@ -104,42 +108,19 @@ export default function useXeokitViewer(
         canvas.style.height = '100%';
         node.appendChild(canvas);
 
-        // Separate small canvas for the NavCube (orientation cube). It sits in
-        // the top-right corner over the main canvas; pointer events on it drive
-        // the NavCubePlugin without interfering with model interaction.
-        const navCubeCanvas = document.createElement('canvas');
-        navCubeCanvas.width = 130;
-        navCubeCanvas.height = 130;
-        navCubeCanvas.style.position = 'absolute';
-        navCubeCanvas.style.top = '10px';
-        navCubeCanvas.style.right = '10px';
-        navCubeCanvas.style.width = '130px';
-        navCubeCanvas.style.height = '130px';
-        navCubeCanvas.style.zIndex = '2';
-        node.appendChild(navCubeCanvas);
-
-        const { Viewer, XKTLoaderPlugin, NavCubePlugin } =
-          await import('@xeokit/xeokit-sdk');
+        const { Viewer, XKTLoaderPlugin } = await import('@xeokit/xeokit-sdk');
         if (cancelled) return;
 
         viewer = new Viewer({ canvasElement: canvas, transparent: false });
 
-        // Orientation cube: click a face/edge/corner to fly the camera to that
-        // view (front/back/top/side/isometric). Colours follow the chart theme.
-        // Destroyed automatically when the viewer is destroyed in cleanup.
-        const dark = options.theme === 'dark';
-        // eslint-disable-next-line no-new
-        new NavCubePlugin(viewer, {
-          canvasElement: navCubeCanvas,
-          visible: true,
-          cameraFly: true,
-          cameraFlyDuration: 0.5,
-          cameraFitFOV: 45,
-          color: dark ? '#3a3f47' : '#e6e4de',
-          hoverColor: dark ? '#e89442' : '#d97e26',
-          textColor: dark ? '#eceae4' : '#1c1f24',
-          shadowVisible: false,
-        });
+        // The NavCube (orientation cube) is intentionally omitted. It lives in a
+        // separate xeokit Scene with its own WebGL geometry; on a dashboard with
+        // several BIM charts, whose viewers are torn down and recreated on tab
+        // switches, its draw calls fail with `GL_INVALID_OPERATION:
+        // glDrawElements: Insufficient buffer size` and it renders a blank
+        // canvas — an empty square in the corner plus a flood of GL errors. The
+        // model itself rotates fine via the mouse without it. Reintroducing it
+        // needs single-viewer isolation, not a shared multi-chart page.
 
         // The default highlight material is a faint 20%-alpha grey fill, nearly
         // invisible over data-coloured elements. Make cross-filter highlighting
@@ -304,6 +285,70 @@ export default function useXeokitViewer(
             });
           },
           setHighlightColor: applyHighlightColor,
+          onCameraChange: cb => {
+            if (!viewer) return () => {};
+            const cam = viewer.camera as unknown as {
+              eye: number[];
+              look: number[];
+              up: number[];
+              on: (event: string, handler: () => void) => number;
+              off: (id: number) => void;
+            };
+            const emit = () => {
+              cb(
+                [...cam.eye] as [number, number, number],
+                [...cam.look] as [number, number, number],
+                [...cam.up] as [number, number, number],
+              );
+            };
+            // Emit once on subscribe so the consumer starts in sync rather than
+            // waiting for the first camera movement.
+            emit();
+            // 'matrix' fires whenever the view matrix is rebuilt, which covers
+            // every eye/look/up change including each frame of a drag.
+            const subId = cam.on('matrix', emit);
+            // The camera goes away with the viewer on teardown, so a late
+            // unsubscribe must tolerate the dead object — same contract as
+            // onPick.
+            return () => {
+              try {
+                cam.off(subId);
+              } catch {
+                // camera already destroyed with the viewer; nothing to detach.
+              }
+            };
+          },
+          flyToDir: (dir, up) => {
+            if (!viewer) return;
+            try {
+              const { aabb } = viewer.scene;
+              const center: [number, number, number] = [
+                (aabb[0] + aabb[3]) / 2,
+                (aabb[1] + aabb[4]) / 2,
+                (aabb[2] + aabb[5]) / 2,
+              ];
+              // Distance that frames the model's bounding sphere at the same
+              // field of view the built-in cube used.
+              const diag = Math.hypot(
+                aabb[3] - aabb[0],
+                aabb[4] - aabb[1],
+                aabb[5] - aabb[2],
+              );
+              const dist = Math.abs(diag / Math.tan((FIT_FOV * Math.PI) / 180));
+              viewer.cameraFlight.flyTo({
+                look: center,
+                eye: [
+                  center[0] + dist * dir[0],
+                  center[1] + dist * dir[1],
+                  center[2] + dist * dir[2],
+                ],
+                up,
+                duration: 0.5,
+              });
+            } catch {
+              // camera/scene not ready; ignore.
+            }
+          },
           fit: () => {
             // Frame the whole model: same fit used on load. Reads the current
             // scene AABB so it also works after visibility changes.

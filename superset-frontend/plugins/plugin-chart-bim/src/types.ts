@@ -17,6 +17,7 @@
  * under the License.
  */
 import { QueryFormData, DataRecord, DataMask } from '@superset-ui/core';
+import type { Vec3 } from './navCubeMath';
 
 export interface BimStylesProps {
   height: number;
@@ -173,4 +174,12 @@ export interface XeokitApi {
   setHighlightColor(hex: string): void;
   // Frame the whole model in the viewport (fit to the current scene bounds).
   fit(): void;
+  // Subscribe to camera movement. The callback receives the camera's eye, look
+  // and up vectors, and fires on every change (including each frame of a drag).
+  // Returns an unsubscribe function that removes the listener.
+  onCameraChange(cb: (eye: Vec3, look: Vec3, up: Vec3) => void): () => void;
+  // Fly the camera to view the model from `dir` (a unit vector pointing from
+  // the model's centre toward the eye), with `up` as the camera's up vector.
+  // Frames the whole model, like fit().
+  flyToDir(dir: Vec3, up: Vec3): void;
 }
