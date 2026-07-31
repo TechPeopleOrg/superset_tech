@@ -881,3 +881,62 @@ test('unsubscribes from the camera on unmount', () => {
   unmount();
   expect(unsubscribeCamera).toHaveBeenCalled();
 });
+
+test('clicking a legend entry dims that category in the scene', async () => {
+  jest
+    .spyOn(viewerHook, 'default')
+    .mockReturnValue({ loading: false, api: paintingApi, ready: true });
+  render(
+    <BimChart
+      {...baseProps({
+        modelUrl: '/model',
+        rows: [
+          { gid: 'wall', status: 'Done' },
+          { gid: 'door', status: 'Late' },
+        ],
+        linkColumn: 'gid',
+        colorBy: 'status',
+        contextOpacity: 0.25,
+      })}
+    />,
+  );
+  await waitFor(() => expect(colorize).toHaveBeenCalled());
+  setOpacity.mockClear();
+
+  fireEvent.click(screen.getByTestId('bim-legend-item-Done'));
+
+  await waitFor(() =>
+    expect(
+      setOpacity.mock.calls.some(
+        ([ids, opacity]) =>
+          JSON.stringify(ids) === JSON.stringify(['wall']) && opacity === 0.25,
+      ),
+    ).toBe(true),
+  );
+  // Visual only: the tree stays the sole owner of visibility.
+  expect(setVisible).not.toHaveBeenCalled();
+});
+
+test('dimming a category emits no cross-filter', async () => {
+  const setDataMask = jest.fn();
+  jest
+    .spyOn(viewerHook, 'default')
+    .mockReturnValue({ loading: false, api: paintingApi, ready: true });
+  render(
+    <BimChart
+      {...baseProps({
+        modelUrl: '/model',
+        rows: [{ gid: 'wall', status: 'Done' }],
+        linkColumn: 'gid',
+        colorBy: 'status',
+        emitCrossFilters: true,
+        setDataMask,
+      })}
+    />,
+  );
+  await waitFor(() => expect(colorize).toHaveBeenCalled());
+
+  fireEvent.click(screen.getByTestId('bim-legend-item-Done'));
+
+  expect(setDataMask).not.toHaveBeenCalled();
+});

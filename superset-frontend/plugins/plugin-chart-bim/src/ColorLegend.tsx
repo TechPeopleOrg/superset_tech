@@ -24,6 +24,8 @@ export interface ColorLegendProps {
   legend: { value: string; color: string }[];
   // Present → gradient legend (bar + bounds) instead of chips.
   gradient?: GradientLegend;
+  dimmed?: Set<string>;
+  onToggle?: (value: string) => void;
 }
 
 const Wrap = styled.div`
@@ -39,19 +41,33 @@ const Wrap = styled.div`
   border-radius: ${({ theme }) => theme.borderRadius}px;
 `;
 
-const Row = styled.div`
+const Row = styled.button<{ dimmed?: boolean; interactive?: boolean }>`
   display: flex;
   align-items: center;
+  width: 100%;
   gap: ${({ theme }) => theme.sizeUnit}px;
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: left;
   font-size: ${({ theme }) => theme.fontSizeSM}px;
-  color: ${({ theme }) => theme.colorText};
+  color: ${({ theme, dimmed }) =>
+    dimmed ? theme.colorTextTertiary : theme.colorText};
+  cursor: ${({ interactive }) => (interactive ? 'pointer' : 'default')};
+  opacity: ${({ dimmed }) => (dimmed ? 0.5 : 1)};
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.colorPrimary};
+    outline-offset: 1px;
+  }
 `;
 
-const Swatch = styled.span<{ color: string }>`
+const Swatch = styled.span<{ color: string; dimmed?: boolean }>`
   width: ${({ theme }) => theme.sizeUnit * 2}px;
   height: ${({ theme }) => theme.sizeUnit * 2}px;
   border-radius: 2px;
-  background: ${({ color }) => color};
+  background: ${({ color, dimmed }) => (dimmed ? 'transparent' : color)};
+  border: 1px solid ${({ color }) => color};
   flex: none;
 `;
 
@@ -74,7 +90,12 @@ const Bounds = styled.div`
 // Compact bounds format, any unit.
 const numberFmt = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
 
-export default function ColorLegend({ legend, gradient }: ColorLegendProps) {
+export default function ColorLegend({
+  legend,
+  gradient,
+  dimmed,
+  onToggle,
+}: ColorLegendProps) {
   if (gradient) {
     return (
       <Wrap data-test="bim-legend">
@@ -92,12 +113,23 @@ export default function ColorLegend({ legend, gradient }: ColorLegendProps) {
   if (!legend.length) return null;
   return (
     <Wrap data-test="bim-legend">
-      {legend.map(({ value, color }) => (
-        <Row key={value}>
-          <Swatch color={color} />
-          <span>{value}</span>
-        </Row>
-      ))}
+      {legend.map(({ value, color }) => {
+        const isDimmed = !!dimmed?.has(value);
+        return (
+          <Row
+            key={value}
+            type="button"
+            dimmed={isDimmed}
+            interactive={!!onToggle}
+            aria-pressed={onToggle ? !isDimmed : undefined}
+            data-test={`bim-legend-item-${value}`}
+            onClick={onToggle ? () => onToggle(value) : undefined}
+          >
+            <Swatch color={color} dimmed={isDimmed} />
+            <span>{value}</span>
+          </Row>
+        );
+      })}
     </Wrap>
   );
 }

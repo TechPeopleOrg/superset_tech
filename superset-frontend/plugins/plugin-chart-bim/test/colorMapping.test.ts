@@ -236,3 +236,30 @@ test('gradient: no gradientLegend leaks into categorical mode', () => {
   expect(r.gradientLegend).toBeUndefined();
   expect(r.legend).toEqual([{ value: 'Done', color: '#00ff00' }]);
 });
+
+test('indexes every GlobalId by its category value', () => {
+  const { idsByValue } = buildColorMapping({
+    rows: [
+      { gid: 'a', status: 'Done' },
+      { gid: 'b', status: 'Late' },
+      { gid: 'c', status: 'Done' },
+    ],
+    linkColumn: 'gid',
+    colorBy: 'status',
+    colorFn: () => '#00ff00',
+  });
+  expect(idsByValue.get('Done')).toEqual(['a', 'c']);
+  expect(idsByValue.get('Late')).toEqual(['b']);
+});
+
+test('gradient mode yields no category index', () => {
+  const { idsByValue } = buildColorMapping({
+    rows: [{ gid: 'a', pct: 50 }],
+    linkColumn: 'gid',
+    colorBy: 'pct',
+    colorFn: () => '#000000',
+    mode: 'gradient',
+    gradientScaleId: 'viridis',
+  });
+  expect(idsByValue.size).toBe(0);
+});

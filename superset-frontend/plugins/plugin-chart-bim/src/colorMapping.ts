@@ -45,6 +45,7 @@ export interface ColorMappingResult {
   colorById: Map<string, [number, number, number]>;
   // Categorical legend entries; empty in gradient mode.
   legend: { value: string; color: string }[];
+  idsByValue: Map<string, string[]>;
   // Present only in gradient mode; drives the gradient legend bar.
   gradientLegend?: GradientLegend;
   stats: { dataKeys: number };
@@ -86,7 +87,12 @@ function buildGradientMapping(input: ColorMappingInput): ColorMappingResult {
 
   const colorById = new Map<string, [number, number, number]>();
   if (numeric.length === 0) {
-    return { colorById, legend: [], stats: { dataKeys: 0 } };
+    return {
+      colorById,
+      legend: [],
+      idsByValue: new Map(),
+      stats: { dataKeys: 0 },
+    };
   }
 
   const dataMin = Math.min(...numeric.map(n => n.v));
@@ -104,6 +110,7 @@ function buildGradientMapping(input: ColorMappingInput): ColorMappingResult {
   return {
     colorById,
     legend: [],
+    idsByValue: new Map(),
     gradientLegend: { scaleId, min, max },
     stats: { dataKeys: colorById.size },
   };
@@ -127,6 +134,7 @@ export default function buildColorMapping(
 
   const colorById = new Map<string, [number, number, number]>();
   const legendColors = new Map<string, string>(); // value -> hex, first-seen order
+  const idsByValue = new Map<string, string[]>();
 
   rows.forEach(row => {
     const raw = row[colorBy];
@@ -140,11 +148,14 @@ export default function buildColorMapping(
       legendColors.set(value, hex);
     }
     colorById.set(id, hexToRgb01(hex));
+    const ids = idsByValue.get(value);
+    if (ids) ids.push(id);
+    else idsByValue.set(value, [id]);
   });
 
   const legend = Array.from(legendColors.entries()).map(([value, color]) => ({
     value,
     color,
   }));
-  return { colorById, legend, stats: { dataKeys: colorById.size } };
+  return { colorById, legend, idsByValue, stats: { dataKeys: colorById.size } };
 }

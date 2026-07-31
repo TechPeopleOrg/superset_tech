@@ -162,11 +162,12 @@ export default function BimChart(props: BimChartProps) {
 
   // Value -> color mapping derived from the query rows; empty when the chart
   // isn't configured for data-binding yet (no link/color-by column chosen).
-  const { colorById, legend, gradientLegend } = useMemo(() => {
+  const { colorById, legend, gradientLegend, idsByValue } = useMemo(() => {
     if (!linkColumn || !colorBy) {
       return {
         colorById: new Map<string, [number, number, number]>(),
         legend: [] as { value: string; color: string }[],
+        idsByValue: new Map<string, string[]>(),
         gradientLegend: undefined,
       };
     }
@@ -193,6 +194,10 @@ export default function BimChart(props: BimChartProps) {
   }, [mappingKey]);
 
   const [matched, setMatched] = useState<{ m: number; n: number } | null>(null);
+  // Categories switched off from the legend. Visual only: no cross-filter, and
+  // visibility is left alone so the tree stays the sole owner of what is shown.
+  const [dimmedValues, setDimmedValues] = useState<Set<string>>(new Set());
+  const dimmedKey = Array.from(dimmedValues).sort().join('\u0000');
 
   // Paint the scene whenever the mapping or the live api changes: reset to a
   // neutral base (so unmatched elements read as "no data"), then paint every
@@ -236,7 +241,25 @@ export default function BimChart(props: BimChartProps) {
       }
     });
     setMatched({ m: matchedKeys, n: colorById.size });
-  }, [api, colorById, ready, contextMode, contextOpacity, noDataColor]);
+
+    dimmedValues.forEach(value => {
+      const ids = idsByValue.get(value) ?? [];
+      const leaves = ids.flatMap(gid =>
+        api.expandToLeaves(gid).filter(id => present.has(id)),
+      );
+      if (leaves.length) api.setOpacity(leaves, contextOpacity);
+    });
+    // dimmedKey encodes dimmedValues by content; idsByValue moves with colorById.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    api,
+    colorById,
+    ready,
+    contextMode,
+    contextOpacity,
+    noDataColor,
+    dimmedKey,
+  ]);
 
   // Apply the highlight colour from the control whenever it changes, without
   // recreating the (heavy) viewer.
@@ -377,7 +400,18 @@ export default function BimChart(props: BimChartProps) {
         />
       )}
       {showLegend && modelUrl && !loading && !error && api && (
-        <ColorLegend legend={legend} gradient={gradientLegend} />
+        <ColorLegend
+          legend={legend}
+          gradient={gradientLegend}
+          dimmed={dimmedValues}
+          onToggle={value =>
+            setDimmedValues(prev => {
+              const next = new Set(prev);
+              if (!next.delete(value)) next.add(value);
+              return next;
+            })
+          }
+        />
       )}
       {showMatched && matched && (
         <Diagnostic data-test="bim-diagnostic" data-testid="bim-diagnostic">

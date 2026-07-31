@@ -16,8 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { render, screen } from 'spec/helpers/testing-library';
+import { render, screen, fireEvent } from 'spec/helpers/testing-library';
 import ColorLegend from '../src/ColorLegend';
+
+const legend = [
+  { value: 'Done', color: '#00ff00' },
+  { value: 'Late', color: '#ff0000' },
+];
 
 test('renders one chip per legend entry', () => {
   render(
@@ -59,4 +64,37 @@ test('gradient legend formats fractional bounds compactly', () => {
   // Rounded to a compact form, not the raw float.
   expect(screen.getByText('1.23')).toBeInTheDocument();
   expect(screen.getByText('9,876.5')).toBeInTheDocument();
+});
+
+test('clicking a legend entry toggles that value', () => {
+  const onToggle = jest.fn();
+  render(<ColorLegend legend={legend} onToggle={onToggle} />);
+
+  fireEvent.click(screen.getByTestId('bim-legend-item-Done'));
+  expect(onToggle).toHaveBeenCalledWith('Done');
+});
+
+test('a dimmed entry reads as switched off', () => {
+  render(
+    <ColorLegend
+      legend={legend}
+      dimmed={new Set(['Done'])}
+      onToggle={jest.fn()}
+    />,
+  );
+  expect(screen.getByTestId('bim-legend-item-Done')).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
+  expect(screen.getByTestId('bim-legend-item-Late')).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+});
+
+test('without onToggle the legend is not interactive', () => {
+  render(<ColorLegend legend={legend} />);
+  expect(screen.getByTestId('bim-legend-item-Done')).not.toHaveAttribute(
+    'aria-pressed',
+  );
 });
