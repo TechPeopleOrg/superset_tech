@@ -76,6 +76,8 @@ const Face = styled.button`
   color: ${({ theme }) => theme.colorTextSecondary};
   background: ${({ theme }) => theme.colorBgElevated};
   border: 1px solid ${({ theme }) => theme.colorBorderSecondary};
+  /* Same rounding as the toolbar. */
+  border-radius: ${({ theme }) => theme.borderRadius}px;
   /* Faces are opaque so the far side of the cube never shows through. */
   backface-visibility: hidden;
   transition:
