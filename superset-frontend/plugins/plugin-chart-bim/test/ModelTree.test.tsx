@@ -47,6 +47,8 @@ const makeApi = (): XeokitApi => ({
   highlight: jest.fn(),
   setHighlightColor: jest.fn(),
   fit: jest.fn(),
+  onCameraChange: jest.fn(() => jest.fn()),
+  flyToDir: jest.fn(),
 });
 
 // The panel is now controlled by the parent: `open` and `onClose` are required.
