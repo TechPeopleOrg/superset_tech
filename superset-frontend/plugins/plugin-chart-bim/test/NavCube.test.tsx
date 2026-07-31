@@ -52,8 +52,7 @@ test('clicking a corner selects the isometric view', () => {
 });
 
 test('every corner area is individually clickable', () => {
-  // Guards against corners collapsing onto each other: all eight directions
-  // must be reachable, not just the four screen quadrants they project into.
+  // All eight must be reachable, not just the four screen quadrants.
   const onSelectArea = jest.fn();
   render(<NavCube onSelectArea={onSelectArea} />);
 
@@ -65,10 +64,7 @@ test('every corner area is individually clickable', () => {
 });
 
 test('near and far corners of a quadrant occupy different screen positions', () => {
-  // Both project into the same quadrant; if they also shared a position, the
-  // one later in the DOM would cover the other and four of the eight corner
-  // views would be unclickable in a browser (jsdom finds covered nodes fine,
-  // so only comparing the styles catches this).
+  // Same quadrant: sharing a position would hide one under the other.
   render(<NavCube onSelectArea={jest.fn()} />);
 
   const near = screen.getByTestId('bim-navcube-corner-top-front-right');
@@ -107,6 +103,27 @@ test('setRotation is safe to call repeatedly, as during a camera drag', () => {
 
   const cube = screen.getByTestId('bim-navcube-cube');
   expect(cube.style.transform).toBe('rotateX(20deg) rotateY(20deg)');
+});
+
+test('the top face tips away from the viewer, the bottom toward it', () => {
+  // Swapping these puts "Bottom" on the upper face of the cube.
+  render(<NavCube onSelectArea={jest.fn()} />);
+
+  const top = screen.getByTestId('bim-navcube-face-top');
+  const bottom = screen.getByTestId('bim-navcube-face-bottom');
+  expect(top.style.transform).toMatch(/rotateX\(-90deg\)/);
+  expect(bottom.style.transform).toMatch(/rotateX\(90deg\)/);
+});
+
+test('opposite faces are half a turn apart', () => {
+  render(<NavCube onSelectArea={jest.fn()} />);
+  const face = (id: string) =>
+    screen.getByTestId(`bim-navcube-face-${id}`).style.transform;
+
+  expect(face('front')).not.toContain('rotate');
+  expect(face('back')).toMatch(/rotateY\(180deg\)/);
+  expect(face('right')).toMatch(/rotateY\(90deg\)/);
+  expect(face('left')).toMatch(/rotateY\(-90deg\)/);
 });
 
 test('sits in the top-right, clear of the bottom-right colour legend', () => {

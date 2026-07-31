@@ -23,37 +23,29 @@ import { CORNER_AREAS, CubeRotation, FACE_AREAS, FaceId } from './navCubeMath';
 
 // Half the cube's edge length, in px: each face is translated out by this much.
 const HALF = 22;
-// Size of the square hit zone sitting over each corner of the cube's box. Kept
-// large enough to stay comfortably clickable as the cube shrinks.
+// Corner hit zone, kept clickable as the cube shrinks.
 const CORNER = 14;
 
 export interface NavCubeHandle {
-  // Set the cube's orientation without going through React state. The camera
-  // fires on every frame of a drag; re-rendering the chart that often would
-  // stutter the viewer, so the transform is written straight to the DOM.
+  // Written straight to the DOM: the camera fires on every frame of a drag.
   setRotation(rotation: CubeRotation): void;
 }
 
 export interface NavCubeProps {
-  // Called with the area id (e.g. 'top' or 'top-front-left') when a face or
-  // corner is clicked.
+  // Called with the clicked area id, e.g. 'top' or 'top-front-left'.
   onSelectArea: (areaId: string) => void;
 }
 
-// Wrapper establishing the 3D viewport. Pointer events are off here so the
-// empty space around the cube does not swallow drags meant for the model; the
-// faces and corners re-enable them individually.
+// 3D viewport. Pointer events off so empty space does not swallow model drags.
 const Stage = styled.div`
   position: absolute;
   right: ${({ theme }) => theme.sizeUnit * 6}px;
-  /* Below the refresh badge's row so the two never overlap while it shows;
-     the colour legend owns the bottom-right corner. */
-  top: ${({ theme }) => theme.sizeUnit * 14}px;
+  /* Below the refresh badge; the colour legend owns the bottom-right. */
+  top: ${({ theme }) => theme.sizeUnit * 10}px;
   z-index: 10;
   width: ${HALF * 2}px;
   height: ${HALF * 2}px;
-  /* Scaled with the cube: a fixed distance would exaggerate the perspective
-     as the cube shrinks. */
+  /* Scaled with the cube so the projection stays consistent at any size. */
   perspective: ${HALF * 10}px;
   pointer-events: none;
 `;
@@ -101,8 +93,7 @@ const Face = styled.button`
   }
 `;
 
-// Corner hit zones sit in front of the cube's box, outside its 3D transform, so
-// they stay clickable at any orientation. They are invisible until hovered.
+// Outside the 3D transform, so corners stay clickable at any orientation.
 const Corner = styled.button`
   position: absolute;
   width: ${CORNER}px;
@@ -124,15 +115,14 @@ const Corner = styled.button`
   }
 `;
 
-// Per-face placement inside the 3D box. Matches the direction vectors in
-// navCubeMath: +Z is front, +Y is top, +X is right.
+// CSS's Y axis points down, so rotateX(-90deg) — not +90 — is the top face.
 const FACE_TRANSFORMS: Record<FaceId, string> = {
   front: `translateZ(${HALF}px)`,
   back: `rotateY(180deg) translateZ(${HALF}px)`,
   right: `rotateY(90deg) translateZ(${HALF}px)`,
   left: `rotateY(-90deg) translateZ(${HALF}px)`,
-  top: `rotateX(90deg) translateZ(${HALF}px)`,
-  bottom: `rotateX(-90deg) translateZ(${HALF}px)`,
+  top: `rotateX(-90deg) translateZ(${HALF}px)`,
+  bottom: `rotateX(90deg) translateZ(${HALF}px)`,
 };
 
 const FACE_LABELS: Record<FaceId, string> = {
@@ -144,14 +134,7 @@ const FACE_LABELS: Record<FaceId, string> = {
   bottom: t('Bottom'),
 };
 
-// A corner's 2D position on the stage, derived from its direction vector: +X is
-// right, +Y is up (so it pins to the top edge).
-//
-// The near (+Z) and far (-Z) corners of a quadrant project onto the same screen
-// position, which would leave four of the eight zones permanently covered by
-// the other four. Far corners are inset toward the middle so every zone stays
-// reachable — the cube is small, so the offset reads as depth rather than as
-// misalignment.
+// Box offsets, not CSS axes: +Y is `top`. Far corners inset to stay clickable.
 function cornerPosition(dir: readonly number[]) {
   const near = -CORNER / 2;
   const far = CORNER;
@@ -162,10 +145,8 @@ function cornerPosition(dir: readonly number[]) {
   } as const;
 }
 
-// An orientation cube for jumping to standard views. Deliberately built from DOM
-// elements rather than xeokit's NavCubePlugin: that plugin renders into its own
-// WebGL scene, and a dashboard with several viewers being mounted and destroyed
-// exhausts the GL context, leaving an empty square and a flood of GL errors.
+// DOM-based on purpose: xeokit's NavCubePlugin needs a second WebGL context,
+// which several viewers on one dashboard exhaust.
 const NavCube = forwardRef<NavCubeHandle, NavCubeProps>(
   ({ onSelectArea }, ref) => {
     const cubeRef = useRef<HTMLDivElement>(null);
