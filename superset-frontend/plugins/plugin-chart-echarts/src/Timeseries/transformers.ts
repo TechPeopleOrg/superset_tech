@@ -175,9 +175,15 @@ export function applyColorByPrimaryAxis(
   sliceId: number | undefined,
   opacity: number,
   isHorizontal = false,
+  barBorderRadius = 0,
 ): {
   value: [string | number, number];
-  itemStyle: { color: string; opacity: number; borderWidth: number };
+  itemStyle: {
+    color: string;
+    opacity: number;
+    borderWidth: number;
+    borderRadius?: number;
+  };
 }[] {
   return (series.data as [string | number, number][]).map(value => {
     // For horizontal charts the primary axis is index 1 (category), not index 0 (numeric)
@@ -189,6 +195,7 @@ export function applyColorByPrimaryAxis(
         color: colorScale(colorKey, sliceId),
         opacity,
         borderWidth: 0,
+        ...(barBorderRadius > 0 ? { borderRadius: barBorderRadius } : {}),
       },
     };
   });
@@ -442,6 +449,7 @@ export function transformSeries(
                 sliceId,
                 opacity,
                 isHorizontal,
+                seriesType === 'bar' ? barBorderRadius : 0,
               ),
             }
           : seriesType === 'bar' && !stack
