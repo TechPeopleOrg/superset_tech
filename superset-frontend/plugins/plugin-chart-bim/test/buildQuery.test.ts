@@ -50,3 +50,78 @@ test('lets dashboard filters flow into the query (they filter the data)', () => 
     { col: 'floor', op: 'IN', val: ['3'] },
   ]);
 });
+
+test('requests the columns incoming cross-filters arrive on', () => {
+  const q = buildQuery({
+    ...base,
+    link_column: 'gid',
+    color_by: 'percent_complete',
+    cross_filters_data: {
+      filters: [{ col: 'vid_rabot', op: 'IN', val: ['Монтаж'] }],
+    },
+  } as any);
+  expect(q.queries[0].columns).toEqual([
+    'gid',
+    'percent_complete',
+    'vid_rabot',
+  ]);
+});
+
+test('does not duplicate a cross-filtered column already requested', () => {
+  const q = buildQuery({
+    ...base,
+    link_column: 'gid',
+    color_by: 'status',
+    cross_filters_data: {
+      filters: [{ col: 'status', op: 'IN', val: ['Done'] }],
+    },
+  } as any);
+  expect(q.queries[0].columns).toEqual(['gid', 'status']);
+});
+
+test('adds every distinct cross-filtered column, once each', () => {
+  const q = buildQuery({
+    ...base,
+    link_column: 'gid',
+    color_by: 'pct',
+    cross_filters_data: {
+      filters: [
+        { col: 'vid_rabot', op: 'IN', val: ['A'] },
+        { col: 'etap', op: 'IN', val: ['B'] },
+        { col: 'vid_rabot', op: 'IN', val: ['C'] },
+      ],
+    },
+  } as any);
+  expect(q.queries[0].columns).toEqual(['gid', 'pct', 'vid_rabot', 'etap']);
+});
+
+test('leaves the query alone when there are no cross-filters', () => {
+  const q = buildQuery({
+    ...base,
+    link_column: 'gid',
+    color_by: 'status',
+    cross_filters_data: { filters: [] },
+  } as any);
+  expect(q.queries[0].columns).toEqual(['gid', 'status']);
+});
+
+test('ignores cross-filters when the chart is not data-bound', () => {
+  const q = buildQuery({
+    ...base,
+    link_column: 'gid',
+    cross_filters_data: {
+      filters: [{ col: 'vid_rabot', op: 'IN', val: ['A'] }],
+    },
+  } as any);
+  expect(q.queries[0].columns ?? []).toEqual([]);
+});
+
+test('tolerates a malformed cross-filter entry', () => {
+  const q = buildQuery({
+    ...base,
+    link_column: 'gid',
+    color_by: 'status',
+    cross_filters_data: { filters: [{ op: 'IN', val: ['A'] }, null] },
+  } as any);
+  expect(q.queries[0].columns).toEqual(['gid', 'status']);
+});

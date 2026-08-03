@@ -29,11 +29,27 @@ export default function buildQuery(formData: QueryFormData) {
   // charts are kept out of the query at the dashboard layer (for charts with
   // the SuppressRefetchSpinner behavior) so they only drive highlighting, not
   // re-coloring — see getFormDataWithExtraFilters. Nothing to strip here.
+  const crossFilters =
+    (
+      formData.cross_filters_data ??
+      (formData as { crossFiltersData?: { filters?: { col?: string }[] } })
+        .crossFiltersData
+    )?.filters ?? [];
+  const crossFilterColumns: string[] = [];
+  crossFilters.forEach((filter: { col?: string } | null) => {
+    const col = filter?.col;
+    if (col && col !== linkColumn && col !== colorBy) {
+      if (!crossFilterColumns.includes(col)) crossFilterColumns.push(col);
+    }
+  });
+
   return buildQueryContext(formData, baseQueryObject => [
     {
       ...baseQueryObject,
       columns:
-        linkColumn && colorBy ? [linkColumn, colorBy] : baseQueryObject.columns,
+        linkColumn && colorBy
+          ? [linkColumn, colorBy, ...crossFilterColumns]
+          : baseQueryObject.columns,
     },
   ]);
 }
