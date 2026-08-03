@@ -86,19 +86,35 @@ const ResizeHandle = styled.div`
 // Search field + close button on one row at the top of the panel.
 const Header = styled.div`
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: ${({ theme }) => theme.sizeUnit}px;
+
+  button {
+    height: auto;
+    align-self: stretch;
+  }
 `;
 
 const Controls = styled.div`
   display: flex;
   gap: ${({ theme }) => theme.sizeUnit}px;
+  margin-top: ${({ theme }) => theme.sizeUnit}px;
+  padding-bottom: ${({ theme }) => theme.sizeUnit}px;
+  border-bottom: 1px solid ${({ theme }) => theme.colorBorderSecondary};
 `;
 
 // Leftover space below the header; min-height:0 lets it shrink below content.
 const TreeArea = styled.div`
   flex: 1;
   min-height: 0;
+
+  .ant-tree-checkbox {
+    transform: scale(0.85);
+  }
+
+  .ant-tree-node-content-wrapper {
+    font-size: ${({ theme }) => theme.fontSizeSM}px;
+  }
 `;
 
 const Empty = styled.div`
@@ -319,7 +335,8 @@ export default function ModelTree({
             allowClear
           />
           <Button
-            buttonSize="small"
+            buttonSize="xsmall"
+            buttonStyle="tertiary"
             data-test="model-tree-close"
             aria-label={t('Close element tree')}
             onClick={onClose}
@@ -328,7 +345,8 @@ export default function ModelTree({
         </Header>
         <Controls>
           <Button
-            buttonSize="small"
+            buttonSize="xsmall"
+            buttonStyle="tertiary"
             disabled={!api}
             onClick={() => {
               api?.showAll();
@@ -338,7 +356,8 @@ export default function ModelTree({
             {t('Show all')}
           </Button>
           <Button
-            buttonSize="small"
+            buttonSize="xsmall"
+            buttonStyle="tertiary"
             disabled={!selected}
             onClick={() => {
               if (!api || !tree || !selected) return;
