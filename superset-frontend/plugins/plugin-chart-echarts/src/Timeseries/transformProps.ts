@@ -102,6 +102,7 @@ import { defaultGrid, defaultYAxis } from '../defaults';
 import {
   getBaselineSeriesForStream,
   getPadding,
+  applyCustomPadding,
   transformEventAnnotation,
   transformFormulaAnnotation,
   transformIntervalAnnotation,
@@ -285,6 +286,11 @@ export default function transformProps(
     yAxisTitlePosition,
     zoomable,
     stackDimension,
+    customPadding,
+    paddingTop,
+    paddingRight,
+    paddingBottom,
+    paddingLeft,
   }: EchartsTimeseriesFormData = { ...DEFAULT_FORM_DATA, ...formData };
 
   const refs: Refs = {};
@@ -875,6 +881,13 @@ export default function transformProps(
     }
   }
 
+  const finalPadding = applyCustomPadding(padding, customPadding, {
+    top: paddingTop,
+    right: paddingRight,
+    bottom: paddingBottom,
+    left: paddingLeft,
+  });
+
   // When showMaxLabel is true, ECharts may render a label at the axis
   // boundary that formats identically to the last data-point tick (e.g.
   // "2005" appears twice with Year grain). Wrap the formatter to suppress
@@ -1028,7 +1041,7 @@ export default function transformProps(
     useUTC: true,
     grid: {
       ...defaultGrid,
-      ...padding,
+      ...finalPadding,
     },
     xAxis,
     yAxis,

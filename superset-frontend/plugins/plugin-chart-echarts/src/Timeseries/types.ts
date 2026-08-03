@@ -90,6 +90,11 @@ export type EchartsTimeseriesFormData = QueryFormData & {
   xAxisBounds: [number | undefined | null, number | undefined | null];
   yAxisBounds: [number | undefined | null, number | undefined | null];
   zoomable: boolean;
+  customPadding?: boolean;
+  paddingTop?: number | string | null;
+  paddingRight?: number | string | null;
+  paddingBottom?: number | string | null;
+  paddingLeft?: number | string | null;
   richTooltip: boolean;
   xAxisLabelRotation: number;
   xAxisLabelInterval: number | string;

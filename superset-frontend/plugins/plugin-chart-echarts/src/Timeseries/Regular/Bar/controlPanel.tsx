@@ -551,6 +551,83 @@ const config: ControlPanelConfig = {
         ['echart_options'],
       ],
     },
+    {
+      label: t('Chart Padding'),
+      tabOverride: 'customize',
+      expanded: false,
+      controlSetRows: [
+        [
+          {
+            name: 'custom_padding',
+            config: {
+              type: 'CheckboxControl',
+              label: t('Customize chart padding'),
+              description: t(
+                'Override the automatic spacing between the plot and the chart edges. Sides left blank keep their automatic value.',
+              ),
+              default: false,
+              renderTrigger: true,
+            },
+          },
+        ],
+        [
+          {
+            name: 'padding_top',
+            config: {
+              type: 'TextControl',
+              label: t('Top'),
+              description: t('Padding above the plot, in pixels.'),
+              default: '',
+              isInt: true,
+              renderTrigger: true,
+              visibility: ({ controls }: ControlPanelsContainerProps) =>
+                Boolean(controls?.custom_padding?.value),
+            },
+          },
+          {
+            name: 'padding_bottom',
+            config: {
+              type: 'TextControl',
+              label: t('Bottom'),
+              description: t('Padding below the plot, in pixels.'),
+              default: '',
+              isInt: true,
+              renderTrigger: true,
+              visibility: ({ controls }: ControlPanelsContainerProps) =>
+                Boolean(controls?.custom_padding?.value),
+            },
+          },
+        ],
+        [
+          {
+            name: 'padding_left',
+            config: {
+              type: 'TextControl',
+              label: t('Left'),
+              description: t('Padding left of the plot, in pixels.'),
+              default: '',
+              isInt: true,
+              renderTrigger: true,
+              visibility: ({ controls }: ControlPanelsContainerProps) =>
+                Boolean(controls?.custom_padding?.value),
+            },
+          },
+          {
+            name: 'padding_right',
+            config: {
+              type: 'TextControl',
+              label: t('Right'),
+              description: t('Padding right of the plot, in pixels.'),
+              default: '',
+              isInt: true,
+              renderTrigger: true,
+              visibility: ({ controls }: ControlPanelsContainerProps) =>
+                Boolean(controls?.custom_padding?.value),
+            },
+          },
+        ],
+      ],
+    },
   ],
   formDataOverrides: formData => {
     // Reset stack to null if it's Stream when switching to Bar chart

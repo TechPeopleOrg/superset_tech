@@ -788,6 +788,27 @@ export function transformTimeseriesAnnotation(
   return series;
 }
 
+export interface CustomPadding {
+  top?: number | string | null;
+  right?: number | string | null;
+  bottom?: number | string | null;
+  left?: number | string | null;
+}
+
+export function applyCustomPadding<
+  T extends { top: number; right: number; bottom: number; left: number },
+>(padding: T, enabled?: boolean, custom?: CustomPadding): T {
+  if (!enabled || !custom) return padding;
+  const out = { ...padding };
+  (['top', 'right', 'bottom', 'left'] as const).forEach(side => {
+    const raw = custom[side];
+    if (raw === undefined || raw === null || raw === '') return;
+    const value = Number(raw);
+    if (Number.isFinite(value)) out[side] = value as T[typeof side];
+  });
+  return out;
+}
+
 export function getPadding(
   showLegend: boolean,
   legendOrientation: LegendOrientation,
