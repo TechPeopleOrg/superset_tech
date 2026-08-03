@@ -46,6 +46,7 @@ export interface ColorMappingResult {
   // Categorical legend entries; empty in gradient mode.
   legend: { value: string; color: string }[];
   idsByValue: Map<string, string[]>;
+  numericById: Map<string, number>;
   // Present only in gradient mode; drives the gradient legend bar.
   gradientLegend?: GradientLegend;
   stats: { dataKeys: number };
@@ -91,6 +92,7 @@ function buildGradientMapping(input: ColorMappingInput): ColorMappingResult {
       colorById,
       legend: [],
       idsByValue: new Map(),
+      numericById: new Map(),
       stats: { dataKeys: 0 },
     };
   }
@@ -111,6 +113,7 @@ function buildGradientMapping(input: ColorMappingInput): ColorMappingResult {
     colorById,
     legend: [],
     idsByValue: new Map(),
+    numericById: new Map(numeric.map(({ id, v }) => [id, v])),
     gradientLegend: { scaleId, min, max },
     stats: { dataKeys: colorById.size },
   };
@@ -157,5 +160,24 @@ export default function buildColorMapping(
     value,
     color,
   }));
-  return { colorById, legend, idsByValue, stats: { dataKeys: colorById.size } };
+  return {
+    colorById,
+    legend,
+    idsByValue,
+    numericById: new Map(),
+    stats: { dataKeys: colorById.size },
+  };
+}
+
+export function idsOutsideRange(
+  numericById: Map<string, number>,
+  range: [number, number] | null,
+): string[] {
+  if (!range) return [];
+  const [lo, hi] = range;
+  const out: string[] = [];
+  numericById.forEach((value, id) => {
+    if (value < lo || value > hi) out.push(id);
+  });
+  return out;
 }

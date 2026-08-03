@@ -98,3 +98,49 @@ test('without onToggle the legend is not interactive', () => {
     'aria-pressed',
   );
 });
+
+const gradient = { scaleId: 'viridis', min: 0, max: 100 };
+
+test('shows a range slider on the gradient legend when interactive', () => {
+  render(
+    <ColorLegend legend={[]} gradient={gradient} onRangeChange={jest.fn()} />,
+  );
+  expect(screen.getByTestId('bim-legend-range')).toBeInTheDocument();
+});
+
+test('omits the slider when the legend is not interactive', () => {
+  render(<ColorLegend legend={[]} gradient={gradient} />);
+  expect(screen.queryByTestId('bim-legend-range')).not.toBeInTheDocument();
+});
+
+test('the bounds follow the selected range', () => {
+  render(
+    <ColorLegend
+      legend={[]}
+      gradient={gradient}
+      range={[40, 70]}
+      onRangeChange={jest.fn()}
+    />,
+  );
+  expect(screen.getByText('40')).toBeInTheDocument();
+  expect(screen.getByText('70')).toBeInTheDocument();
+});
+
+test('the bounds fall back to the full scale with no range set', () => {
+  render(
+    <ColorLegend legend={[]} gradient={gradient} onRangeChange={jest.fn()} />,
+  );
+  expect(screen.getByText('0')).toBeInTheDocument();
+  expect(screen.getByText('100')).toBeInTheDocument();
+});
+
+test('omits the slider on a degenerate scale', () => {
+  render(
+    <ColorLegend
+      legend={[]}
+      gradient={{ scaleId: 'viridis', min: 5, max: 5 }}
+      onRangeChange={jest.fn()}
+    />,
+  );
+  expect(screen.queryByTestId('bim-legend-range')).not.toBeInTheDocument();
+});

@@ -17,6 +17,7 @@
  * under the License.
  */
 import { styled } from '@apache-superset/core/theme';
+import { Slider } from '@superset-ui/core/components';
 import type { GradientLegend } from './colorMapping';
 import { scaleCssGradient } from './gradientScales';
 
@@ -26,6 +27,8 @@ export interface ColorLegendProps {
   gradient?: GradientLegend;
   dimmed?: Set<string>;
   onToggle?: (value: string) => void;
+  range?: [number, number];
+  onRangeChange?: (range: [number, number]) => void;
 }
 
 const Wrap = styled.div`
@@ -72,10 +75,18 @@ const Swatch = styled.span<{ color: string; dimmed?: boolean }>`
 `;
 
 const Bar = styled.div<{ gradient: string }>`
-  width: ${({ theme }) => theme.sizeUnit * 24}px;
+  width: ${({ theme }) => theme.sizeUnit * 36}px;
   height: ${({ theme }) => theme.sizeUnit * 2}px;
   border-radius: 2px;
   background: ${({ gradient }) => gradient};
+`;
+
+const RangeWrap = styled.div`
+  margin: 0 ${({ theme }) => theme.sizeUnit / 2}px;
+
+  .ant-slider {
+    margin: ${({ theme }) => theme.sizeUnit}px 0 0;
+  }
 `;
 
 const Bounds = styled.div`
@@ -95,6 +106,8 @@ export default function ColorLegend({
   gradient,
   dimmed,
   onToggle,
+  range,
+  onRangeChange,
 }: ColorLegendProps) {
   if (gradient) {
     return (
@@ -103,9 +116,23 @@ export default function ColorLegend({
           data-test="bim-legend-gradient"
           gradient={scaleCssGradient(gradient.scaleId)}
         />
+        {onRangeChange && gradient.max > gradient.min && (
+          <RangeWrap data-test="bim-legend-range">
+            <Slider
+              range
+              min={gradient.min}
+              max={gradient.max}
+              value={range ?? [gradient.min, gradient.max]}
+              onChange={value =>
+                onRangeChange(value as unknown as [number, number])
+              }
+              tooltip={{ open: false }}
+            />
+          </RangeWrap>
+        )}
         <Bounds>
-          <span>{numberFmt.format(gradient.min)}</span>
-          <span>{numberFmt.format(gradient.max)}</span>
+          <span>{numberFmt.format(range?.[0] ?? gradient.min)}</span>
+          <span>{numberFmt.format(range?.[1] ?? gradient.max)}</span>
         </Bounds>
       </Wrap>
     );

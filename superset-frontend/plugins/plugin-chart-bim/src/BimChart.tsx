@@ -26,7 +26,7 @@ import ModelTree from './ModelTree';
 import ViewerControls from './ViewerControls';
 import NavCube, { type NavCubeHandle } from './NavCube';
 import { AREAS, cameraToCubeRotation } from './navCubeMath';
-import buildColorMapping, { hexToRgb01 } from './colorMapping';
+import buildColorMapping, { hexToRgb01, idsOutsideRange } from './colorMapping';
 import ColorLegend from './ColorLegend';
 import { BimChartProps } from './types';
 import {
@@ -162,41 +162,46 @@ export default function BimChart(props: BimChartProps) {
 
   // Value -> color mapping derived from the query rows; empty when the chart
   // isn't configured for data-binding yet (no link/color-by column chosen).
-  const { colorById, legend, gradientLegend, idsByValue } = useMemo(() => {
-    if (!linkColumn || !colorBy) {
-      return {
-        colorById: new Map<string, [number, number, number]>(),
-        legend: [] as { value: string; color: string }[],
-        idsByValue: new Map<string, string[]>(),
-        gradientLegend: undefined,
-      };
-    }
-    return buildColorMapping({
-      rows,
-      linkColumn,
-      colorBy,
-      colorFn,
-      overrides,
-      mode: colorMode,
-      gradientScaleId,
-      gradientMin,
-      gradientMax,
-    });
-    // mappingKey already encodes rows/linkColumn/colorBy/overrides/colorScheme
-    // by content, so it is the only dependency that should trigger a
-    // recompute. colorFn is deterministic for a given value and scheme
-    // (backed by the shared categorical palette) and is intentionally
-    // excluded: transformProps hands back a new colorFn/overrides reference
-    // on every re-render, and depending on those references directly would
-    // rebuild the mapping (and re-run the paint effect below) on every render
-    // instead of only when the data or scheme changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mappingKey]);
+  const { colorById, legend, gradientLegend, idsByValue, numericById } =
+    useMemo(() => {
+      if (!linkColumn || !colorBy) {
+        return {
+          colorById: new Map<string, [number, number, number]>(),
+          legend: [] as { value: string; color: string }[],
+          idsByValue: new Map<string, string[]>(),
+          numericById: new Map<string, number>(),
+          gradientLegend: undefined,
+        };
+      }
+      return buildColorMapping({
+        rows,
+        linkColumn,
+        colorBy,
+        colorFn,
+        overrides,
+        mode: colorMode,
+        gradientScaleId,
+        gradientMin,
+        gradientMax,
+      });
+      // mappingKey already encodes rows/linkColumn/colorBy/overrides/colorScheme
+      // by content, so it is the only dependency that should trigger a
+      // recompute. colorFn is deterministic for a given value and scheme
+      // (backed by the shared categorical palette) and is intentionally
+      // excluded: transformProps hands back a new colorFn/overrides reference
+      // on every re-render, and depending on those references directly would
+      // rebuild the mapping (and re-run the paint effect below) on every render
+      // instead of only when the data or scheme changes.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mappingKey]);
 
   const [matched, setMatched] = useState<{ m: number; n: number } | null>(null);
   // Categories switched off from the legend. Visual only: no cross-filter, and
   // visibility is left alone so the tree stays the sole owner of what is shown.
   const [dimmedValues, setDimmedValues] = useState<Set<string>>(new Set());
+  const [gradientRange, setGradientRange] = useState<[number, number] | null>(
+    null,
+  );
   const dimmedKey = Array.from(dimmedValues).sort().join('\u0000');
 
   // Paint the scene whenever the mapping or the live api changes: reset to a
@@ -249,6 +254,11 @@ export default function BimChart(props: BimChartProps) {
       );
       if (leaves.length) api.setOpacity(leaves, contextOpacity);
     });
+
+    const outside = idsOutsideRange(numericById, gradientRange).flatMap(gid =>
+      api.expandToLeaves(gid).filter(id => present.has(id)),
+    );
+    if (outside.length) api.setOpacity(outside, contextOpacity);
     // dimmedKey encodes dimmedValues by content; idsByValue moves with colorById.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -259,6 +269,7 @@ export default function BimChart(props: BimChartProps) {
     contextOpacity,
     noDataColor,
     dimmedKey,
+    gradientRange,
   ]);
 
   // Apply the highlight colour from the control whenever it changes, without
@@ -403,6 +414,8 @@ export default function BimChart(props: BimChartProps) {
         <ColorLegend
           legend={legend}
           gradient={gradientLegend}
+          range={gradientRange ?? undefined}
+          onRangeChange={setGradientRange}
           dimmed={dimmedValues}
           onToggle={value =>
             setDimmedValues(prev => {

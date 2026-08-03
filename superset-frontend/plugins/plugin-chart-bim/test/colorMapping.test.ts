@@ -18,6 +18,7 @@
  */
 import buildColorMapping, {
   hexToRgb01,
+  idsOutsideRange,
   type ColorMappingInput,
 } from '../src/colorMapping';
 import type { DataRecord } from '@superset-ui/core';
@@ -262,4 +263,56 @@ test('gradient mode yields no category index', () => {
     gradientScaleId: 'viridis',
   });
   expect(idsByValue.size).toBe(0);
+});
+
+test('gradient mode indexes each GlobalId by its numeric value', () => {
+  const { numericById } = buildColorMapping({
+    rows: [
+      { gid: 'a', pct: 10 },
+      { gid: 'b', pct: 90 },
+    ],
+    linkColumn: 'gid',
+    colorBy: 'pct',
+    colorFn: () => '#000000',
+    mode: 'gradient',
+    gradientScaleId: 'viridis',
+  });
+  expect(numericById.get('a')).toBe(10);
+  expect(numericById.get('b')).toBe(90);
+});
+
+test('categorical mode yields no numeric index', () => {
+  const { numericById } = buildColorMapping({
+    rows: [{ gid: 'a', status: 'Done' }],
+    linkColumn: 'gid',
+    colorBy: 'status',
+    colorFn: () => '#00ff00',
+  });
+  expect(numericById.size).toBe(0);
+});
+
+test('no range selected leaves everything lit', () => {
+  const values = new Map([['a', 10]]);
+  expect(idsOutsideRange(values, null)).toEqual([]);
+});
+
+test('reports only the ids outside the selected range', () => {
+  const values = new Map([
+    ['a', 10],
+    ['b', 50],
+    ['c', 90],
+  ]);
+  expect(idsOutsideRange(values, [40, 70])).toEqual(['a', 'c']);
+});
+
+test('the range bounds are inclusive', () => {
+  const values = new Map([
+    ['a', 40],
+    ['b', 70],
+  ]);
+  expect(idsOutsideRange(values, [40, 70])).toEqual([]);
+});
+
+test('an empty index yields nothing to dim', () => {
+  expect(idsOutsideRange(new Map(), [0, 1])).toEqual([]);
 });
