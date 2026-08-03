@@ -32,11 +32,25 @@ import type GlobalModel from 'echarts/types/src/model/Global';
 import type ComponentModel from 'echarts/types/src/model/Component';
 import { EchartsHandler, EventHandlers } from '../types';
 import Echart from '../components/Echart';
-import { TimeseriesChartTransformedProps } from './types';
+import { OrientationType, TimeseriesChartTransformedProps } from './types';
 import { formatSeriesName } from '../utils/series';
 import { ExtraControls } from '../components/ExtraControls';
 
 const TIMER_DURATION = 300;
+
+export type XAxisPoint =
+  | (string | number | null)[]
+  | { value?: (string | number | null)[] }
+  | undefined;
+
+export function pickXAxisCrossFilterValue(
+  data: XAxisPoint,
+  isHorizontal: boolean,
+): string | number | null {
+  const point = Array.isArray(data) ? data : data?.value;
+  const value = point?.[isHorizontal ? 1 : 0];
+  return value === undefined || value === null ? null : value;
+}
 
 export default function EchartsTimeseries({
   formData,
@@ -215,6 +229,7 @@ export default function EchartsTimeseries({
   // Determine if X-axis can be used for cross-filtering (categorical axis without dimensions)
   const canCrossFilterByXAxis =
     !hasDimensions && xAxis.type === AxisType.Category;
+  const isHorizontalChart = formData.orientation === OrientationType.Horizontal;
 
   const eventHandlers: EventHandlers = {
     click: props => {
@@ -231,9 +246,14 @@ export default function EchartsTimeseries({
           // Cross-filter by dimension (original behavior)
           const { seriesName: name } = props;
           handleChange(name);
-        } else if (canCrossFilterByXAxis && props.data?.[0] != null) {
-          // Cross-filter by X-axis value when no dimensions (issue #25334)
-          handleXAxisChange(props.data[0]);
+        } else if (canCrossFilterByXAxis) {
+          const xAxisValue = pickXAxisCrossFilterValue(
+            props.data,
+            isHorizontalChart,
+          );
+          if (xAxisValue !== null) {
+            handleXAxisChange(xAxisValue);
+          }
         }
       }, TIMER_DURATION);
     },
