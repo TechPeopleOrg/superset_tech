@@ -51,6 +51,12 @@ export enum EchartsTimeseriesSeriesType {
   End = 'end',
 }
 
+export enum EchartsTimeseriesLineStyleType {
+  Solid = 'solid',
+  Dashed = 'dashed',
+  Dotted = 'dotted',
+}
+
 export type EchartsTimeseriesFormData = QueryFormData & {
   annotationLayers: AnnotationLayer[];
   area: boolean;

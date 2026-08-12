@@ -34,7 +34,10 @@ import {
 } from '@superset-ui/chart-controls';
 
 import { DEFAULT_FORM_DATA } from './types';
-import { EchartsTimeseriesSeriesType } from '../Timeseries/types';
+import {
+  EchartsTimeseriesLineStyleType,
+  EchartsTimeseriesSeriesType,
+} from '../Timeseries/types';
 import {
   legendSection,
   minorTicks,
@@ -56,6 +59,7 @@ const {
   orderDesc,
   rowLimit,
   seriesType,
+  lineStyleType,
   showValues,
   stack,
   truncateYAxis,
@@ -158,6 +162,31 @@ function createCustomizeSection(
             [EchartsTimeseriesSeriesType.End, t('Step - end')],
           ],
           description: t('Series chart type (line, bar etc)'),
+        },
+      },
+    ],
+    [
+      {
+        name: `lineStyleType${controlSuffix}`,
+        config: {
+          type: 'SelectControl',
+          label: t('Line style'),
+          renderTrigger: true,
+          default: lineStyleType,
+          choices: [
+            [EchartsTimeseriesLineStyleType.Solid, t('Solid')],
+            [EchartsTimeseriesLineStyleType.Dashed, t('Dashed')],
+            [EchartsTimeseriesLineStyleType.Dotted, t('Dotted')],
+          ],
+          description: t('Stroke style for line series (ignored for bars)'),
+          visibility: ({ controls }: ControlPanelsContainerProps) =>
+            ![
+              EchartsTimeseriesSeriesType.Bar,
+              EchartsTimeseriesSeriesType.Scatter,
+            ].includes(
+              controls?.[`seriesType${controlSuffix}`]
+                ?.value as EchartsTimeseriesSeriesType,
+            ),
         },
       },
     ],

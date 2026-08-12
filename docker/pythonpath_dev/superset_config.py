@@ -212,6 +212,44 @@ HTML_SANITIZATION_SCHEMA_EXTENSIONS = {
     },
 }
 
+# Фирменная палитра Айбим, снятая с BI-дашборда (Plan-R).
+EXTRA_CATEGORICAL_COLOR_SCHEMES = [
+    {
+        "id": "aibimPlanFact",
+        "label": "Айбим — план/факт",
+        "description": "Опер. план / Утв. план / Факт с BI-дашборда Айбим",
+        # Опер. план, Утв. план, Факт, прогноз, план. стоимость, оранжевый опер. план
+        "colors": [
+            "#2E5C9E",
+            "#2E86E6",
+            "#3FC1A9",
+            "#E8536B",
+            "#8B85D6",
+            "#E88B4F",
+            "#1B3A66",
+            "#7FB2EE",
+            "#9BDDD0",
+            "#F2A3B0",
+        ],
+    },
+]
+
+EXTRA_SEQUENTIAL_COLOR_SCHEMES = [
+    {
+        "id": "aibimProgress",
+        "label": "Айбим — прогресс ФО",
+        "description": "Шкала прогресса таблицы: красный (отставание) → бирюзовый (100%)",
+        "isDiverging": True,
+        "colors": ["#E8536B", "#F2A3B0", "#F5D9C2", "#9BDDD0", "#3FC1A9"],
+    },
+    {
+        "id": "aibimBlues",
+        "label": "Айбим — синяя шкала",
+        "description": "Монохромная шкала от светло-синего к тёмно-синему",
+        "colors": ["#EAF1FA", "#B9D3F2", "#7FB2EE", "#2E86E6", "#2E5C9E", "#1B3A66"],
+    },
+]
+
 #
 # Optionally import superset_config_docker.py (which will have been included on
 # the PYTHONPATH) in order to allow for local settings to be overridden
