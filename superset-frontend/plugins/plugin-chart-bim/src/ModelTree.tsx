@@ -17,6 +17,7 @@
  * under the License.
  */
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -145,18 +146,21 @@ function useMeasuredHeight(ref: React.RefObject<HTMLElement>): number {
   return height;
 }
 
-// A leaf is a node with no children. Return the leaf ids reachable from `node`.
-function collectLeafIds(node: TreeNode): string[] {
-  if (node.children.length === 0) return [node.id];
-  return node.children.flatMap(collectLeafIds);
-}
-
 // Ids of every node that has children — used to expand all matches while a
 // search is active (collapsed branches would hide the matched descendants).
+// Iterative: recursion overflows the stack on large trees.
 function collectParentIds(nodes: TreeNode[]): string[] {
-  return nodes.flatMap(n =>
-    n.children.length ? [n.id, ...collectParentIds(n.children)] : [],
-  );
+  const out: string[] = [];
+  const stack: TreeNode[] = [...nodes];
+  while (stack.length) {
+    const n = stack.pop() as TreeNode;
+    if (!n.children.length) continue;
+    out.push(n.id);
+    for (let i = 0; i < n.children.length; i++) {
+      stack.push(n.children[i]);
+    }
+  }
+  return out;
 }
 
 // Ids of only the top level, so the tree opens collapsed to roots by default
@@ -165,26 +169,14 @@ function topLevelIds(nodes: TreeNode[]): string[] {
   return nodes.filter(n => n.children.length).map(n => n.id);
 }
 
-function toAntdNodes(
-  nodes: TreeNode[],
-  onSelectNode: (id: string) => void,
-): TreeDataNode[] {
+// Plain data only; titleRender builds titles lazily for visible rows.
+function toAntdNodes(nodes: TreeNode[]): TreeDataNode[] {
   return nodes.map(n => ({
     key: n.id,
-    // Render name as its own text node so RTL getByText('Wall A') matches it
-    // directly, then append the IFC type as smaller secondary text. Clicking the
-    // label selects the node directly, so Isolate works regardless of whether
-    // antd's own onSelect fires through the custom title / virtualized rows.
-    title: (
-      <span onClick={() => onSelectNode(n.id)}>
-        {n.name}
-        {n.type ? <NodeType>{n.type}</NodeType> : null}
-      </span>
-    ),
-    children: n.children.length
-      ? toAntdNodes(n.children, onSelectNode)
-      : undefined,
-  }));
+    name: n.name,
+    type: n.type,
+    children: n.children.length ? toAntdNodes(n.children) : undefined,
+  })) as TreeDataNode[];
 }
 
 // Keep only nodes whose own name (or a descendant's) matches the query.
@@ -201,13 +193,45 @@ function filterTree(nodes: TreeNode[], q: string): TreeNode[] {
   return nodes.map(walk).filter((n): n is TreeNode => !!n);
 }
 
-function findNode(nodes: TreeNode[], id: string): TreeNode | undefined {
-  for (const n of nodes) {
-    if (n.id === id) return n;
-    const found = findNode(n.children, id);
-    if (found) return found;
+// Per-node leaf ids, built once so checks stay O(1) instead of quadratic.
+type TreeIndex = {
+  leavesOf: Map<string, string[]>;
+};
+
+function indexTree(nodes: TreeNode[]): TreeIndex {
+  const leavesOf = new Map<string, string[]>();
+
+  // Iterative post-order: recursion overflows the stack on deep hierarchies.
+  const stack: { node: TreeNode; visited: boolean }[] = nodes.map(node => ({
+    node,
+    visited: false,
+  }));
+  while (stack.length) {
+    const frame = stack.pop() as { node: TreeNode; visited: boolean };
+    const { node } = frame;
+    if (!frame.visited) {
+      if (node.children.length === 0) {
+        leavesOf.set(node.id, [node.id]);
+        continue;
+      }
+      stack.push({ node, visited: true });
+      for (const child of node.children) {
+        stack.push({ node: child, visited: false });
+      }
+      continue;
+    }
+    const leaves: string[] = [];
+    for (const child of node.children) {
+      const childLeaves = leavesOf.get(child.id);
+      if (!childLeaves) continue;
+      // Plain loop, not push(...spread): spread exceeds the argument limit.
+      for (let i = 0; i < childLeaves.length; i++) {
+        leaves.push(childLeaves[i]);
+      }
+    }
+    leavesOf.set(node.id, leaves);
   }
-  return undefined;
+  return { leavesOf };
 }
 
 export default function ModelTree({
@@ -251,9 +275,11 @@ export default function ModelTree({
     window.addEventListener('mouseup', onUp);
   };
 
+  // Unfiltered index: Isolate and showAll must resolve ids the filter hid.
+  const fullIndex = useMemo(() => indexTree(tree ?? []), [tree]);
   const allLeafIds = useMemo(
-    () => (tree ? tree.flatMap(collectLeafIds) : []),
-    [tree],
+    () => (tree ? tree.flatMap(n => fullIndex.leavesOf.get(n.id) ?? []) : []),
+    [tree, fullIndex],
   );
 
   // Derive initial checked keys from the live visibility state so the tree
@@ -275,9 +301,30 @@ export default function ModelTree({
     () => (tree ? filterTree(tree, query) : []),
     [tree, query],
   );
-  const antdData = useMemo(
-    () => toAntdNodes(filtered, setSelected),
-    [filtered],
+  const filteredIndex = useMemo(() => indexTree(filtered), [filtered]);
+  // Leaves of the filtered view, recomputed only when the filter changes.
+  const visibleLeafIds = useMemo(
+    () => filtered.flatMap(n => filteredIndex.leavesOf.get(n.id) ?? []),
+    [filtered, filteredIndex],
+  );
+  const antdData = useMemo(() => toAntdNodes(filtered), [filtered]);
+
+  // Click handled here: antd's onSelect is unreliable for virtualized rows.
+  const titleRender = useCallback(
+    (node: TreeDataNode) => {
+      const { key } = node;
+      const { name, type } = node as TreeDataNode & {
+        name?: string;
+        type?: string;
+      };
+      return (
+        <span onClick={() => setSelected(key as string)}>
+          {name ?? String(key)}
+          {type ? <NodeType>{type}</NodeType> : null}
+        </span>
+      );
+    },
+    [setSelected],
   );
 
   // With no search, collapse to the top level. With a search, expand every
@@ -307,16 +354,16 @@ export default function ModelTree({
     const keys = Array.isArray(rawCheckedKeys)
       ? (rawCheckedKeys as string[])
       : ((rawCheckedKeys as { checked: string[] }).checked ?? []);
-    const checkedLeaves = new Set(
-      keys.flatMap(k => {
-        const node = findNode(tree, k);
-        return node ? collectLeafIds(node) : [];
-      }),
-    );
+    const checkedLeaves = new Set<string>();
+    for (const k of keys) {
+      const leaves = filteredIndex.leavesOf.get(k);
+      if (leaves) {
+        for (const id of leaves) checkedLeaves.add(id);
+      }
+    }
     // Only touch leaves that are present in the currently filtered tree.
     // Leaves outside the active filter are left unchanged, so a search for
     // "wall" + uncheck of Wall A does not accidentally hide Door B.
-    const visibleLeafIds = filtered.flatMap(collectLeafIds);
     const hidden = visibleLeafIds.filter(id => !checkedLeaves.has(id));
     const shown = visibleLeafIds.filter(id => checkedLeaves.has(id));
     api.setVisible(shown, true);
@@ -361,9 +408,9 @@ export default function ModelTree({
             disabled={!selected}
             onClick={() => {
               if (!api || !tree || !selected) return;
-              const node = findNode(tree, selected);
-              if (node) {
-                api.isolate(collectLeafIds(node));
+              const leaves = fullIndex.leavesOf.get(selected);
+              if (leaves) {
+                api.isolate(leaves);
                 syncFromScene();
               }
             }}
@@ -379,6 +426,7 @@ export default function ModelTree({
               selectable
               height={treeHeight}
               treeData={antdData}
+              titleRender={titleRender}
               checkedKeys={checkedKeys}
               expandedKeys={expandedKeys}
               selectedKeys={selected ? [selected] : []}

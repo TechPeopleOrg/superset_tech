@@ -254,3 +254,42 @@ test('the panel stacks above the other viewer overlays', () => {
   const wrap = screen.getByTestId('model-tree-wrap');
   expect(Number(getComputedStyle(wrap).zIndex)).toBeGreaterThan(10);
 });
+
+// Regression: push(...leaves) overflowed the argument limit on wide trees.
+test('a wide tree past the argument limit renders and isolates', async () => {
+  const LEAVES = 150000;
+  // One node must hand its parent a single array of >125k leaf ids.
+  const storey = {
+    id: 'storey-0',
+    name: 'Level 0',
+    type: 'IfcBuildingStorey',
+    children: Array.from({ length: LEAVES }, (_, i) => ({
+      id: `obj-${i}`,
+      name: `Beam ${i}`,
+      type: 'IfcBeam',
+      children: [],
+    })),
+  };
+  const wideTree: TreeNode[] = [
+    {
+      id: 'building',
+      name: 'Plant',
+      type: 'IfcBuilding',
+      children: [storey],
+    },
+  ];
+  const visibility: Record<string, boolean> = {};
+  for (let i = 0; i < LEAVES; i += 1) visibility[`obj-${i}`] = true;
+  const api = {
+    ...makeApi(),
+    getVisibility: jest.fn().mockReturnValue(visibility),
+  };
+
+  render(<ModelTree tree={wideTree} api={api} open onClose={jest.fn()} />);
+  expect(screen.getByText('Plant')).toBeInTheDocument();
+
+  // Isolate resolves the subtree through the same leaf index that overflowed.
+  await userEvent.click(screen.getByText('Plant'));
+  await userEvent.click(screen.getByRole('button', { name: /isolate/i }));
+  expect((api.isolate as jest.Mock).mock.calls[0][0]).toHaveLength(LEAVES);
+});
