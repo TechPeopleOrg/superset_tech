@@ -28,6 +28,8 @@ import NavCube, { type NavCubeHandle } from './NavCube';
 import { AREAS, cameraToCubeRotation } from './navCubeMath';
 import buildColorMapping, { hexToRgb01, idsOutsideRange } from './colorMapping';
 import ColorLegend from './ColorLegend';
+import ObjectProperties from './ObjectProperties';
+import { resolveRowForObject } from './objectInfo';
 import { BimChartProps } from './types';
 import {
   buildCrossFilterDataMask,
@@ -119,6 +121,7 @@ export default function BimChart(props: BimChartProps) {
     showTree,
     showLegend,
     showMatched,
+    showProperties,
   } = props;
   const containerRef = useRef<HTMLDivElement>(null);
   const theme = useTheme();
@@ -302,18 +305,23 @@ export default function BimChart(props: BimChartProps) {
   // handler (closed over once per api/ready/linkColumn combination) can read
   // the latest value for the toggle-off comparison without re-subscribing.
   const selectedRef = useRef<string | null>(null);
+  // The same selection as state, driving the properties panel.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // Outgoing: clicking an element emits a cross-filter (or, when
-  // cross-filtering is disabled, highlights locally instead). Single-select:
-  // clicking the currently-selected element or empty space clears it.
+  // cross-filtering is disabled, highlights locally instead) and records the
+  // selection for the properties panel. Single-select: clicking the
+  // currently-selected element or empty space clears it. Not gated on
+  // linkColumn — model metadata is worth showing without a data binding.
   useEffect(() => {
-    if (!api || !ready || !linkColumn) return undefined;
+    if (!api || !ready) return undefined;
     const unsubscribe = api.onPick(gid => {
       const next = gid && gid !== selectedRef.current ? gid : null;
       selectedRef.current = next;
-      if (emitCrossFilters) {
+      setSelectedId(next);
+      if (emitCrossFilters && linkColumn) {
         setDataMask(buildCrossFilterDataMask(linkColumn, next));
-      } else {
+      } else if (!emitCrossFilters) {
         // No round-trip through filterState in this mode: highlight locally.
         api.highlight(next ? [next] : []);
       }
@@ -365,6 +373,22 @@ export default function BimChart(props: BimChartProps) {
     // incomingKey encodes incomingIds by content; api/ready gate scene access.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [api, ready, incomingKey, staleDuringRefetch]);
+
+  // Model metadata for the selected element plus the dataset row it links to.
+  const selectedProperties = useMemo(() => {
+    if (!api || !ready || !selectedId) return undefined;
+    const info = api.getObjectInfo(selectedId);
+    if (!info) return undefined;
+    // path is root-first; ancestorIds is nearest-first.
+    const ancestorNames = [...info.path].reverse();
+    const { row, inheritedFrom } = resolveRowForObject(
+      rows,
+      linkColumn,
+      info,
+      ancestorNames,
+    );
+    return { info, row, inheritedFrom };
+  }, [api, ready, selectedId, rows, linkColumn]);
 
   // The model is kept mounted across re-fetches (a deliberate optimization for
   // the heavy 3D viewer — see the SuppressRefetchSpinner behavior). During a
@@ -428,6 +452,23 @@ export default function BimChart(props: BimChartProps) {
               return next;
             })
           }
+        />
+      )}
+      {showProperties && selectedProperties && (
+        <ObjectProperties
+          info={selectedProperties.info}
+          row={selectedProperties.row}
+          inheritedFrom={selectedProperties.inheritedFrom}
+          onClose={() => {
+            // Mirror a click on empty space.
+            selectedRef.current = null;
+            setSelectedId(null);
+            if (emitCrossFilters && linkColumn) {
+              setDataMask(buildCrossFilterDataMask(linkColumn, null));
+            } else if (!emitCrossFilters && api) {
+              api.highlight([]);
+            }
+          }}
         />
       )}
       {showMatched && matched && (

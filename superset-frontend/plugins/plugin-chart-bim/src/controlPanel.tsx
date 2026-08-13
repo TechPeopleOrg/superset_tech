@@ -234,6 +234,20 @@ const config: ControlPanelConfig = {
         ],
         [
           {
+            name: 'show_properties',
+            config: {
+              type: 'CheckboxControl',
+              label: t('Show element properties'),
+              description: t(
+                'Open a properties panel when an element is clicked, showing its model metadata and matching data row.',
+              ),
+              default: true,
+              renderTrigger: true,
+            },
+          },
+        ],
+        [
+          {
             name: 'show_matched',
             config: {
               type: 'CheckboxControl',

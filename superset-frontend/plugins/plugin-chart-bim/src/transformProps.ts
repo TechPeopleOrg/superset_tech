@@ -159,5 +159,6 @@ export default function transformProps(chartProps: ChartProps): BimChartProps {
     showTree: fd.showTree ?? fd.show_tree ?? true,
     showLegend: fd.showLegend ?? fd.show_legend ?? true,
     showMatched: fd.showMatched ?? fd.show_matched ?? true,
+    showProperties: fd.showProperties ?? fd.show_properties ?? true,
   };
 }

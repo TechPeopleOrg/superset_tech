@@ -46,6 +46,7 @@ const makeApi = (): XeokitApi => ({
   onPick: jest.fn(() => jest.fn()),
   highlight: jest.fn(),
   setHighlightColor: jest.fn(),
+  getObjectInfo: jest.fn(() => undefined),
   fit: jest.fn(),
   onCameraChange: jest.fn(() => jest.fn()),
   flyToDir: jest.fn(),

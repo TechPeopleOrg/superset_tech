@@ -62,6 +62,7 @@ export type BimFormData = QueryFormData &
     show_tree?: boolean;
     show_legend?: boolean;
     show_matched?: boolean;
+    show_properties?: boolean;
     contextMode?: 'faded' | 'opaque' | 'hidden';
     contextOpacity?: number;
     noDataColor?: string;
@@ -69,6 +70,7 @@ export type BimFormData = QueryFormData &
     showTree?: boolean;
     showLegend?: boolean;
     showMatched?: boolean;
+    showProperties?: boolean;
   };
 
 export type BimChartProps = BimStylesProps & {
@@ -126,6 +128,7 @@ export type BimChartProps = BimStylesProps & {
   showTree: boolean;
   showLegend: boolean;
   showMatched: boolean;
+  showProperties: boolean;
 };
 
 // A node in the model's IFC containment hierarchy, built from xeokit metadata.
@@ -136,6 +139,18 @@ export interface TreeNode {
   name: string;
   type: string;
   children: TreeNode[];
+}
+
+// What the model knows about an element, read from xeokit's metaScene. The
+// .xkt format carries no IFC property sets, so this is all of it.
+export interface ObjectInfo {
+  id: string;
+  name: string;
+  type: string;
+  // Ancestor display names, root-first, excluding the object itself.
+  path: string[];
+  // The same ancestors as ids, nearest-first — the order row lookup climbs in.
+  ancestorIds: string[];
 }
 
 // Imperative visibility controls over the live viewer. All xeokit access lives
@@ -172,6 +187,9 @@ export interface XeokitApi {
   highlight(objectIds: string[]): void;
   // Set the cross-filter highlight colour (#rrggbb hex).
   setHighlightColor(hex: string): void;
+  // Model-side metadata for an element (name, IFC type, containment path).
+  // Undefined when the id is not in the model's metadata.
+  getObjectInfo(id: string): ObjectInfo | undefined;
   // Frame the whole model in the viewport (fit to the current scene bounds).
   fit(): void;
   // Subscribe to camera movement. The callback receives the camera's eye, look

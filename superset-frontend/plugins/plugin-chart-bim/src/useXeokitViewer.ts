@@ -18,6 +18,7 @@
  */
 import { RefObject, useEffect, useRef, useState } from 'react';
 import buildTree, { MetaObjectLike } from './buildTree';
+import { buildAncestorIds, buildObjectPath } from './objectInfo';
 import { hexToRgb01 } from './colorMapping';
 import { TreeNode, XeokitApi } from './types';
 
@@ -184,6 +185,7 @@ export default function useXeokitViewer(
         };
         const metaScene2 = viewer.metaScene as unknown as {
           getObjectIDsInSubtree: (id: string) => string[];
+          metaObjects: Record<string, MetaObjectLike>;
         };
         // Expand a metaObject id to its geometry leaves. Shared by
         // api.expandToLeaves and api.highlight (kept as a standalone function,
@@ -285,6 +287,18 @@ export default function useXeokitViewer(
             });
           },
           setHighlightColor: applyHighlightColor,
+          getObjectInfo: id => {
+            const mObjects = metaScene2.metaObjects ?? {};
+            const mo = mObjects[id];
+            if (!mo) return undefined;
+            return {
+              id: mo.id,
+              name: mo.name || mo.id,
+              type: mo.type || '',
+              path: buildObjectPath(mObjects, id),
+              ancestorIds: buildAncestorIds(mObjects, id),
+            };
+          },
           onCameraChange: cb => {
             if (!viewer) return () => {};
             const cam = viewer.camera as unknown as {

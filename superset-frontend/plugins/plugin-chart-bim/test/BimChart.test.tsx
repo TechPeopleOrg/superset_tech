@@ -17,6 +17,7 @@
  * under the License.
  */
 import {
+  act,
   render,
   screen,
   waitFor,
@@ -44,6 +45,7 @@ const baseProps = (overrides: Partial<BimChartProps> = {}): BimChartProps => ({
   showTree: true,
   showLegend: true,
   showMatched: true,
+  showProperties: true,
   ...overrides,
 });
 
@@ -150,6 +152,7 @@ test('renders the model tree toggle once a model is present', () => {
       onPick: jest.fn(() => () => {}),
       highlight: jest.fn(),
       setHighlightColor: jest.fn(),
+      getObjectInfo: jest.fn(() => undefined),
       fit: jest.fn(),
       onCameraChange: jest.fn(() => () => {}),
       flyToDir: jest.fn(),
@@ -165,6 +168,29 @@ test('does not render the model tree when there is no model URL', () => {
   expect(screen.queryByTestId('bim-tree-toggle')).not.toBeInTheDocument();
 });
 
+// A two-level model: a storey containing a wall.
+const getObjectInfo = jest.fn((id: string) => {
+  if (id === 'wall') {
+    return {
+      id: 'wall',
+      name: 'Basic Wall',
+      type: 'IfcWall',
+      path: ['Project', 'Level 1'],
+      ancestorIds: ['storey', 'project'],
+    };
+  }
+  if (id === 'storey') {
+    return {
+      id: 'storey',
+      name: 'Level 1',
+      type: 'IfcBuildingStorey',
+      path: ['Project'],
+      ancestorIds: ['project'],
+    };
+  }
+  return undefined;
+});
+
 const paintingApi = {
   setVisible,
   isolate: jest.fn(),
@@ -178,6 +204,7 @@ const paintingApi = {
   onPick,
   highlight,
   setHighlightColor,
+  getObjectInfo,
   fit: jest.fn(),
   onCameraChange,
   flyToDir,
@@ -486,7 +513,9 @@ test('no legend and no painting when colorBy is absent', async () => {
       })}
     />,
   );
-  await waitFor(() => expect(screen.queryByTestId('bim-legend')).toBeNull());
+  await waitFor(() =>
+    expect(screen.queryByTestId('bim-legend')).not.toBeInTheDocument(),
+  );
   expect(colorize).not.toHaveBeenCalled();
 });
 
@@ -939,4 +968,210 @@ test('dimming a category emits no cross-filter', async () => {
   fireEvent.click(screen.getByTestId('bim-legend-item-Done'));
 
   expect(setDataMask).not.toHaveBeenCalled();
+});
+
+test('clicking an element opens the properties panel', async () => {
+  jest
+    .spyOn(viewerHook, 'default')
+    .mockReturnValue({ loading: false, api: paintingApi, ready: true });
+  render(
+    <BimChart
+      {...baseProps({
+        modelUrl: '/model',
+        rows: [{ gid: 'wall', status: 'Done' }],
+        linkColumn: 'gid',
+        colorBy: 'status',
+      })}
+    />,
+  );
+
+  expect(screen.queryByTestId('bim-object-properties')).not.toBeInTheDocument();
+
+  await waitFor(() => expect(capturedOnPick).toBeDefined());
+  act(() => capturedOnPick?.('wall'));
+
+  expect(
+    await screen.findByTestId('bim-object-properties'),
+  ).toBeInTheDocument();
+  expect(screen.getByTestId('bim-props-name')).toHaveTextContent('Basic Wall');
+  // Scoped to the panel: the legend renders the same value.
+  expect(screen.getByTestId('bim-props-value-status')).toHaveTextContent(
+    'Done',
+  );
+});
+
+test('clicking the selected element again closes the panel', async () => {
+  jest
+    .spyOn(viewerHook, 'default')
+    .mockReturnValue({ loading: false, api: paintingApi, ready: true });
+  render(
+    <BimChart {...baseProps({ modelUrl: '/model', linkColumn: 'gid' })} />,
+  );
+
+  await waitFor(() => expect(capturedOnPick).toBeDefined());
+  act(() => capturedOnPick?.('wall'));
+  expect(
+    await screen.findByTestId('bim-object-properties'),
+  ).toBeInTheDocument();
+
+  act(() => capturedOnPick?.('wall'));
+
+  await waitFor(() =>
+    expect(
+      screen.queryByTestId('bim-object-properties'),
+    ).not.toBeInTheDocument(),
+  );
+});
+
+test('the panel falls back to an ancestor row when the leaf has none', async () => {
+  const leafApi = {
+    ...paintingApi,
+    getObjectInfo: jest.fn(() => ({
+      id: 'leaf',
+      name: 'Wall body',
+      type: '',
+      path: ['Project', 'Level 1', 'Basic Wall'],
+      ancestorIds: ['wall', 'storey', 'project'],
+    })),
+  };
+  jest
+    .spyOn(viewerHook, 'default')
+    .mockReturnValue({ loading: false, api: leafApi, ready: true });
+  render(
+    <BimChart
+      {...baseProps({
+        modelUrl: '/model',
+        rows: [{ gid: 'wall', status: 'Done' }],
+        linkColumn: 'gid',
+        colorBy: 'status',
+      })}
+    />,
+  );
+
+  await waitFor(() => expect(capturedOnPick).toBeDefined());
+  act(() => capturedOnPick?.('leaf'));
+
+  expect(await screen.findByTestId('bim-props-inherited')).toHaveTextContent(
+    'Basic Wall',
+  );
+  expect(screen.getByTestId('bim-props-value-status')).toHaveTextContent(
+    'Done',
+  );
+});
+
+test('the panel reports when no data row matches the element', async () => {
+  jest
+    .spyOn(viewerHook, 'default')
+    .mockReturnValue({ loading: false, api: paintingApi, ready: true });
+  render(
+    <BimChart
+      {...baseProps({
+        modelUrl: '/model',
+        rows: [{ gid: 'elsewhere', status: 'Done' }],
+        linkColumn: 'gid',
+        colorBy: 'status',
+      })}
+    />,
+  );
+
+  await waitFor(() => expect(capturedOnPick).toBeDefined());
+  act(() => capturedOnPick?.('wall'));
+
+  expect(await screen.findByTestId('bim-props-no-data')).toBeInTheDocument();
+});
+
+test('opening the panel still emits the cross-filter', async () => {
+  const setDataMask = jest.fn();
+  jest
+    .spyOn(viewerHook, 'default')
+    .mockReturnValue({ loading: false, api: paintingApi, ready: true });
+  render(
+    <BimChart
+      {...baseProps({
+        modelUrl: '/model',
+        rows: [{ gid: 'wall', status: 'Done' }],
+        linkColumn: 'gid',
+        colorBy: 'status',
+        emitCrossFilters: true,
+        setDataMask,
+      })}
+    />,
+  );
+
+  await waitFor(() => expect(capturedOnPick).toBeDefined());
+  act(() => capturedOnPick?.('wall'));
+
+  expect(setDataMask).toHaveBeenCalledWith(
+    buildCrossFilterDataMask('gid', 'wall'),
+  );
+  expect(
+    await screen.findByTestId('bim-object-properties'),
+  ).toBeInTheDocument();
+});
+
+test('closing the panel clears the cross-filter', async () => {
+  const setDataMask = jest.fn();
+  jest
+    .spyOn(viewerHook, 'default')
+    .mockReturnValue({ loading: false, api: paintingApi, ready: true });
+  render(
+    <BimChart
+      {...baseProps({
+        modelUrl: '/model',
+        linkColumn: 'gid',
+        emitCrossFilters: true,
+        setDataMask,
+      })}
+    />,
+  );
+
+  await waitFor(() => expect(capturedOnPick).toBeDefined());
+  act(() => capturedOnPick?.('wall'));
+  await screen.findByTestId('bim-object-properties');
+  setDataMask.mockClear();
+
+  fireEvent.click(screen.getByTestId('bim-props-close'));
+
+  expect(setDataMask).toHaveBeenCalledWith(
+    buildCrossFilterDataMask('gid', null),
+  );
+});
+
+test('the panel opens without a data-bound link column', async () => {
+  jest
+    .spyOn(viewerHook, 'default')
+    .mockReturnValue({ loading: false, api: paintingApi, ready: true });
+  render(<BimChart {...baseProps({ modelUrl: '/model' })} />);
+
+  await waitFor(() => expect(capturedOnPick).toBeDefined());
+  act(() => capturedOnPick?.('wall'));
+
+  expect(
+    await screen.findByTestId('bim-object-properties'),
+  ).toBeInTheDocument();
+  expect(screen.getByTestId('bim-props-no-data')).toBeInTheDocument();
+});
+
+test('the panel is not rendered when the control is off', async () => {
+  jest
+    .spyOn(viewerHook, 'default')
+    .mockReturnValue({ loading: false, api: paintingApi, ready: true });
+  render(
+    <BimChart
+      {...baseProps({
+        modelUrl: '/model',
+        linkColumn: 'gid',
+        showProperties: false,
+      })}
+    />,
+  );
+
+  await waitFor(() => expect(capturedOnPick).toBeDefined());
+  act(() => capturedOnPick?.('wall'));
+
+  await waitFor(() =>
+    expect(
+      screen.queryByTestId('bim-object-properties'),
+    ).not.toBeInTheDocument(),
+  );
 });
