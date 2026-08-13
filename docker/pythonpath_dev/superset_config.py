@@ -109,6 +109,7 @@ FEATURE_FLAGS = {
     "ALERT_REPORTS": True,
     "DATASET_FOLDERS": True,
     "ENABLE_EXTENSIONS": True,
+    "FILTERBAR_CLOSED_BY_DEFAULT": True,
     "SEMANTIC_LAYERS": True,
 }
 EXTENSIONS_PATH = "/app/docker/extensions"
