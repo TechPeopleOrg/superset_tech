@@ -38,6 +38,10 @@ import {
 const Container = styled.div`
   position: relative;
   overflow: hidden;
+
+  .sk-fading-circle .sk-circle:before {
+    background-color: ${({ theme }) => theme.colorPrimary};
+  }
 `;
 
 const Center = styled.div`
