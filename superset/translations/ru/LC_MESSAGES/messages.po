@@ -18142,3 +18142,54 @@ msgstr "Файловое хранилище недоступно."
 
 msgid "Optional JSON mapping values to #rrggbb hex colors, overriding the automatic palette, e.g. {\"Done\":\"#00ff00\",\"Late\":\"#ff0000\"}. Colors must be hex (#rrggbb); CSS names like \"red\" are ignored. An array form [{\"value\",\"color\"}] is also accepted."
 msgstr "Необязательный JSON, сопоставляющий значениям цвета #rrggbb и переопределяющий автоматическую палитру, например {\"Done\":\"#00ff00\",\"Late\":\"#ff0000\"}. Цвета должны быть в hex (#rrggbb); названия CSS вроде \"red\" игнорируются. Также принимается форма массива [{\"value\",\"color\"}]."
+
+msgid "Files"
+msgstr "Файлы"
+
+msgid "Upload file"
+msgstr "Загрузка файла"
+
+msgid "Edit file"
+msgstr "Редактирование файла"
+
+msgid "Delete file"
+msgstr "Удалить файл"
+
+msgid "Open file"
+msgstr "Открыть файл"
+
+msgid "File name"
+msgstr "Имя файла"
+
+msgid "Folder"
+msgstr "Папка"
+
+msgid "Select a category"
+msgstr "Выберите категорию"
+
+msgid "Copy UUID"
+msgstr "Скопировать UUID"
+
+msgid "UUID copied to clipboard"
+msgstr "UUID скопирован в буфер обмена"
+
+msgid "Could not copy UUID"
+msgstr "Не удалось скопировать UUID"
+
+msgid "Preview: %s"
+msgstr "Предпросмотр: %s"
+
+msgid "This file type does not support preview (%s)."
+msgstr "Этот тип файла не поддерживает предпросмотр (%s)."
+
+msgid "unknown type"
+msgstr "неизвестный тип"
+
+msgid "Upload failed. Please check the file and category and try again."
+msgstr "Не удалось загрузить. Проверьте файл и категорию и повторите попытку."
+
+msgid "File storage is currently unavailable. Please try again later."
+msgstr "Файловое хранилище недоступно. Повторите попытку позже."
+
+msgid "You don't have permission to view this page."
+msgstr "У вас нет прав для просмотра этой страницы."
