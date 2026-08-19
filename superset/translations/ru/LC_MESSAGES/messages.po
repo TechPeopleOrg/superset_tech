@@ -17920,3 +17920,222 @@ msgstr "© Настройки слоя"
 
 msgid "№"
 msgstr ""
+
+msgid "BIM"
+msgstr "BIM"
+
+msgid "BIM Viewer"
+msgstr "BIM-просмотрщик"
+
+msgid "Renders a BIM model (.xkt) from file-storage using xeokit."
+msgstr "Отображает BIM-модель (.xkt) из файлового хранилища с помощью xeokit."
+
+msgid "Model source"
+msgstr "Источник модели"
+
+msgid "Data binding"
+msgstr "Привязка данных"
+
+msgid "Data coloring"
+msgstr "Окраска по данным"
+
+msgid "No-data elements"
+msgstr "Элементы без данных"
+
+msgid "Viewer"
+msgstr "Просмотрщик"
+
+msgid "Model column"
+msgstr "Столбец модели"
+
+msgid "Model UUID (manual)"
+msgstr "UUID модели (вручную)"
+
+msgid "Element GlobalId column"
+msgstr "Столбец GlobalId элемента"
+
+msgid "Color by column"
+msgstr "Окраска по столбцу"
+
+msgid "Coloring mode"
+msgstr "Режим окраски"
+
+msgid "Gradient scale"
+msgstr "Градиентная шкала"
+
+msgid "Gradient min (optional)"
+msgstr "Минимум градиента (необязательно)"
+
+msgid "Gradient max (optional)"
+msgstr "Максимум градиента (необязательно)"
+
+msgid "Color overrides (JSON)"
+msgstr "Переопределение цветов (JSON)"
+
+msgid "No-data color"
+msgstr "Цвет элементов без данных"
+
+msgid "No-data opacity"
+msgstr "Прозрачность элементов без данных"
+
+msgid "Highlight color"
+msgstr "Цвет подсветки"
+
+msgid "Show edges"
+msgstr "Показывать рёбра"
+
+msgid "Show model tree"
+msgstr "Показывать дерево модели"
+
+msgid "Show color legend"
+msgstr "Показывать легенду цветов"
+
+msgid "Show element properties"
+msgstr "Показывать свойства элемента"
+
+msgid "Show matched count"
+msgstr "Показывать число совпадений"
+
+msgid "Gradient (numeric)"
+msgstr "Градиент (числовой)"
+
+msgid "Semi-transparent"
+msgstr "Полупрозрачные"
+
+msgid "Solid grey"
+msgstr "Сплошной серый"
+
+msgid "Dataset column holding the model UUID (value of the first row is used)."
+msgstr "Столбец датасета с UUID модели (используется значение первой строки)."
+
+msgid "Paste a storage UUID to load a model directly, without a dataset. Overrides the model column."
+msgstr "Вставьте UUID из хранилища, чтобы загрузить модель напрямую, без датасета. Переопределяет столбец модели."
+
+msgid "Dataset column holding the element IFC GlobalId. Required for coloring."
+msgstr "Столбец датасета с IFC GlobalId элемента. Обязателен для окраски."
+
+msgid "Dataset column whose value drives element color. Leave empty for no coloring."
+msgstr "Столбец датасета, значение которого задаёт цвет элемента. Оставьте пустым, чтобы не окрашивать."
+
+msgid "Categorical maps each distinct value to a palette color (status, contractor, …). Gradient treats the column as numeric and shades it along a scale (% complete, cost, …)."
+msgstr "Категориальный режим сопоставляет каждому значению цвет палитры (статус, подрядчик, …). Градиент считает столбец числовым и растягивает цвет по шкале (% complete, стоимость, …)."
+
+msgid "Color ramp used for gradient coloring, low value to high."
+msgstr "Цветовая шкала для градиентной окраски, от меньшего значения к большему."
+
+msgid "Lower bound of the gradient scale. Leave empty to use the smallest value in the data."
+msgstr "Нижняя граница градиентной шкалы. Оставьте пустым, чтобы взять наименьшее значение из данных."
+
+msgid "Upper bound of the gradient scale. Leave empty to use the largest value in the data."
+msgstr "Верхняя граница градиентной шкалы. Оставьте пустым, чтобы взять наибольшее значение из данных."
+
+msgid "How to show elements that have no matching data row: fade them (see coloured elements through the context), keep them solid grey, or hide them entirely."
+msgstr "Как показывать элементы без подходящей строки данных: приглушить (окрашенные элементы видны сквозь контекст), оставить сплошным серым или скрыть полностью."
+
+msgid "Color for elements with no matching data (#rrggbb hex). Invalid values fall back to grey."
+msgstr "Цвет элементов без подходящих данных (#rrggbb). При неверном значении используется серый."
+
+msgid "Opacity of the semi-transparent no-data elements (only used when \\\"No-data elements\\\" is Semi-transparent)."
+msgstr "Прозрачность полупрозрачных элементов без данных (действует только при значении «Полупрозрачные»)."
+
+msgid "Color used to highlight elements selected by a cross-filter (#rrggbb hex)."
+msgstr "Цвет подсветки элементов, выбранных кросс-фильтром (#rrggbb)."
+
+msgid "Show the model tree panel toggle."
+msgstr "Показывать кнопку панели дерева модели."
+
+msgid "Show the data coloring legend overlay."
+msgstr "Показывать легенду окраски по данным."
+
+msgid "Open a properties panel when an element is clicked, showing its model metadata and matching data row."
+msgstr "Открывать панель свойств при клике по элементу с метаданными модели и подходящей строкой данных."
+
+msgid "Show the \\\"Matched M of N\\\" diagnostic in the corner."
+msgstr "Показывать в углу диагностику «Совпало M из N»."
+
+msgid "Model tree"
+msgstr "Дерево модели"
+
+msgid "Orbit"
+msgstr "Орбита"
+
+msgid "First person"
+msgstr "От первого лица"
+
+msgid "Fit to view"
+msgstr "Вписать в экран"
+
+msgid "Section"
+msgstr "Разрез"
+
+msgid "Section position"
+msgstr "Положение разреза"
+
+msgid "Reset section"
+msgstr "Сбросить разрез"
+
+msgid "Close section panel"
+msgstr "Закрыть панель разреза"
+
+msgid "Pick an axis to cut along."
+msgstr "Выберите ось разреза."
+
+msgid "Waiting for the model…"
+msgstr "Ожидание модели…"
+
+msgid "Flip"
+msgstr "Развернуть"
+
+msgid "Flip back"
+msgstr "Вернуть"
+
+msgid "Vertical cut across the model"
+msgstr "Вертикальный разрез поперёк модели"
+
+msgid "Horizontal cut by elevation"
+msgstr "Горизонтальный разрез по отметке"
+
+msgid "Front"
+msgstr "Спереди"
+
+msgid "Isolate"
+msgstr "Изолировать"
+
+msgid "Show all"
+msgstr "Показать все"
+
+msgid "Close element tree"
+msgstr "Закрыть дерево элементов"
+
+msgid "No element hierarchy available for this model."
+msgstr "Для этой модели иерархия элементов недоступна."
+
+msgid "Element"
+msgstr "Элемент"
+
+msgid "GlobalId"
+msgstr "GlobalId"
+
+msgid "Location"
+msgstr "Расположение"
+
+msgid "Close properties"
+msgstr "Закрыть свойства"
+
+msgid "Inherited from %s"
+msgstr "Унаследовано от %s"
+
+msgid "No data row matches this element."
+msgstr "Нет строки данных, подходящей этому элементу."
+
+msgid "Matched %s of %s"
+msgstr "Совпало %s из %s"
+
+msgid "Updating…"
+msgstr "Обновление…"
+
+msgid "Select a model column with a model UUID."
+msgstr "Выберите столбец модели с UUID модели."
+
+msgid "File storage is currently unavailable."
+msgstr "Файловое хранилище недоступно."
