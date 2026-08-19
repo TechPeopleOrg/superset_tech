@@ -18051,7 +18051,7 @@ msgid "Open a properties panel when an element is clicked, showing its model met
 msgstr "Открывать панель свойств при клике по элементу с метаданными модели и подходящей строкой данных."
 
 msgid "Show the \"Matched M of N\" diagnostic in the corner."
-msgstr "Показывать в углу диагностику «Совпало M из N»."
+msgstr "Показывать в углу диагностику «Связано M из N»."
 
 msgid "Model tree"
 msgstr "Дерево модели"
@@ -18129,7 +18129,7 @@ msgid "No data row matches this element."
 msgstr "Нет строки данных, подходящей этому элементу."
 
 msgid "Matched %s of %s"
-msgstr "Совпало %s из %s"
+msgstr "Связано %s из %s"
 
 msgid "Updating…"
 msgstr "Обновление…"
