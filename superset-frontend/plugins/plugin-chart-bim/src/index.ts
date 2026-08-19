@@ -36,6 +36,7 @@ const metadata = new ChartMetadata({
   category: t('BIM'),
   description: t('Renders a BIM model (.xkt) from file-storage using xeokit.'),
   name: t('BIM Viewer'),
+  suppressContextMenu: true,
   tags: [t('Business'), t('Featured')],
   thumbnail,
   thumbnailDark,
