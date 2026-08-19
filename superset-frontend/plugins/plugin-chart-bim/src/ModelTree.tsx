@@ -53,20 +53,28 @@ const Wrap = styled.div`
 
 const Panel = styled.div<{ open: boolean; width: number }>`
   position: absolute;
-  top: 0;
-  left: 0;
+  top: ${({ theme }) => theme.sizeUnit * 14}px;
+  left: ${({ theme }) => theme.sizeUnit * 2}px;
+  bottom: ${({ theme }) => theme.sizeUnit * 2}px;
   width: ${({ width }) => width}px;
-  height: 100%;
   display: flex;
   flex-direction: column;
   gap: ${({ theme }) => theme.sizeUnit}px;
   padding: ${({ theme }) => theme.sizeUnit * 2}px;
-  background: ${({ theme }) => theme.colorBgContainer};
-  border-right: 1px solid ${({ theme }) => theme.colorBorder};
+  background: ${({ theme }) => theme.colorBgElevated};
+  border: 1px solid ${({ theme }) => theme.colorBorderSecondary};
+  border-radius: ${({ theme }) => theme.borderRadius}px;
+  box-shadow: ${({ theme }) => theme.boxShadowSecondary};
   overflow: hidden;
-  pointer-events: auto;
-  transform: translateX(${({ open, width }) => (open ? '0' : `-${width}px`)});
-  transition: transform 200ms ease;
+  pointer-events: ${({ open }) => (open ? 'auto' : 'none')};
+  opacity: ${({ open }) => (open ? 1 : 0)};
+  transform: translateX(
+    ${({ open, theme, width }) =>
+      open ? '0' : `-${width + theme.sizeUnit * 3}px`}
+  );
+  transition:
+    transform 200ms ease,
+    opacity 200ms ease;
 `;
 
 // Draggable strip on the panel's right edge; drag to resize the panel width.

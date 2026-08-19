@@ -27,18 +27,28 @@ const PANEL_WIDTH = 280;
 // Right-hand counterpart to the model tree, which owns the left edge.
 const Panel = styled.div`
   position: absolute;
-  top: 0;
-  right: 0;
+  top: ${({ theme }) => theme.sizeUnit * 16}px;
+  right: ${({ theme }) => theme.sizeUnit * 2}px;
   width: ${PANEL_WIDTH}px;
-  height: 100%;
+  max-height: calc(100% - ${({ theme }) => theme.sizeUnit * 20}px);
   z-index: 20;
   display: flex;
   flex-direction: column;
   padding: ${({ theme }) => theme.sizeUnit * 2}px;
   gap: ${({ theme }) => theme.sizeUnit}px;
-  background: ${({ theme }) => theme.colorBgContainer};
-  border-left: 1px solid ${({ theme }) => theme.colorBorder};
+  background: ${({ theme }) => theme.colorBgElevated};
+  border: 1px solid ${({ theme }) => theme.colorBorderSecondary};
+  border-radius: ${({ theme }) => theme.borderRadius}px;
+  box-shadow: ${({ theme }) => theme.boxShadowSecondary};
   overflow: hidden;
+  animation: bim-props-in 160ms ease;
+
+  @keyframes bim-props-in {
+    from {
+      opacity: 0;
+      transform: translateX(${({ theme }) => theme.sizeUnit * 2}px);
+    }
+  }
 `;
 
 const Header = styled.div`
