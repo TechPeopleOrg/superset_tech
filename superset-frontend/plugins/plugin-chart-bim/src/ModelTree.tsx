@@ -98,7 +98,7 @@ const Header = styled.div`
   align-items: stretch;
   gap: ${({ theme }) => theme.sizeUnit}px;
 
-  button {
+  > button {
     height: auto;
     align-self: stretch;
   }
@@ -106,10 +106,18 @@ const Header = styled.div`
 
 const Controls = styled.div`
   display: flex;
-  gap: ${({ theme }) => theme.sizeUnit}px;
+  gap: ${({ theme }) => theme.sizeUnit * 2}px;
   margin-top: ${({ theme }) => theme.sizeUnit}px;
-  padding-bottom: ${({ theme }) => theme.sizeUnit}px;
+  padding-bottom: ${({ theme }) => theme.sizeUnit * 2}px;
   border-bottom: 1px solid ${({ theme }) => theme.colorBorderSecondary};
+
+  > button {
+    flex: 1;
+    height: ${({ theme }) => theme.sizeUnit * 7}px;
+    padding: 0 ${({ theme }) => theme.sizeUnit * 2}px;
+    font-size: ${({ theme }) => theme.fontSizeSM}px;
+    border-radius: ${({ theme }) => theme.borderRadius}px;
+  }
 `;
 
 // Leftover space below the header; min-height:0 lets it shrink below content.
@@ -400,7 +408,7 @@ export default function ModelTree({
         </Header>
         <Controls>
           <Button
-            buttonSize="xsmall"
+            buttonSize="small"
             buttonStyle="tertiary"
             disabled={!api}
             onClick={() => {
@@ -411,7 +419,7 @@ export default function ModelTree({
             {t('Show all')}
           </Button>
           <Button
-            buttonSize="xsmall"
+            buttonSize="small"
             buttonStyle="tertiary"
             disabled={!selected}
             onClick={() => {
