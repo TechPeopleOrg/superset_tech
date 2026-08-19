@@ -113,9 +113,10 @@ const Controls = styled.div`
 
   > button {
     flex: 1;
-    height: ${({ theme }) => theme.sizeUnit * 7}px;
+    height: ${({ theme }) => theme.controlHeight}px;
     padding: 0 ${({ theme }) => theme.sizeUnit * 2}px;
-    font-size: ${({ theme }) => theme.fontSizeSM}px;
+    font-size: ${({ theme }) => theme.fontSize}px;
+    line-height: ${({ theme }) => theme.lineHeight};
     border-radius: ${({ theme }) => theme.borderRadius}px;
   }
 `;
@@ -408,7 +409,6 @@ export default function ModelTree({
         </Header>
         <Controls>
           <Button
-            buttonSize="small"
             buttonStyle="tertiary"
             disabled={!api}
             onClick={() => {
@@ -419,7 +419,6 @@ export default function ModelTree({
             {t('Show all')}
           </Button>
           <Button
-            buttonSize="small"
             buttonStyle="tertiary"
             disabled={!selected}
             onClick={() => {
