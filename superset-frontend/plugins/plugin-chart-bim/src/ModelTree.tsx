@@ -53,7 +53,7 @@ const Wrap = styled.div`
 
 const Panel = styled.div<{ open: boolean; width: number }>`
   position: absolute;
-  top: ${({ theme }) => theme.sizeUnit * 14}px;
+  top: ${({ theme }) => theme.sizeUnit * 2}px;
   left: ${({ theme }) => theme.sizeUnit * 2}px;
   bottom: ${({ theme }) => theme.sizeUnit * 2}px;
   width: ${({ width }) => width}px;
