@@ -56,3 +56,42 @@ test('clicking fit calls onFit', async () => {
   await userEvent.click(screen.getByTestId('bim-fit'));
   expect(onFit).toHaveBeenCalledTimes(1);
 });
+
+test('hides the section toggle when no handler is given', () => {
+  setup();
+  expect(screen.queryByTestId('bim-section-toggle')).not.toBeInTheDocument();
+});
+
+test('the section toggle reports clicks and reflects the open panel', async () => {
+  const onToggleSection = jest.fn();
+  render(
+    <ViewerControls
+      navMode="orbit"
+      onNavModeChange={jest.fn()}
+      onFit={jest.fn()}
+      sectionOpen
+      onToggleSection={onToggleSection}
+    />,
+  );
+  const toggle = screen.getByTestId('bim-section-toggle');
+  expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  await userEvent.click(toggle);
+  expect(onToggleSection).toHaveBeenCalled();
+});
+
+test('a live section keeps the toggle unpressed while the panel is closed', () => {
+  render(
+    <ViewerControls
+      navMode="orbit"
+      onNavModeChange={jest.fn()}
+      onFit={jest.fn()}
+      sectionOpen={false}
+      sectionActive
+      onToggleSection={jest.fn()}
+    />,
+  );
+  expect(screen.getByTestId('bim-section-toggle')).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
+});

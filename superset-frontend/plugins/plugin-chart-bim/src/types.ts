@@ -153,6 +153,14 @@ export interface ObjectInfo {
   ancestorIds: string[];
 }
 
+export type SectionAxis = 'x' | 'y';
+
+export interface ModelBounds {
+  x: [number, number];
+  y: [number, number];
+  z: [number, number];
+}
+
 // Imperative visibility controls over the live viewer. All xeokit access lives
 // behind this interface so the tree UI stays engine-agnostic.
 export interface XeokitApi {
@@ -196,6 +204,9 @@ export interface XeokitApi {
   // and up vectors, and fires on every change (including each frame of a drag).
   // Returns an unsubscribe function that removes the listener.
   onCameraChange(cb: (eye: Vec3, look: Vec3, up: Vec3) => void): () => void;
+  setSectionPlane(axis: SectionAxis, position: number, flipped: boolean): void;
+  clearSectionPlane(): void;
+  getModelBounds(): ModelBounds | undefined;
   // Fly the camera to view the model from `dir` (a unit vector pointing from
   // the model's centre toward the eye), with `up` as the camera's up vector.
   // Frames the whole model, like fit().

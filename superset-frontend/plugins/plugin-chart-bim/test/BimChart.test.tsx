@@ -23,6 +23,7 @@ import {
   waitFor,
   fireEvent,
 } from 'spec/helpers/testing-library';
+import userEvent from '@testing-library/user-event';
 import { DataMask } from '@superset-ui/core';
 import BimChart from '../src/BimChart';
 import * as viewerHook from '../src/useXeokitViewer';
@@ -67,6 +68,13 @@ const onPick = jest.fn((cb: (gid: string | null) => void) => {
   return jest.fn();
 });
 const flyToDir = jest.fn();
+const setSectionPlane = jest.fn();
+const clearSectionPlane = jest.fn();
+const getModelBounds = jest.fn(() => ({
+  x: [0, 10] as [number, number],
+  y: [0, 20] as [number, number],
+  z: [0, 30] as [number, number],
+}));
 // Captures the camera callback (and the unsubscribe) so tests can drive camera
 // movement directly and assert the subscription is cleaned up.
 let capturedOnCameraChange:
@@ -92,6 +100,9 @@ beforeEach(() => {
   onPick.mockClear();
   capturedOnPick = undefined;
   flyToDir.mockClear();
+  setSectionPlane.mockClear();
+  clearSectionPlane.mockClear();
+  getModelBounds.mockClear();
   onCameraChange.mockClear();
   unsubscribeCamera.mockClear();
   capturedOnCameraChange = undefined;
@@ -156,6 +167,13 @@ test('renders the model tree toggle once a model is present', () => {
       fit: jest.fn(),
       onCameraChange: jest.fn(() => () => {}),
       flyToDir: jest.fn(),
+      setSectionPlane: jest.fn(),
+      clearSectionPlane: jest.fn(),
+      getModelBounds: jest.fn(() => ({
+        x: [0, 10] as [number, number],
+        y: [0, 20] as [number, number],
+        z: [0, 30] as [number, number],
+      })),
     },
   });
   render(<BimChart {...baseProps()} />);
@@ -208,6 +226,9 @@ const paintingApi = {
   fit: jest.fn(),
   onCameraChange,
   flyToDir,
+  setSectionPlane,
+  clearSectionPlane,
+  getModelBounds,
 };
 
 test('paints neutral base then colored matches, in order', async () => {
@@ -1173,5 +1194,100 @@ test('the panel is not rendered when the control is off', async () => {
     expect(
       screen.queryByTestId('bim-object-properties'),
     ).not.toBeInTheDocument(),
+  );
+});
+
+const mockViewer = () =>
+  jest.spyOn(viewerHook, 'default').mockReturnValue({
+    loading: false,
+    tree: undefined,
+    error: undefined,
+    api: paintingApi,
+    ready: true,
+  });
+
+test('the section panel opens from the toolbar and starts with no cut', async () => {
+  mockViewer();
+  render(<BimChart {...baseProps({ modelUrl: '/model' })} />);
+  expect(screen.queryByTestId('bim-section-panel')).not.toBeInTheDocument();
+  await userEvent.click(screen.getByTestId('bim-section-toggle'));
+  expect(screen.getByTestId('bim-section-panel')).toBeInTheDocument();
+  expect(setSectionPlane).not.toHaveBeenCalled();
+});
+
+test('choosing an axis leaves the model uncut', async () => {
+  mockViewer();
+  render(<BimChart {...baseProps({ modelUrl: '/model' })} />);
+  await userEvent.click(screen.getByTestId('bim-section-toggle'));
+  await userEvent.click(screen.getByTestId('bim-section-axis-y'));
+  await waitFor(() =>
+    expect(setSectionPlane).toHaveBeenCalledWith('y', 20, false),
+  );
+});
+
+test('flipping inverts the clipped side without moving the plane', async () => {
+  mockViewer();
+  render(<BimChart {...baseProps({ modelUrl: '/model' })} />);
+  await userEvent.click(screen.getByTestId('bim-section-toggle'));
+  await userEvent.click(screen.getByTestId('bim-section-axis-y'));
+  await waitFor(() => expect(setSectionPlane).toHaveBeenCalled());
+  await userEvent.click(screen.getByTestId('bim-section-flip'));
+  await waitFor(() =>
+    expect(setSectionPlane).toHaveBeenLastCalledWith('y', 20, true),
+  );
+});
+
+test('switching the axis off restores the uncut model', async () => {
+  mockViewer();
+  render(<BimChart {...baseProps({ modelUrl: '/model' })} />);
+  await userEvent.click(screen.getByTestId('bim-section-toggle'));
+  await userEvent.click(screen.getByTestId('bim-section-axis-y'));
+  await waitFor(() => expect(setSectionPlane).toHaveBeenCalled());
+  await userEvent.click(screen.getByTestId('bim-section-axis-y'));
+  await waitFor(() => expect(clearSectionPlane).toHaveBeenCalled());
+});
+
+test('closing the panel keeps the cut live', async () => {
+  mockViewer();
+  render(<BimChart {...baseProps({ modelUrl: '/model' })} />);
+  await userEvent.click(screen.getByTestId('bim-section-toggle'));
+  await userEvent.click(screen.getByTestId('bim-section-axis-y'));
+  await waitFor(() => expect(setSectionPlane).toHaveBeenCalled());
+  clearSectionPlane.mockClear();
+  await userEvent.click(screen.getByTestId('bim-section-close'));
+  expect(screen.queryByTestId('bim-section-panel')).not.toBeInTheDocument();
+  expect(clearSectionPlane).not.toHaveBeenCalled();
+});
+
+test('reset restores the whole model and clears the flip', async () => {
+  mockViewer();
+  render(<BimChart {...baseProps({ modelUrl: '/model' })} />);
+  await userEvent.click(screen.getByTestId('bim-section-toggle'));
+  await userEvent.click(screen.getByTestId('bim-section-axis-y'));
+  await waitFor(() => expect(setSectionPlane).toHaveBeenCalled());
+  await userEvent.click(screen.getByTestId('bim-section-flip'));
+  await waitFor(() =>
+    expect(setSectionPlane).toHaveBeenLastCalledWith('y', 20, true),
+  );
+  await userEvent.click(screen.getByTestId('bim-section-reset'));
+  await waitFor(() =>
+    expect(setSectionPlane).toHaveBeenLastCalledWith('y', 20, false),
+  );
+  expect(clearSectionPlane).not.toHaveBeenCalled();
+});
+
+test('reset brings a moved plane back without dropping the axis', async () => {
+  mockViewer();
+  render(<BimChart {...baseProps({ modelUrl: '/model' })} />);
+  await userEvent.click(screen.getByTestId('bim-section-toggle'));
+  await userEvent.click(screen.getByTestId('bim-section-axis-x'));
+  await waitFor(() => expect(setSectionPlane).toHaveBeenCalled());
+  await userEvent.click(screen.getByTestId('bim-section-flip'));
+  await waitFor(() =>
+    expect(setSectionPlane).toHaveBeenLastCalledWith('x', 10, true),
+  );
+  await userEvent.click(screen.getByTestId('bim-section-reset'));
+  await waitFor(() =>
+    expect(setSectionPlane).toHaveBeenLastCalledWith('x', 10, false),
   );
 });

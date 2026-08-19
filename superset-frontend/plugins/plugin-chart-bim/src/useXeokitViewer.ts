@@ -20,7 +20,7 @@ import { RefObject, useEffect, useRef, useState } from 'react';
 import buildTree, { MetaObjectLike } from './buildTree';
 import { buildAncestorIds, buildObjectPath } from './objectInfo';
 import { hexToRgb01 } from './colorMapping';
-import { TreeNode, XeokitApi } from './types';
+import { ModelBounds, TreeNode, XeokitApi } from './types';
 
 export type NavMode = 'orbit' | 'firstPerson' | 'planView';
 
@@ -109,7 +109,8 @@ export default function useXeokitViewer(
         canvas.style.height = '100%';
         node.appendChild(canvas);
 
-        const { Viewer, XKTLoaderPlugin } = await import('@xeokit/xeokit-sdk');
+        const { Viewer, XKTLoaderPlugin, SectionPlanesPlugin } =
+          await import('@xeokit/xeokit-sdk');
         if (cancelled) return;
 
         viewer = new Viewer({ canvasElement: canvas, transparent: false });
@@ -195,6 +196,9 @@ export default function useXeokitViewer(
           metaScene2
             .getObjectIDsInSubtree(id)
             .filter(oid => !!scene.objects[oid]);
+        const sectionPlanes = new SectionPlanesPlugin(viewer);
+        let sectionPlaneId: string | null = null;
+
         // Tracks the geometry leaf ids currently highlighted so api.highlight
         // can clear exactly those before applying a new selection.
         const highlightedIds = new Set<string>();
@@ -331,6 +335,65 @@ export default function useXeokitViewer(
                 // camera already destroyed with the viewer; nothing to detach.
               }
             };
+          },
+          setSectionPlane: (axis, position, flipped) => {
+            if (!viewer) return;
+            try {
+              const sign = flipped ? 1 : -1;
+              const dir: [number, number, number] = [
+                axis === 'x' ? sign : 0,
+                axis === 'y' ? sign : 0,
+                0,
+              ];
+              const { aabb } = viewer.scene;
+              const centre: [number, number, number] = [
+                (aabb[0] + aabb[3]) / 2,
+                (aabb[1] + aabb[4]) / 2,
+                (aabb[2] + aabb[5]) / 2,
+              ];
+              const pos: [number, number, number] = [
+                axis === 'x' ? position : centre[0],
+                axis === 'y' ? position : centre[1],
+                centre[2],
+              ];
+              const existing = sectionPlaneId
+                ? sectionPlanes.sectionPlanes[sectionPlaneId]
+                : undefined;
+              if (existing) {
+                existing.pos = pos;
+                existing.dir = dir;
+                existing.active = true;
+                return;
+              }
+              const plane = sectionPlanes.createSectionPlane({ pos, dir });
+              sectionPlaneId = plane.id as string;
+            } catch {
+              // scene not ready; ignore.
+            }
+          },
+          clearSectionPlane: () => {
+            if (!sectionPlaneId) return;
+            try {
+              sectionPlanes.destroySectionPlane(sectionPlaneId);
+            } catch {
+              // plane already gone with the viewer; ignore.
+            }
+            sectionPlaneId = null;
+          },
+          getModelBounds: () => {
+            if (!viewer) return undefined;
+            try {
+              const { aabb } = viewer.scene;
+              if (!aabb || aabb[3] - aabb[0] === 0) return undefined;
+              const bounds: ModelBounds = {
+                x: [aabb[0], aabb[3]],
+                y: [aabb[1], aabb[4]],
+                z: [aabb[2], aabb[5]],
+              };
+              return bounds;
+            } catch {
+              return undefined;
+            }
           },
           flyToDir: (dir, up) => {
             if (!viewer) return;

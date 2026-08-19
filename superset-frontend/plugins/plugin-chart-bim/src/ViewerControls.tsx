@@ -33,6 +33,9 @@ export interface ViewerControlsProps {
   treeOpen?: boolean;
   // Called when the tree toggle is clicked. When omitted, the toggle is hidden.
   onToggleTree?: () => void;
+  sectionOpen?: boolean;
+  sectionActive?: boolean;
+  onToggleSection?: () => void;
 }
 
 // A floating toolbar pinned to the top-center of the viewer, above the scene.
@@ -109,6 +112,9 @@ export default function ViewerControls({
   onFit,
   treeOpen,
   onToggleTree,
+  sectionOpen,
+  sectionActive,
+  onToggleSection,
 }: ViewerControlsProps) {
   return (
     <Bar data-test="bim-viewer-controls">
@@ -164,6 +170,23 @@ export default function ViewerControls({
           <Icons.FullscreenOutlined />
         </IconButton>
       </Tooltip>
+      {onToggleSection && (
+        <>
+          <Divider />
+          <Tooltip title={t('Section')}>
+            <IconButton
+              type="button"
+              active={sectionOpen || sectionActive}
+              aria-pressed={!!sectionOpen}
+              aria-label={t('Section')}
+              data-test="bim-section-toggle"
+              onClick={onToggleSection}
+            >
+              <Icons.ColumnHeightOutlined />
+            </IconButton>
+          </Tooltip>
+        </>
+      )}
     </Bar>
   );
 }

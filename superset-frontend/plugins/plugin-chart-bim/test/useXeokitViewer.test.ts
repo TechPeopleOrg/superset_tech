@@ -57,6 +57,18 @@ const mockSceneInput = {
 // destroy test). Prefixed `mock` so jest.mock's factory may reference it.
 const mockSceneHolder: { scene?: { input: unknown } } = {};
 
+type MockPlane = {
+  id: string;
+  pos: number[];
+  dir: number[];
+  active: boolean;
+};
+const mockSectionHolder: {
+  plugin?: { sectionPlanes: Record<string, unknown> };
+  created: MockPlane[];
+  destroyed: string[];
+} = { created: [], destroyed: [] };
+
 jest.mock('@xeokit/xeokit-sdk', () => {
   const scene = {
     objects,
@@ -99,6 +111,23 @@ jest.mock('@xeokit/xeokit-sdk', () => {
         destroy: jest.fn(),
       })),
     })),
+    SectionPlanesPlugin: jest.fn().mockImplementation(() => {
+      const plugin = {
+        sectionPlanes: {} as Record<string, unknown>,
+        createSectionPlane: (params: { pos: number[]; dir: number[] }) => {
+          const plane = { id: 'section-plane', ...params, active: true };
+          plugin.sectionPlanes['section-plane'] = plane;
+          mockSectionHolder.created.push(plane);
+          return plane;
+        },
+        destroySectionPlane: (id: string) => {
+          delete plugin.sectionPlanes[id];
+          mockSectionHolder.destroyed.push(id);
+        },
+      };
+      mockSectionHolder.plugin = plugin;
+      return plugin;
+    }),
     NavCubePlugin: jest.fn().mockImplementation(() => ({ destroy: jest.fn() })),
   };
 });
@@ -310,4 +339,77 @@ test('api.highlight sets highlighted on leaves and clears previous highlight', a
   act(() => result.current.api!.highlight([]));
   expect(objects.wall.highlighted).toBe(false);
   expect(objects.door.highlighted).toBe(false);
+});
+
+test('setSectionPlane creates one plane positioned along the chosen axis', async () => {
+  mockSectionHolder.created.length = 0;
+  const { result } = renderViewer();
+  await waitFor(() => expect(result.current.api).toBeDefined());
+  act(() => result.current.api!.setSectionPlane('y', 0.25, false));
+  expect(mockSectionHolder.created).toHaveLength(1);
+  const [plane] = mockSectionHolder.created;
+  expect(plane.pos).toEqual([0.5, 0.25, 0.5]);
+  expect(plane.dir).toEqual([0, -1, 0]);
+});
+
+test('flipping inverts the plane normal', async () => {
+  mockSectionHolder.created.length = 0;
+  const { result } = renderViewer();
+  await waitFor(() => expect(result.current.api).toBeDefined());
+  act(() => result.current.api!.setSectionPlane('y', 0.25, true));
+  expect(mockSectionHolder.created[0].dir).toEqual([0, 1, 0]);
+});
+
+test('moving the plane reuses it rather than creating a second one', async () => {
+  mockSectionHolder.created.length = 0;
+  const { result } = renderViewer();
+  await waitFor(() => expect(result.current.api).toBeDefined());
+  act(() => result.current.api!.setSectionPlane('y', 0.25, false));
+  act(() => result.current.api!.setSectionPlane('y', 0.75, false));
+  expect(mockSectionHolder.created).toHaveLength(1);
+  expect(mockSectionHolder.created[0].pos).toEqual([0.5, 0.75, 0.5]);
+});
+
+test('switching axis re-aims the same plane', async () => {
+  mockSectionHolder.created.length = 0;
+  const { result } = renderViewer();
+  await waitFor(() => expect(result.current.api).toBeDefined());
+  act(() => result.current.api!.setSectionPlane('y', 0.5, false));
+  act(() => result.current.api!.setSectionPlane('x', 0.2, false));
+  expect(mockSectionHolder.created).toHaveLength(1);
+  expect(mockSectionHolder.created[0].dir).toEqual([-1, 0, 0]);
+  expect(mockSectionHolder.created[0].pos).toEqual([0.2, 0.5, 0.5]);
+});
+
+test('clearSectionPlane destroys the plane and is safe to repeat', async () => {
+  mockSectionHolder.created.length = 0;
+  mockSectionHolder.destroyed.length = 0;
+  const { result } = renderViewer();
+  await waitFor(() => expect(result.current.api).toBeDefined());
+  act(() => result.current.api!.setSectionPlane('y', 0.5, false));
+  act(() => result.current.api!.clearSectionPlane());
+  expect(mockSectionHolder.destroyed).toEqual(['section-plane']);
+  act(() => result.current.api!.clearSectionPlane());
+  expect(mockSectionHolder.destroyed).toEqual(['section-plane']);
+});
+
+test('a cleared section can be re-created', async () => {
+  mockSectionHolder.created.length = 0;
+  const { result } = renderViewer();
+  await waitFor(() => expect(result.current.api).toBeDefined());
+  act(() => result.current.api!.setSectionPlane('y', 0.5, false));
+  act(() => result.current.api!.clearSectionPlane());
+  act(() => result.current.api!.setSectionPlane('x', 0.3, false));
+  expect(mockSectionHolder.created).toHaveLength(2);
+  expect(mockSectionHolder.created[1].dir).toEqual([-1, 0, 0]);
+});
+
+test('getModelBounds reports the scene bounds per axis', async () => {
+  const { result } = renderViewer();
+  await waitFor(() => expect(result.current.api).toBeDefined());
+  expect(result.current.api!.getModelBounds()).toEqual({
+    x: [0, 1],
+    y: [0, 1],
+    z: [0, 1],
+  });
 });

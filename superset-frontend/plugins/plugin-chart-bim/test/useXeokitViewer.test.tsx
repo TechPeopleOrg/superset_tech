@@ -49,6 +49,11 @@ jest.mock('@xeokit/xeokit-sdk', () => ({
       return { destroy: mockDestroyModel, on: jest.fn() };
     },
   })),
+  SectionPlanesPlugin: jest.fn().mockImplementation(() => ({
+    sectionPlanes: {} as Record<string, unknown>,
+    createSectionPlane: jest.fn(() => ({ id: 'section-plane' })),
+    destroySectionPlane: jest.fn(),
+  })),
   NavCubePlugin: jest.fn().mockImplementation(() => ({ destroy: jest.fn() })),
 }));
 
@@ -90,14 +95,9 @@ test('destroys the viewer on unmount', async () => {
 
 test('applies the initial navMode to the live cameraControl', async () => {
   render(
-    <Harness
-      url="/fileuploader/api/files/abc/content"
-      navMode="firstPerson"
-    />,
+    <Harness url="/fileuploader/api/files/abc/content" navMode="firstPerson" />,
   );
-  await waitFor(() =>
-    expect(mockCameraControl.navMode).toBe('firstPerson'),
-  );
+  await waitFor(() => expect(mockCameraControl.navMode).toBe('firstPerson'));
   expect(mockCameraControl.followPointer).toBe(false);
 });
 
@@ -113,9 +113,7 @@ test('switching navMode updates the live viewer without rebuilding it', async ()
   rerender(
     <Harness url="/fileuploader/api/files/abc/content" navMode="firstPerson" />,
   );
-  await waitFor(() =>
-    expect(mockCameraControl.navMode).toBe('firstPerson'),
-  );
+  await waitFor(() => expect(mockCameraControl.navMode).toBe('firstPerson'));
   expect(mockCameraControl.followPointer).toBe(false);
   // No new Viewer was constructed: the mode switched on the live viewer.
   expect((Viewer as unknown as jest.Mock).mock.calls.length).toBe(

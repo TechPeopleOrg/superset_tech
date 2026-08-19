@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { t } from '@apache-superset/core/translation';
 import { styled, useTheme, isThemeDark } from '@apache-superset/core/theme';
 import { Alert } from '@apache-superset/core/components';
@@ -24,13 +24,14 @@ import { Button, Loading } from '@superset-ui/core/components';
 import useXeokitViewer, { type NavMode } from './useXeokitViewer';
 import ModelTree from './ModelTree';
 import ViewerControls from './ViewerControls';
+import SectionPanel from './SectionPanel';
 import NavCube, { type NavCubeHandle } from './NavCube';
 import { AREAS, cameraToCubeRotation } from './navCubeMath';
 import buildColorMapping, { hexToRgb01, idsOutsideRange } from './colorMapping';
 import ColorLegend from './ColorLegend';
 import ObjectProperties from './ObjectProperties';
 import { resolveRowForObject } from './objectInfo';
-import { BimChartProps } from './types';
+import { BimChartProps, ModelBounds, SectionAxis } from './types';
 import {
   buildCrossFilterDataMask,
   selectedGlobalIdsFromFilterState,
@@ -135,6 +136,13 @@ export default function BimChart(props: BimChartProps) {
   // tree starts closed. Only meaningful when the chart enables the tree
   // (showTree) and a model is loaded.
   const [treeOpen, setTreeOpen] = useState(false);
+  // Section state is viewer-local, like navMode and treeOpen: a section is a
+  // way of looking at the model, not a saved property of the chart.
+  const [sectionOpen, setSectionOpen] = useState(false);
+  const [sectionAxis, setSectionAxis] = useState<SectionAxis | null>(null);
+  const [sectionPos, setSectionPos] = useState(0);
+  const [sectionFlipped, setSectionFlipped] = useState(false);
+  const [modelBounds, setModelBounds] = useState<ModelBounds | undefined>();
 
   const { loading, error, tree, api, ready } = useXeokitViewer(containerRef, {
     modelUrl: modelUrl ? `${modelUrl}#${retryKey}` : '',
@@ -279,6 +287,48 @@ export default function BimChart(props: BimChartProps) {
     gradientRange,
   ]);
 
+  useEffect(() => {
+    if (!api || !ready) {
+      setModelBounds(undefined);
+      return;
+    }
+    setModelBounds(api.getModelBounds());
+  }, [api, ready]);
+
+  const sectionRestPos = useCallback(
+    (axis: SectionAxis, flip: boolean) => {
+      if (!modelBounds) return 0;
+      const [min, max] = modelBounds[axis];
+      return flip ? min : max;
+    },
+    [modelBounds],
+  );
+
+  useEffect(() => {
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler
+    if (!sectionAxis || !modelBounds) return;
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-chain-state-updates
+    setSectionPos(sectionRestPos(sectionAxis, sectionFlipped));
+    // sectionFlipped omitted: flipping inverts the cut in place.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sectionAxis, modelBounds, sectionRestPos]);
+
+  const sectionLiveRef = useRef(false);
+
+  useEffect(() => {
+    if (!api || !ready) return;
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler
+    if (!sectionAxis) {
+      if (sectionLiveRef.current) {
+        api.clearSectionPlane();
+        sectionLiveRef.current = false;
+      }
+      return;
+    }
+    api.setSectionPlane(sectionAxis, sectionPos, sectionFlipped);
+    sectionLiveRef.current = true;
+  }, [api, ready, sectionAxis, sectionPos, sectionFlipped]);
+
   // Apply the highlight colour from the control whenever it changes, without
   // recreating the (heavy) viewer.
   useEffect(() => {
@@ -413,6 +463,9 @@ export default function BimChart(props: BimChartProps) {
           onFit={() => api.fit()}
           treeOpen={showTree ? treeOpen : undefined}
           onToggleTree={showTree ? () => setTreeOpen(o => !o) : undefined}
+          sectionOpen={sectionOpen}
+          sectionActive={!!sectionAxis}
+          onToggleSection={() => setSectionOpen(o => !o)}
         />
       )}
       {modelUrl && !loading && !error && api && (
@@ -422,6 +475,22 @@ export default function BimChart(props: BimChartProps) {
             const area = AREAS[areaId];
             if (area) api.flyToDir(area.dir, area.up);
           }}
+        />
+      )}
+      {sectionOpen && modelUrl && !loading && !error && api && (
+        <SectionPanel
+          bounds={modelBounds}
+          axis={sectionAxis}
+          position={sectionPos}
+          flipped={sectionFlipped}
+          onAxisChange={setSectionAxis}
+          onPositionChange={setSectionPos}
+          onFlip={() => setSectionFlipped(f => !f)}
+          onReset={() => {
+            setSectionFlipped(false);
+            if (sectionAxis) setSectionPos(sectionRestPos(sectionAxis, false));
+          }}
+          onClose={() => setSectionOpen(false)}
         />
       )}
       {refreshing && (

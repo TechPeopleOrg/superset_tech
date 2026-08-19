@@ -50,6 +50,9 @@ const makeApi = (): XeokitApi => ({
   fit: jest.fn(),
   onCameraChange: jest.fn(() => jest.fn()),
   flyToDir: jest.fn(),
+  setSectionPlane: jest.fn(),
+  clearSectionPlane: jest.fn(),
+  getModelBounds: jest.fn(() => undefined),
 });
 
 // The panel is now controlled by the parent: `open` and `onClose` are required.
