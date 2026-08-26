@@ -243,9 +243,18 @@ COPY superset-core superset-core
 
 RUN --mount=type=cache,target=${SUPERSET_HOME}/.cache/uv \
     /app/docker/pip-install.sh --requires-build-essential -r requirements/base.txt
-# Install the superset package
+# [TECHPEOPLE] Install the superset package with the extras the runtime needs.
+#
+# postgres: without it psycopg2 is missing from the image. docker-bootstrap.sh
+# installs it at startup for the web process but deliberately skips worker and
+# beat, so those two crash-loop on ModuleNotFoundError and no Celery task —
+# alerts, reports, cache warm-up — ever runs.
+#
+# fastmcp: the MCP service refuses to start without it ("MCP service
+# dependencies not installed: No module named 'uvicorn'"), and Superset itself
+# logs "fastmcp is not installed, skipping MCP initialization" on every boot.
 RUN --mount=type=cache,target=${SUPERSET_HOME}/.cache/uv \
-    uv pip install -e .
+    uv pip install -e .[postgres,fastmcp]
 RUN python -m compileall /app/superset
 
 USER superset
