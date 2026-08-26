@@ -1,0 +1,215 @@
+# -----------------------------------------------------------------------
+# [TECHPEOPLE] The whole stack — Superset + file-storage — in one file.
+#
+# Both halves normally deploy as separate compose stacks bridged by an external
+# network (see superset_tech/docker-compose-prod.yml and
+# services/file-storage/docker-compose.prod.yml). This file runs them together
+# instead: everything lands in one compose network, so `superset_shared` is not
+# needed and there is nothing to create by hand.
+#
+# Run from the superset_tech directory:
+#
+#   export SUPERSET_TAG=0.0.1-techpeople.22
+#   export STORAGE_TAG=0.0.4
+#   docker compose -f docker-compose-stack.yml pull
+#   docker compose -f docker-compose-stack.yml up -d
+#
+# Both tags are required: a deploy that silently picks "latest" leaves nobody
+# able to say what is running. Check what came up with:
+#   docker exec superset_app printenv TECHPEOPLE_FRONTEND_VERSION
+#
+# Secrets come from the same env files the split stacks use, so there is one
+# place to edit either way:
+#   superset_tech/docker/.env(-local)   — Superset, incl. STORAGE_API_KEY  (./docker/.env here)
+#   services/file-storage/.env          — file-storage, incl. API_KEY
+# STORAGE_API_KEY and API_KEY are the same shared secret and must match.
+#
+# Prerequisite: log in to the registry once, the images are private.
+#   echo <TOKEN> | docker login ghcr.io -u <github-login> --password-stdin
+# -----------------------------------------------------------------------
+
+# CI builds this image for linux/amd64 only, so every service that runs it pins
+# that platform: a no-op on an x86 server, and the difference between running
+# and "no matching manifest" on an arm64 machine.
+x-superset-image: &superset-image ghcr.io/techpeopleorg/superset_tech:${SUPERSET_TAG:?set SUPERSET_TAG to the release tag, e.g. 0.0.1-techpeople.22}
+
+# Only ./docker is mounted: it carries the env files and the bootstrap scripts.
+# Application code lives inside the image and must never be mounted over — that
+# is what separates a reproducible deploy from a hand-patched one.
+x-superset-volumes: &superset-volumes
+  - ./docker:/app/docker
+  - superset_home:/app/superset_home
+
+x-superset-env: &superset-env
+  env_file:
+    - path: docker/.env
+      required: true
+    - path: docker/.env-local
+      required: false
+
+services:
+  # --- file-storage ------------------------------------------------------
+  minio:
+    image: minio/minio:latest
+    container_name: storage_minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadmin}
+    volumes: ["minio_data:/data"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # The file registry, kept apart from Superset's own metadata database. Both
+  # run Postgres on this network, so this one answers to "storage-postgres"
+  # while Superset's answers to "db" — same-named hosts with matching
+  # credentials is how a service ends up writing into the other one's database.
+  storage-postgres:
+    image: postgres:15
+    container_name: storage_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-superset}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-superset}
+      POSTGRES_DB: ${POSTGRES_DB:-superset}
+    volumes: ["storage_pg_data:/var/lib/postgresql/data"]
+
+  file-storage:
+    image: ghcr.io/techpeopleorg/file-storage:${STORAGE_TAG:?set STORAGE_TAG to the release tag, e.g. 0.0.4}
+    platform: linux/amd64
+    container_name: storage_app
+    restart: unless-stopped
+    env_file: ../services/file-storage/.env
+    # The service reaches its own Postgres under the name used here, which
+    # differs from the split stack's "postgres" — so override the URL rather
+    # than relying on the one in .env.
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-superset}:${POSTGRES_PASSWORD:-superset}@storage-postgres:5432/${POSTGRES_DB:-superset}
+    depends_on:
+      minio: {condition: service_healthy}
+      storage-postgres: {condition: service_started}
+
+  # --- Superset ----------------------------------------------------------
+  redis:
+    image: redis:7
+    container_name: superset_cache
+    restart: unless-stopped
+    volumes:
+      - redis:/data
+
+  db:
+    <<: *superset-env
+    image: postgres:17
+    container_name: superset_db
+    restart: unless-stopped
+    volumes:
+      - db_home:/var/lib/postgresql/data
+      # Creates the examples database and its user. Postgres runs these scripts
+      # ONLY when the data directory is empty, i.e. on the very first start of a
+      # fresh db_home volume. Miss this mount on that first start and the
+      # examples database never appears, no matter how often the stack is
+      # redeployed — see tech_docs/FILE_UPLOADER_DEPLOY.md, 6.1.
+      - ./docker/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+
+  # Runs migrations, creates the admin user and syncs roles/permissions, then
+  # exits. Everything else waits for it to finish successfully, so a failed
+  # init stops the deploy instead of leaving a half-migrated database behind.
+  superset-init:
+    <<: *superset-env
+    image: *superset-image
+    platform: linux/amd64
+    container_name: superset_init
+    command: ["/app/docker/docker-init.sh"]
+    depends_on:
+      db:
+        condition: service_started
+      redis:
+        condition: service_started
+    user: "root"
+    volumes: *superset-volumes
+    healthcheck:
+      disable: true
+
+  superset:
+    <<: *superset-env
+    image: *superset-image
+    platform: linux/amd64
+    container_name: superset_app
+    command: ["/app/docker/docker-bootstrap.sh", "app-gunicorn"]
+    user: "root"
+    restart: unless-stopped
+    # The only port published to the host. Put nginx/TLS in front of it; the
+    # storage, MinIO and both Postgres instances stay unreachable from outside.
+    ports:
+      - 8088:8088
+    depends_on:
+      superset-init:
+        condition: service_completed_successfully
+      file-storage:
+        condition: service_started
+    volumes: *superset-volumes
+
+  superset-worker:
+    <<: *superset-env
+    image: *superset-image
+    platform: linux/amd64
+    container_name: superset_worker
+    command: ["/app/docker/docker-bootstrap.sh", "worker"]
+    restart: unless-stopped
+    depends_on:
+      superset-init:
+        condition: service_completed_successfully
+    user: "root"
+    volumes: *superset-volumes
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "celery -A superset.tasks.celery_app:app inspect ping -d celery@$$HOSTNAME",
+        ]
+
+  superset-worker-beat:
+    <<: *superset-env
+    image: *superset-image
+    platform: linux/amd64
+    container_name: superset_worker_beat
+    command: ["/app/docker/docker-bootstrap.sh", "beat"]
+    restart: unless-stopped
+    depends_on:
+      superset-init:
+        condition: service_completed_successfully
+    user: "root"
+    volumes: *superset-volumes
+    healthcheck:
+      disable: true
+
+  # Reachable inside the compose network as http://superset-mcp:5008. Not
+  # published to the host, so it is never exposed to the internet by default.
+  # See tech_docs/MCP_PROD_SETUP.md.
+  superset-mcp:
+    <<: *superset-env
+    image: *superset-image
+    platform: linux/amd64
+    container_name: superset_mcp
+    command: ["/app/docker/docker-bootstrap.sh", "mcp"]
+    user: "root"
+    restart: unless-stopped
+    expose:
+      - "5008"
+    depends_on:
+      superset-init:
+        condition: service_completed_successfully
+    volumes: *superset-volumes
+    healthcheck:
+      disable: true
+
+volumes:
+  superset_home:
+  db_home:
+  redis:
+  minio_data:
+  storage_pg_data:
