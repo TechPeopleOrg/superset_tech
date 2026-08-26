@@ -136,11 +136,11 @@ print(urllib.request.urlopen(b+'/healthz', timeout=10).read().decode())"
 
 ### Первая загрузка файла падает с `NoSuchBucket`
 
-Сервис не создаёт бакет в MinIO при старте: метод `ensure_bucket()` в
-`services/file-storage/app/storage.py` есть, но нигде не вызывается. На чистом
-томе MinIO первая же загрузка возвращает 502.
+Исправлено: сервис создаёт бакет при старте. Симптом остаётся на образах
+file-storage **старше `0.0.5`** — там `ensure_bucket()` был написан, но не
+вызывался, и на чистом томе MinIO первая же загрузка возвращала 502.
 
-Обход до исправления в коде:
+Если поднимаете старый образ, бакет создаётся вручную:
 
 ```bash
 docker exec storage_app python3 -c \
@@ -174,16 +174,22 @@ docker exec superset_app superset load_examples
 
 Если демо-датасеты не нужны — `SUPERSET_LOAD_EXAMPLES=no` в `docker/.env-local`.
 
-### Воркеры в бесконечном рестарте
+### Воркеры и MCP в бесконечном рестарте
 
-`superset_worker` и `superset_worker_beat` падают с `ModuleNotFoundError: No
-module named 'psycopg2'`. Драйвера нет в самом образе: CI собирает стадию `lean`,
-куда `.[postgres]` не входит. `superset_app` работает лишь потому, что
-`docker-bootstrap.sh` доставляет драйвер при старте, а для `worker` и `beat` этот
-шаг намеренно пропущен.
+Исправлено: образ ставит `.[postgres,fastmcp]`. Симптом остаётся на образах
+Superset **старше `0.0.1-techpeople.23`** — в них нет ни драйвера Postgres, ни
+зависимостей MCP:
 
-Следствие: не работают алерты, отчёты и фоновые задачи. Лечится в `Dockerfile` и
-новой сборкой образа — обходного пути на уровне деплоя нет.
+- `superset_worker` и `superset_worker_beat` падают с `ModuleNotFoundError: No
+  module named 'psycopg2'`. `superset_app` при этом работает, потому что
+  `docker-bootstrap.sh` доставляет драйвер при старте, а для `worker` и `beat`
+  этот шаг намеренно пропущен. Следствие — не работают алерты, отчёты и
+  фоновые задачи.
+- `superset_mcp` выходит с `MCP service dependencies not installed: No module
+  named 'uvicorn'`, а Superset на каждом старте пишет `fastmcp is not
+  installed, skipping MCP initialization`.
+
+Обходного пути на уровне деплоя нет: нужен образ новой сборки.
 
 ### `no matching manifest for linux/arm64`
 
