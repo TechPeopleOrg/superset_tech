@@ -1,0 +1,182 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# -----------------------------------------------------------------------
+# [TECHPEOPLE] Production deployment.
+#
+# Runs the image built by CI (git tag -> GitHub Actions -> ghcr.io), so nothing
+# is compiled on the server. See tech_docs/RELEASE_CYCLE.md for the release flow
+# and tech_docs/FILE_UPLOADER_DEPLOY.md for the file-storage side.
+#
+#   export SUPERSET_TAG=0.0.1-techpeople.22
+#   docker network create superset_shared        # once, shared with file-storage
+#   docker compose -f docker-compose-prod.yml pull
+#   docker compose -f docker-compose-prod.yml up -d
+#
+# Pin SUPERSET_TAG to a real tag — never "latest", or nobody can tell what is
+# deployed. Check what is running with:
+#   docker exec superset_app printenv TECHPEOPLE_FRONTEND_VERSION
+# -----------------------------------------------------------------------
+# CI builds this image for linux/amd64 only, so every service that runs it pins
+# that platform: a no-op on an x86 server, and the difference between running
+# and "no matching manifest" on an arm64 machine.
+x-superset-image: &superset-image ghcr.io/techpeopleorg/superset_tech:${SUPERSET_TAG:?set SUPERSET_TAG to the release tag, e.g. 0.0.1-techpeople.22}
+
+# Only ./docker is mounted: it carries the env files and the bootstrap scripts.
+# Application code lives inside the image and must never be mounted over on
+# prod — that is what separates a reproducible deploy from a hand-patched one.
+x-superset-volumes: &superset-volumes
+  - ./docker:/app/docker
+  - superset_home:/app/superset_home
+
+x-superset-env: &superset-env
+  env_file:
+    - path: docker/.env
+      required: true
+    - path: docker/.env-local
+      required: false
+
+services:
+  redis:
+    image: redis:7
+    container_name: superset_cache
+    restart: unless-stopped
+    volumes:
+      - redis:/data
+
+  db:
+    <<: *superset-env
+    image: postgres:17
+    container_name: superset_db
+    restart: unless-stopped
+    volumes:
+      - db_home:/var/lib/postgresql/data
+      # Creates the examples database and its user. Postgres runs these scripts
+      # ONLY when the data directory is empty, i.e. on the very first start of a
+      # fresh db_home volume. Miss this mount on that first start and the
+      # examples database never appears, no matter how often the stack is
+      # redeployed — see tech_docs/FILE_UPLOADER_DEPLOY.md, section 6.1.
+      - ./docker/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+
+  # Runs migrations, creates the admin user and syncs roles/permissions, then
+  # exits. Everything else waits for it to finish successfully, so a failed
+  # init stops the deploy instead of leaving a half-migrated database behind.
+  superset-init:
+    <<: *superset-env
+    image: *superset-image
+    platform: linux/amd64
+    container_name: superset_init
+    command: ["/app/docker/docker-init.sh"]
+    depends_on:
+      db:
+        condition: service_started
+      redis:
+        condition: service_started
+    user: "root"
+    volumes: *superset-volumes
+    healthcheck:
+      disable: true
+
+  superset:
+    <<: *superset-env
+    image: *superset-image
+    platform: linux/amd64
+    container_name: superset_app
+    command: ["/app/docker/docker-bootstrap.sh", "app-gunicorn"]
+    user: "root"
+    restart: unless-stopped
+    # The only port published to the host. Put nginx/TLS in front of it; the
+    # storage, MinIO and Postgres ports stay unreachable from outside.
+    ports:
+      - 8088:8088
+    depends_on:
+      superset-init:
+        condition: service_completed_successfully
+    volumes: *superset-volumes
+    networks:
+      - default
+      # Lets the File Uploader proxy reach the file-storage stack by hostname.
+      - superset_shared
+
+  superset-worker:
+    <<: *superset-env
+    image: *superset-image
+    platform: linux/amd64
+    container_name: superset_worker
+    command: ["/app/docker/docker-bootstrap.sh", "worker"]
+    restart: unless-stopped
+    depends_on:
+      superset-init:
+        condition: service_completed_successfully
+    user: "root"
+    volumes: *superset-volumes
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "celery -A superset.tasks.celery_app:app inspect ping -d celery@$$HOSTNAME",
+        ]
+
+  superset-worker-beat:
+    <<: *superset-env
+    image: *superset-image
+    platform: linux/amd64
+    container_name: superset_worker_beat
+    command: ["/app/docker/docker-bootstrap.sh", "beat"]
+    restart: unless-stopped
+    depends_on:
+      superset-init:
+        condition: service_completed_successfully
+    user: "root"
+    volumes: *superset-volumes
+    healthcheck:
+      disable: true
+
+  # Reachable inside the compose network as http://superset-mcp:5008. Not
+  # published to the host, so it is never exposed to the internet by default.
+  # See tech_docs/MCP_PROD_SETUP.md.
+  superset-mcp:
+    <<: *superset-env
+    image: *superset-image
+    platform: linux/amd64
+    container_name: superset_mcp
+    command: ["/app/docker/docker-bootstrap.sh", "mcp"]
+    user: "root"
+    restart: unless-stopped
+    expose:
+      - "5008"
+    depends_on:
+      superset-init:
+        condition: service_completed_successfully
+    volumes: *superset-volumes
+    healthcheck:
+      disable: true
+
+volumes:
+  superset_home:
+    external: false
+  db_home:
+    external: false
+  redis:
+    external: false
+
+networks:
+  # Bridge shared with the file-storage stack, which deploys separately.
+  # Create it once on the server before the first up:
+  #   docker network create superset_shared
+  superset_shared:
+    external: true
