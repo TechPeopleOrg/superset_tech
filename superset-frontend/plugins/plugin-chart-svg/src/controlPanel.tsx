@@ -20,7 +20,11 @@
 // (the SVG renderer expects CSS color strings), not theme styling.
 /* eslint-disable theme-colors/no-literal-colors */
 import { t } from '@apache-superset/core/translation';
-import { ControlPanelConfig } from '@superset-ui/chart-controls';
+import {
+  ControlPanelConfig,
+  ControlPanelState,
+  columnChoices,
+} from '@superset-ui/chart-controls';
 import StatusColorControl from './StatusColorControl';
 import { DEFAULT_STATUS_COLORS } from './types';
 
@@ -30,6 +34,72 @@ const config: ControlPanelConfig = {
       label: t('Query'),
       expanded: true,
       controlSetRows: [['columns'], ['adhoc_filters'], ['row_limit']],
+    },
+    {
+      label: t('Source'),
+      expanded: true,
+      controlSetRows: [
+        [
+          {
+            name: 'overview_column',
+            config: {
+              type: 'SelectControl',
+              label: t('Overview SVG column'),
+              description: t(
+                'Dataset column holding the UUID of the overview drawing (value of the first row is used).',
+              ),
+              default: null,
+              mapStateToProps: (state: ControlPanelState) => ({
+                choices: columnChoices(state.datasource),
+              }),
+            },
+          },
+        ],
+        [
+          {
+            name: 'detail_column',
+            config: {
+              type: 'SelectControl',
+              label: t('Detail SVG column'),
+              description: t(
+                'Dataset column holding the UUID of the detail drawing (value of the first row is used).',
+              ),
+              default: null,
+              mapStateToProps: (state: ControlPanelState) => ({
+                choices: columnChoices(state.datasource),
+              }),
+            },
+          },
+        ],
+        // TEMPORARY (manual testing without a dataset): paste a UUID to bypass
+        // the columns above. Remove once dataset-driven use is the norm.
+        [
+          {
+            name: 'overview_uuid',
+            config: {
+              type: 'TextControl',
+              label: t('Overview UUID (manual)'),
+              description: t(
+                'Overrides the overview column. For testing without a dataset.',
+              ),
+              default: '',
+            },
+          },
+        ],
+        [
+          {
+            name: 'detail_uuid',
+            config: {
+              type: 'TextControl',
+              label: t('Detail UUID (manual)'),
+              description: t(
+                'Overrides the detail column. For testing without a dataset.',
+              ),
+              default: '',
+            },
+          },
+        ],
+      ],
     },
     {
       label: t('Display'),

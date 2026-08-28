@@ -69,6 +69,14 @@ export interface SvgConfigurableOptions {
 
 export type SvgFormData = QueryFormData &
   SvgStylesProps & {
+    overview_column?: string;
+    detail_column?: string;
+    overviewColumn?: string;
+    detailColumn?: string;
+    overview_uuid?: string;
+    detail_uuid?: string;
+    overviewUuid?: string;
+    detailUuid?: string;
     color_range?: string;
     color_status?: SvgStatusColor[];
     tooltip_show?: boolean;
@@ -93,8 +101,8 @@ export type SvgChartProps = SvgStylesProps & {
   data: DataRecord[];
   // Column names returned by the query.
   columns: string[];
-  // The SVG markup to render.
-  svg: string;
+  overviewUuid: string;
+  detailUuid: string;
   // Resolved option values from the control panel.
   svgOptions: SvgConfigurableOptions;
 };

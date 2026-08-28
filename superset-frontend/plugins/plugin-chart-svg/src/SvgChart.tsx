@@ -17,15 +17,25 @@
  * under the License.
  */
 import { useEffect, useRef } from 'react';
+import { t } from '@apache-superset/core/translation';
 import { styled } from '@apache-superset/core/theme';
 import SVGCore from './lib/svgcore';
 import { SvgChartProps } from './types';
 import { useSvgMode } from './useSvgMode';
 import { useSvgFilters } from './useSvgFilters';
+import { useSvgSource } from './useSvgSource';
 
 const Container = styled.div`
   position: relative;
   overflow: hidden;
+`;
+
+const Message = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: ${({ theme }) => theme.colorTextSecondary};
 `;
 
 const BackButton = styled.button`
@@ -52,10 +62,21 @@ const BackButton = styled.button`
 `;
 
 export default function SvgChart(props: SvgChartProps) {
-  const { width, height, data, formData, svgOptions } = props;
+  const {
+    width,
+    height,
+    data,
+    formData,
+    svgOptions,
+    overviewUuid,
+    detailUuid,
+  } = props;
   const containerRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useSvgMode(formData.sliceId);
   const filters = useSvgFilters(['house', 'entrance', 'floor']);
+  const { svg, loading, error } = useSvgSource(
+    mode === 'house' ? overviewUuid : detailUuid,
+  );
 
   function setFilters(value: string) {
     if (value && value.includes('Квартира')) return;
@@ -84,7 +105,6 @@ export default function SvgChart(props: SvgChartProps) {
     // so clear any previous render before instantiating.
     node.innerHTML = '';
 
-    const svg = mode === 'house' ? data?.[0].complex_map : data?.[0].floor_map;
     const transformData = data.map(item => {
       return {
         name: mode === 'house' ? String(item.house) : String(item.name),
@@ -144,7 +164,7 @@ export default function SvgChart(props: SvgChartProps) {
       instance.destroy();
       node.innerHTML = '';
     };
-  }, [width, height, data, mode, svgOptions]);
+  }, [width, height, data, mode, svgOptions, svg]);
 
   return (
     <Container style={{ width, height }}>
@@ -152,6 +172,10 @@ export default function SvgChart(props: SvgChartProps) {
         <BackButton type="button" onClick={() => clearFilters()}>
           ← Назад
         </BackButton>
+      )}
+      {loading && <Message>{t('Loading…')}</Message>}
+      {!loading && error && (
+        <Message>{t('Failed to load the drawing')}</Message>
       )}
       <div ref={containerRef} style={{ width, height }} />
     </Container>
