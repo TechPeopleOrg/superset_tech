@@ -46,8 +46,12 @@ jobs:
           context: .
           target: lean # production runtime stage
           push: true
+          # BUILD_TRANSLATIONS compiles .po into messages.json (frontend) and .mo
+          # (backend). Without it /superset/language_pack/<lang>/ 404s and the UI
+          # stays English no matter what BABEL_DEFAULT_LOCALE says.
           build-args: |
             BUILD_VERSION=${{ env.VERSION }}
+            BUILD_TRANSLATIONS=true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.VERSION }}
           # Frontend build is slow (15-25 min) — caching is mandatory.
