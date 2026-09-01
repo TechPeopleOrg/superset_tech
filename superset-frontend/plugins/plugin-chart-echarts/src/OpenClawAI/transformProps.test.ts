@@ -31,10 +31,10 @@ const propsFor = (formData: Partial<OpenClawAIFormData>) =>
   }) as unknown as OpenClawAIChartProps;
 
 test('a blank stored prompt falls back to the default', () => {
-  expect(transformProps(propsFor({ system_prompt: '' })).systemPrompt).toBe(
+  expect(transformProps(propsFor({ systemPrompt: '' })).systemPrompt).toBe(
     DEFAULT_PROMPT,
   );
-  expect(transformProps(propsFor({ system_prompt: '   ' })).systemPrompt).toBe(
+  expect(transformProps(propsFor({ systemPrompt: '   ' })).systemPrompt).toBe(
     DEFAULT_PROMPT,
   );
 });
@@ -45,7 +45,7 @@ test('a missing prompt falls back to the default', () => {
 
 test('a configured prompt is passed through unchanged', () => {
   expect(
-    transformProps(propsFor({ system_prompt: '  Ты аналитик  ' })).systemPrompt,
+    transformProps(propsFor({ systemPrompt: '  Ты аналитик  ' })).systemPrompt,
   ).toBe('  Ты аналитик  ');
 });
 

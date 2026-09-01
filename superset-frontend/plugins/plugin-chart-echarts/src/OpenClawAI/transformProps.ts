@@ -37,22 +37,24 @@ export default function transformProps(chartProps: OpenClawAIChartProps) {
   const { width, height, formData, hooks } = chartProps;
   const { setDataMask = () => {} } = hooks;
 
-  const merged = { ...DEFAULT_FORM_DATA, ...formData };
+  const merged = { ...DEFAULT_FORM_DATA, ...formData } as Record<
+    string,
+    unknown
+  >;
 
-  const systemPrompt = (merged.system_prompt as string)?.trim()
-    ? (merged.system_prompt as string)
+  const systemPrompt = (merged.systemPrompt as string)?.trim()
+    ? (merged.systemPrompt as string)
     : 'You are a helpful assistant.';
 
-  // formData uses snake_case (matches control `name`); component props use camelCase.
   const componentProps: OpenClawChatComponentProps = {
     width,
     height,
-    baseUrl: (merged.base_url as string) ?? 'https://openclaw.techpeople.ru/openclaw/',
-    apiKey: (merged.api_key as string) ?? '',
+    baseUrl: (merged.baseUrl as string) ?? 'https://openclaw.techpeople.ru/openclaw/',
+    apiKey: (merged.apiKey as string) ?? '',
     model: (merged.model as OpenClawModel) ?? 'openclaw/data-analyst',
     systemPrompt,
     temperature: (merged.temperature as number) ?? 1.0,
-    speedText: (merged.speed_text as number) ?? 30,
+    speedText: (merged.speedText as number) ?? 30,
   };
 
   return {
