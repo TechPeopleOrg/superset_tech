@@ -76,6 +76,7 @@ const config: ControlPanelConfig = {
             name: 'system_prompt',
             config: {
               type: 'TextAreaControl',
+              language: 'markdown',
               label: t('System prompt'),
               renderTrigger: true,
               default: 'You are a helpful assistant.',
