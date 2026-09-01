@@ -111,7 +111,12 @@ FEATURE_FLAGS = {
     "ENABLE_EXTENSIONS": True,
     "FILTERBAR_CLOSED_BY_DEFAULT": True,
     "SEMANTIC_LAYERS": True,
+    "DASHBOARD_RBAC": True,
 }
+
+
+PUBLIC_ROLE_LIKE = "Public"
+
 EXTENSIONS_PATH = "/app/docker/extensions"
 ALERT_REPORTS_NOTIFICATION_DRY_RUN = True
 WEBDRIVER_BASEURL = f"http://superset_app{os.environ.get('SUPERSET_APP_ROOT', '/')}/"  # When using docker compose baseurl should be http://superset_nginx{ENV{BASEPATH}}/  # noqa: E501

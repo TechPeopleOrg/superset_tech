@@ -574,6 +574,7 @@ class SupersetSecurityManager(  # pylint: disable=too-many-public-methods
         ("can_read", "Chart"),
         ("can_dashboard", "Superset"),
         ("can_slice", "Superset"),
+        ("can_language_pack", "Superset"),
         ("can_explore_json", "Superset"),
         ("can_dashboard_permalink", "Superset"),
         ("can_read", "DashboardPermalinkRestApi"),
