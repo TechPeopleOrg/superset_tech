@@ -128,7 +128,13 @@ test('retry re-fetches the file list after a failure', async () => {
 test('renders file list from API', async () => {
   jest.spyOn(SupersetClient, 'get').mockResolvedValueOnce({
     json: [
-      { id: '1', uuid: 'uuid-1', name: 'A doc', file_name: 'a.pdf', category: 'doc' },
+      {
+        id: '1',
+        uuid: 'uuid-1',
+        name: 'A doc',
+        file_name: 'a.pdf',
+        category: 'doc',
+      },
     ],
   } as any);
   render(<FileUploader />, {
@@ -142,7 +148,13 @@ test('renders file list from API when response is wrapped in items envelope', as
   jest.spyOn(SupersetClient, 'get').mockResolvedValueOnce({
     json: {
       items: [
-        { id: '1', uuid: 'uuid-1', name: 'B doc', file_name: 'b.pdf', category: 'doc' },
+        {
+          id: '1',
+          uuid: 'uuid-1',
+          name: 'B doc',
+          file_name: 'b.pdf',
+          category: 'doc',
+        },
       ],
     },
   } as any);
@@ -176,7 +188,13 @@ test('shows the user-entered name, not just the raw file name', async () => {
 test('hides edit and delete actions without permission', async () => {
   jest.spyOn(SupersetClient, 'get').mockResolvedValueOnce({
     json: [
-      { id: '1', uuid: 'uuid-1', name: 'A doc', file_name: 'a.pdf', category: 'doc' },
+      {
+        id: '1',
+        uuid: 'uuid-1',
+        name: 'A doc',
+        file_name: 'a.pdf',
+        category: 'doc',
+      },
     ],
   } as any);
   render(<FileUploader />, {
@@ -191,7 +209,13 @@ test('hides edit and delete actions without permission', async () => {
 test('shows edit and delete actions with permission', async () => {
   jest.spyOn(SupersetClient, 'get').mockResolvedValueOnce({
     json: [
-      { id: '1', uuid: 'uuid-1', name: 'A doc', file_name: 'a.pdf', category: 'doc' },
+      {
+        id: '1',
+        uuid: 'uuid-1',
+        name: 'A doc',
+        file_name: 'a.pdf',
+        category: 'doc',
+      },
     ],
   } as any);
   render(<FileUploader />, {
@@ -242,7 +266,7 @@ test('upload primary button is disabled until file, name and category are set', 
   expect(uploadModalPrimaryBtn).toBeDisabled();
 
   await selectOption('bim', 'Category');
-  expect(uploadModalPrimaryBtn).not.toBeDisabled();
+  expect(uploadModalPrimaryBtn).toBeEnabled();
 });
 
 test('onUpload sends a FormData with name and category populated', async () => {
@@ -259,7 +283,7 @@ test('onUpload sends a FormData with name and category populated', async () => {
   await selectOption('bim', 'Category');
 
   const uploadModalPrimaryBtn = screen.getByTestId('modal-confirm-button');
-  await waitFor(() => expect(uploadModalPrimaryBtn).not.toBeDisabled());
+  await waitFor(() => expect(uploadModalPrimaryBtn).toBeEnabled());
   userEvent.click(uploadModalPrimaryBtn);
 
   await waitFor(() => expect(uploadSpy).toHaveBeenCalledTimes(1));
@@ -274,7 +298,13 @@ test('onConfirmDelete closes the delete modal and refreshes the list on success'
     .spyOn(SupersetClient, 'get')
     .mockResolvedValueOnce({
       json: [
-        { id: '1', uuid: 'uuid-1', name: 'A doc', file_name: 'a.pdf', category: 'doc' },
+        {
+          id: '1',
+          uuid: 'uuid-1',
+          name: 'A doc',
+          file_name: 'a.pdf',
+          category: 'doc',
+        },
       ],
     } as any)
     .mockResolvedValueOnce({ json: [] } as any);
@@ -293,7 +323,7 @@ test('onConfirmDelete closes the delete modal and refreshes the list on success'
   const confirmInput = await screen.findByTestId('delete-modal-input');
   userEvent.type(confirmInput, 'DELETE');
   const confirmBtn = screen.getByTestId('modal-confirm-button');
-  await waitFor(() => expect(confirmBtn).not.toBeDisabled());
+  await waitFor(() => expect(confirmBtn).toBeEnabled());
   userEvent.click(confirmBtn);
 
   await waitFor(() => expect(deleteSpy).toHaveBeenCalledWith('uuid-1'));
@@ -442,7 +472,6 @@ test('clicking the download icon triggers a download of the file bytes', async (
   clickSpy.mockRestore();
 });
 
-
 test('onUpload shows the validation error inside the modal and keeps it open on failure', async () => {
   jest.spyOn(SupersetClient, 'get').mockResolvedValueOnce({ json: [] } as any);
   jest.spyOn(api, 'uploadFile').mockRejectedValueOnce({
@@ -456,7 +485,7 @@ test('onUpload shows the validation error inside the modal and keeps it open on 
   await selectOption('image', 'Category');
 
   const uploadModalPrimaryBtn = screen.getByTestId('modal-confirm-button');
-  await waitFor(() => expect(uploadModalPrimaryBtn).not.toBeDisabled());
+  await waitFor(() => expect(uploadModalPrimaryBtn).toBeEnabled());
   userEvent.click(uploadModalPrimaryBtn);
 
   expect(
@@ -488,7 +517,9 @@ test('clicking the copy-uuid button calls copyTextToClipboard with the file uuid
   });
 
   await screen.findByText('a.pdf');
-  userEvent.click(screen.getByTestId('copy-uuid-abcdef12-0000-0000-0000-000000000099'));
+  userEvent.click(
+    screen.getByTestId('copy-uuid-abcdef12-0000-0000-0000-000000000099'),
+  );
 
   await waitFor(() => expect(copyMock).toHaveBeenCalledTimes(1));
   // The first argument is a getter function; calling it should return the uuid

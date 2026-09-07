@@ -18297,3 +18297,39 @@ msgstr "Сохранить как изображение (вся страниц�
 #: superset-frontend/src/dashboard
 msgid "Download as image (visible area)"
 msgstr "Сохранить как изображение (видимая часть)"
+
+#: superset-frontend/src/pages/FileUploader
+msgid "Replace file"
+msgstr "Заменить файл"
+
+#: superset-frontend/src/pages/FileUploader
+msgid "Replacing..."
+msgstr "Замена..."
+
+#: superset-frontend/src/pages/FileUploader
+msgid "New file"
+msgstr "Новый файл"
+
+#: superset-frontend/src/pages/FileUploader
+msgid "File replaced."
+msgstr "Файл заменён."
+
+#: superset-frontend/src/pages/FileUploader
+msgid "Replaces the contents of \"%s\". The link stays the same."
+msgstr "Заменяет содержимое «%s». Ссылка останется прежней."
+
+#: superset-frontend/src/pages/FileUploader
+msgid "Update file"
+msgstr "Обновить файл"
+
+#: superset-frontend/src/pages/FileUploader
+msgid "Updating..."
+msgstr "Обновление..."
+
+#: superset-frontend/src/pages/FileUploader
+msgid "File updated."
+msgstr "Файл обновлён."
+
+#: superset-frontend/src/pages/FileUploader
+msgid "Updates the contents of \"%s\". The link stays the same."
+msgstr "Обновляет содержимое «%s». Ссылка останется прежней."

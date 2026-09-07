@@ -46,6 +46,7 @@ import {
   fetchFiles,
   uploadFile,
   updateFile,
+  replaceFileContent,
   deleteFile,
   downloadFile,
   fileContentUrl,
@@ -194,11 +195,14 @@ function FileUploader({ addSuccessToast, addDangerToast }: ToastProps) {
   const [saving, setSaving] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState<StorageFile | null>(null);
+  // The record whose bytes are being swapped; its uuid and metadata survive.
+  const [replaceTarget, setReplaceTarget] = useState<StorageFile | null>(null);
+  const [replaceFileList, setReplaceFileList] = useState<UploadFile[]>([]);
+  const [replacing, setReplacing] = useState(false);
+  const [replaceError, setReplaceError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const [previewTarget, setPreviewTarget] = useState<StorageFile | null>(
-    null,
-  );
+  const [previewTarget, setPreviewTarget] = useState<StorageFile | null>(null);
 
   const loadFiles = useCallback(async () => {
     setLoading(true);
@@ -256,6 +260,30 @@ function FileUploader({ addSuccessToast, addDangerToast }: ToastProps) {
       setUploadError(message);
     } finally {
       setUploading(false);
+    }
+  };
+
+  const closeReplaceModal = () => {
+    setReplaceTarget(null);
+    setReplaceFileList([]);
+    setReplaceError(null);
+  };
+
+  const onReplace = async () => {
+    const newFile = replaceFileList[0]?.originFileObj;
+    if (!newFile || !replaceTarget) {
+      return;
+    }
+    setReplacing(true);
+    try {
+      await replaceFileContent(replaceTarget.uuid, newFile as File);
+      closeReplaceModal();
+      addSuccessToast(t('File updated.'));
+      await loadFiles();
+    } catch (err) {
+      setReplaceError(await extractErrorMessage(err));
+    } finally {
+      setReplacing(false);
     }
   };
 
@@ -319,6 +347,14 @@ function FileUploader({ addSuccessToast, addDangerToast }: ToastProps) {
   }
 
   const columns: ColumnsType<StorageFile> = [
+    {
+      title: t('Version'),
+      dataIndex: 'version',
+      key: 'version',
+      width: 90,
+      // Records that predate versioning report no number; they are version 1.
+      render: (value: number | undefined) => `V${value ?? 1}`,
+    },
     {
       title: t('Name'),
       dataIndex: 'name',
@@ -397,6 +433,19 @@ function FileUploader({ addSuccessToast, addDangerToast }: ToastProps) {
             <Icons.DownloadOutlined iconSize="l" />
           </span>
         </Tooltip>
+        {canEdit(user) && (
+          <Tooltip id="replace-action-tooltip" title={t('Update file')}>
+            <span
+              data-test={`replace-file-${file.uuid}`}
+              role="button"
+              tabIndex={0}
+              className="action-button"
+              onClick={() => setReplaceTarget(file)}
+            >
+              <Icons.SyncOutlined iconSize="l" />
+            </span>
+          </Tooltip>
+        )}
         {canEdit(user) && (
           <Tooltip id="edit-action-tooltip" title={t('Edit')}>
             <span
@@ -584,6 +633,47 @@ function FileUploader({ addSuccessToast, addDangerToast }: ToastProps) {
           />
         </Modal>
       )}
+      {replaceTarget && (
+        <Modal
+          show
+          onHide={closeReplaceModal}
+          title={t('Update file')}
+          primaryButtonName={replacing ? t('Updating...') : t('Update')}
+          disablePrimaryButton={replacing || replaceFileList.length === 0}
+          onHandledPrimaryAction={onReplace}
+        >
+          <>
+            {replaceError && (
+              <Alert type="error" closable={false}>
+                {replaceError}
+              </Alert>
+            )}
+            <div>
+              {/* The record keeps its identity, so anything pointing at this
+                  uuid picks up the new content automatically. */}
+              {t(
+                'Updates the contents of "%s". The link stays the same.',
+                replaceTarget.name ?? replaceTarget.file_name,
+              )}
+            </div>
+            <div>
+              <FormLabel htmlFor="replace-file">{t('New file')}</FormLabel>
+              <Upload
+                id="replace-file"
+                data-test="replace-file-input"
+                fileList={replaceFileList}
+                beforeUpload={() => false}
+                onChange={info => setReplaceFileList(info.fileList.slice(-1))}
+                onRemove={() => setReplaceFileList([])}
+                maxCount={1}
+              >
+                <Button>{t('Select file')}</Button>
+              </Upload>
+            </div>
+          </>
+        </Modal>
+      )}
+
       {deleteTarget && (
         <DeleteModal
           open={!!deleteTarget}
@@ -615,7 +705,10 @@ function FileUploader({ addSuccessToast, addDangerToast }: ToastProps) {
         <Modal
           name="preview-file"
           show={!!previewTarget}
-          title={t('Preview: %s', previewTarget.name ?? previewTarget.file_name)}
+          title={t(
+            'Preview: %s',
+            previewTarget.name ?? previewTarget.file_name,
+          )}
           onHide={() => setPreviewTarget(null)}
           hideFooter
         >

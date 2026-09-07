@@ -23,6 +23,8 @@ export interface StorageFile {
   uuid: string;
   name: string;
   file_name: string;
+  // 1 until the content is replaced; the uuid stays the same across versions.
+  version?: number;
   category?: string;
   folder?: string;
   tags?: string[];
@@ -75,6 +77,17 @@ export const fetchFiles = async (folder = ''): Promise<StorageFile[]> => {
 
 export const uploadFile = (formData: FormData) =>
   SupersetClient.post({ endpoint: `${BASE}/files`, postPayload: formData });
+
+// Swap the bytes of an existing record. The record keeps its uuid, so links
+// to it stay valid; the storage service bumps its version.
+export const replaceFileContent = (id: string, file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return SupersetClient.put({
+    endpoint: `${BASE}/files/${id}/content`,
+    postPayload: formData,
+  });
+};
 
 export const updateFile = (id: string, meta: Record<string, unknown>) =>
   SupersetClient.request({
