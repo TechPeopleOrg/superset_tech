@@ -173,7 +173,7 @@ export const useHeaderActionsMenu = ({
 
   const downloadMenuItem = useDownloadMenuItems({
     pdfMenuItemTitle: t('Export to PDF'),
-    imageMenuItemTitle: t('Download as Image'),
+    imageMenuItemTitle: t('Download as image (whole page)'),
     dashboardTitle: dashboardTitle ?? '',
     dashboardId,
     title: t('Download'),

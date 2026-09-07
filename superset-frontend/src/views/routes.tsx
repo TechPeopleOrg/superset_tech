@@ -191,6 +191,13 @@ const FileUploader = lazy(
   () => import(/* webpackChunkName: "FileUploader" */ 'src/pages/FileUploader'),
 );
 
+const StorageReports = lazy(
+  () =>
+    import(
+      /* webpackChunkName: "StorageReports" */ 'src/pages/StorageReports'
+    ),
+);
+
 type Routes = {
   path: string;
   Component: ComponentType;
@@ -337,6 +344,10 @@ export const routes: Routes = [
   {
     path: '/fileuploader/',
     Component: FileUploader,
+  },
+  {
+    path: '/storagereports/',
+    Component: StorageReports,
   },
 ];
 

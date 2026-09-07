@@ -49,6 +49,7 @@ import {
 } from '@superset-ui/core/components';
 import { useShareMenuItems } from 'src/dashboard/components/menu/ShareMenuItems';
 import downloadAsImage from 'src/utils/downloadAsImage';
+import SaveReportMenuItem from 'src/features/storageReports/SaveReportMenuItem';
 import { getSliceHeaderTooltip } from 'src/dashboard/util/getSliceHeaderTooltip';
 import { Icons } from '@superset-ui/core/components/Icons';
 import ViewQueryModal from 'src/explore/components/controls/ViewQueryModal';
@@ -301,7 +302,8 @@ const SliceHeaderControls = (
         // eslint-disable-next-line no-unused-expressions
         props.exportXLSX?.(props.slice.slice_id);
         break;
-      case MenuKeys.DownloadAsImage: {
+      case MenuKeys.DownloadAsImage:
+      case MenuKeys.DownloadAsImageShort: {
         // menu closes with a delay, we need to hide it manually,
         // so that we don't capture it on the screenshot
         const menu = document.querySelector(
@@ -315,6 +317,7 @@ const SliceHeaderControls = (
           props.slice.slice_name,
           true,
           theme,
+          key === MenuKeys.DownloadAsImageShort,
         )(domEvent).then(() => {
           if (menu) {
             menu.style.visibility = 'visible';
@@ -602,7 +605,28 @@ const SliceHeaderControls = (
           : []),
         {
           key: MenuKeys.DownloadAsImage,
-          label: t('Download as image'),
+          label: t('Download as image (whole page)'),
+          icon: <Icons.FileImageOutlined css={dropdownIconsStyles} />,
+        },
+        {
+          key: MenuKeys.DownloadAsImageShort,
+          label: t('Download as image (visible area)'),
+          icon: <Icons.FileImageOutlined css={dropdownIconsStyles} />,
+        },
+        {
+          key: MenuKeys.SaveReport,
+          label: (
+            <SaveReportMenuItem
+              selector={getScreenshotNodeSelector(props.slice.slice_id)}
+              source={{
+                type: 'chart',
+                id: props.slice.slice_id,
+                name: props.slice.slice_name,
+              }}
+              addSuccessToast={props.addSuccessToast}
+              addDangerToast={props.addDangerToast}
+            />
+          ),
           icon: <Icons.FileImageOutlined css={dropdownIconsStyles} />,
         },
       ],

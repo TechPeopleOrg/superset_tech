@@ -18193,3 +18193,107 @@ msgstr "Файловое хранилище недоступно. Повтори
 
 msgid "You don't have permission to view this page."
 msgstr "У вас нет прав для просмотра этой страницы."
+
+#: superset-frontend/src/features/storageReports
+msgid "Save report"
+msgstr "Сохранить отчёт"
+
+#: superset-frontend/src/features/storageReports
+msgid "Report log"
+msgstr "Журнал отчётов"
+
+#: superset-frontend/src/features/storageReports
+msgid "Problem description"
+msgstr "Описание проблемы"
+
+#: superset-frontend/src/features/storageReports
+msgid "Date observed"
+msgstr "Дата наблюдения"
+
+#: superset-frontend/src/features/storageReports
+msgid "Author"
+msgstr "Автор"
+
+#: superset-frontend/src/features/storageReports
+msgid "What is wrong, and where?"
+msgstr "Что не так и где?"
+
+#: superset-frontend/src/features/storageReports
+msgid "Report saved to the report log."
+msgstr "Отчёт сохранён в журнал отчётов."
+
+#: superset-frontend/src/features/storageReports
+msgid "Saving the report failed."
+msgstr "Не удалось сохранить отчёт."
+
+#: superset-frontend/src/features/storageReports
+msgid "Nothing to capture. Please refresh and try again."
+msgstr "Нечего снимать. Обновите страницу и попробуйте снова."
+
+#: superset-frontend/src/features/storageReports
+msgid "Report updated."
+msgstr "Отчёт обновлён."
+
+#: superset-frontend/src/features/storageReports
+msgid "Updating the report failed."
+msgstr "Не удалось обновить отчёт."
+
+#: superset-frontend/src/features/storageReports
+msgid "Delete report?"
+msgstr "Удалить отчёт?"
+
+#: superset-frontend/src/features/storageReports
+msgid "Report deleted."
+msgstr "Отчёт удалён."
+
+#: superset-frontend/src/features/storageReports
+msgid "Deleting the report failed."
+msgstr "Не удалось удалить отчёт."
+
+#: superset-frontend/src/features/storageReports
+msgid "This will permanently delete the report and its snapshot."
+msgstr "Отчёт и его снимок будут удалены безвозвратно."
+
+#: superset-frontend/src/features/storageReports
+msgid "Assigned to"
+msgstr "Ответственный"
+
+#: superset-frontend/src/features/storageReports
+msgid "No one assigned"
+msgstr "Не назначен"
+
+#: superset-frontend/src/pages/StorageReports
+msgid "Open the snapshot"
+msgstr "Открыть снимок"
+
+#: superset-frontend/src/features/storageReports
+msgid "Add to report log"
+msgstr "Добавить в журнал отчётов"
+
+#: superset-frontend/src/features/storageReports
+msgid "New report"
+msgstr "Новый отчёт"
+
+#: superset-frontend/src/pages/StorageReports
+msgid "Open at full size"
+msgstr "Открыть в полном размере"
+
+#: superset-frontend/src/features/storageReports
+msgid "Snapshot area"
+msgstr "Область снимка"
+
+#: superset-frontend/src/features/storageReports
+msgid "Whole page"
+msgstr "Вся страница"
+
+#: superset-frontend/src/features/storageReports
+msgid "Visible area only"
+msgstr "Только видимая часть"
+
+#: superset-frontend/src/dashboard
+msgid "Download as image (whole page)"
+msgstr "Сохранить как изображение (вся страница)"
+
+#: superset-frontend/src/dashboard
+msgid "Download as image (visible area)"
+msgstr "Сохранить как изображение (видимая часть)"

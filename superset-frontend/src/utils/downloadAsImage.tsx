@@ -20,6 +20,7 @@ import { SyntheticEvent } from 'react';
 import domToImage from 'dom-to-image-more';
 import { kebabCase } from 'lodash';
 import { t } from '@apache-superset/core/translation';
+import { logging } from '@apache-superset/core/utils';
 import { SupersetTheme } from '@apache-superset/core/theme';
 import { addWarningToast } from 'src/components/MessageToasts/actions';
 import type { AgGridContainerElement } from '@superset-ui/core/components';
@@ -226,12 +227,33 @@ const preserveCanvasContent = (original: Element, clone: Element) => {
 
   originalCanvases.forEach((originalCanvas, i) => {
     if (originalCanvases[i] && clonedCanvases[i]) {
+      // A zero-sized canvas (an offscreen or not-yet-laid-out one, as the 3D
+      // viewer keeps alongside its visible canvas) makes drawImage throw and
+      // would abort the whole capture.
+      if (!originalCanvas.width || !originalCanvas.height) {
+        return;
+      }
       const clonedCanvas = clonedCanvases[i] as HTMLCanvasElement;
+      // A canvas's drawing buffer and its on-screen box are separate sizes
+      // (a WebGL viewer commonly renders at a lower buffer resolution). Copying
+      // the bitmap sets the buffer, so pin the box too, or the bitmap is
+      // stretched to whatever width the clone's layout gives it.
+      const rect = originalCanvas.getBoundingClientRect();
+      if (rect.width && rect.height) {
+        clonedCanvas.style.width = `${rect.width}px`;
+        clonedCanvas.style.height = `${rect.height}px`;
+      }
       const ctx = clonedCanvas.getContext('2d');
       if (ctx) {
         clonedCanvas.width = originalCanvas.width;
         clonedCanvas.height = originalCanvas.height;
-        ctx.drawImage(originalCanvas, 0, 0);
+        try {
+          ctx.drawImage(originalCanvas, 0, 0);
+        } catch (error) {
+          // One unreadable canvas (tainted by cross-origin content, or a
+          // context lost mid-capture) must not cost the entire snapshot.
+          logging.warn('Could not copy a canvas into the capture', error);
+        }
       }
     }
   });
@@ -245,6 +267,15 @@ const createEnhancedClone = (
   copyAllComputedStyles(originalElement, clone, theme);
   preserveCanvasContent(originalElement, clone);
 
+  // The off-screen container is absolutely positioned, so it imposes no width
+  // of its own: without one the clone shrink-wraps (a dashboard collapses from
+  // its on-screen width to a few dozen pixels), the layout reflows into a
+  // different shape, and the copied canvas bitmaps land in boxes that no longer
+  // match them. Pinning the original's width keeps the capture true to what the
+  // user sees. Height is left free so processCloneForVisibility can still
+  // expand scrollable content.
+  const { width } = originalElement.getBoundingClientRect();
+
   const tempContainer = document.createElement('div');
   tempContainer.style.cssText = `
     position: absolute;
@@ -254,6 +285,10 @@ const createEnhancedClone = (
     pointer-events: none;
     z-index: -1000;
   `;
+  if (width) {
+    tempContainer.style.width = `${width}px`;
+    clone.style.width = `${width}px`;
+  }
   tempContainer.appendChild(clone);
   document.body.appendChild(tempContainer);
 
@@ -308,11 +343,200 @@ export const waitForStableScrollHeight = (
     setTimeout(poll, POLL_INTERVAL_MS);
   });
 
+// Raised when an ag-grid chart has not rendered its first data yet, so a
+// capture would produce an empty image. Callers turn this into a "still
+// loading" message rather than a generic failure.
+export class ChartNotReadyError extends Error {}
+
+export type CaptureFormat = 'jpeg' | 'png';
+
+// File extension matching a capture format, for naming the produced file.
+export const captureFileExtension = (format: CaptureFormat) =>
+  format === 'png' ? 'png' : 'jpg';
+
+/**
+ * Capture a DOM element as an image data URL.
+ *
+ * Split out of the download flow so the same capture can be sent somewhere
+ * other than the user's disk (e.g. saved to file storage as a report). The
+ * download path below is a thin wrapper over this.
+ *
+ * @throws ChartNotReadyError when an ag-grid chart has no data rendered yet.
+ */
+export async function captureElementAsDataUrl(
+  elementToPrint: Element,
+  format: CaptureFormat = 'jpeg',
+  theme?: SupersetTheme,
+  { visibleOnly = false }: { visibleOnly?: boolean } = {},
+): Promise<string> {
+  const encode = format === 'png' ? domToImage.toPng : domToImage.toJpeg;
+
+  const filter = (node: Element) =>
+    typeof node.className === 'string'
+      ? !node.className.includes('mapboxgl-control-container') &&
+        !node.className.includes('header-controls') &&
+        // Inactive tabs are laid out but not visible; rendering them stacks
+        // every tab's content into the image.
+        !node.className.includes('ant-tabs-tabpane-hidden')
+      : true;
+
+  // Only apply ag-grid path for single-chart captures.
+  // Skip entirely for dashboard-level exports (selector targets the .dashboard root).
+  const isDashboardCapture = (elementToPrint as HTMLElement).classList.contains(
+    'dashboard',
+  );
+  const agContainers = isDashboardCapture
+    ? []
+    : elementToPrint.querySelectorAll('[data-themed-ag-grid]');
+  const agContainer =
+    agContainers.length === 1
+      ? (agContainers[0] as AgGridContainerElement)
+      : null;
+  const agRootWrapper = agContainer
+    ? (agContainer.querySelector('.ag-root-wrapper') as HTMLElement | null)
+    : null;
+
+  if (agContainer && agRootWrapper) {
+    const api = agContainer._agGridApi;
+    const isFirstDataRendered = agContainer._agGridFirstDataRendered === true;
+
+    if (!isFirstDataRendered) {
+      throw new ChartNotReadyError('ag-grid has not rendered its first data');
+    }
+
+    // Capture resolved pixel widths before print layout can re-trigger sizeColumnsToFit.
+    // sizeColumnsToFit() sets flex (not pixel widths), so after print layout expands the
+    // container it recalculates column widths wider. We restore with flex: null to force
+    // pixel widths when calling applyColumnState after the layout switch.
+    const savedColumnState = api?.getColumnState?.();
+    const visibleColumnState = savedColumnState?.filter(col => !col.hide) ?? [];
+    const originalWidth =
+      visibleColumnState.reduce((sum, col) => sum + (col.width ?? 0), 0) ||
+      agRootWrapper.offsetWidth;
+
+    // Chrome SVG foreignObject bug: % min-height resolves against canvas height,
+    // causing cells to expand to full image height and overlap adjacent rows.
+    const cellFixups: CellFixup[] = [];
+
+    try {
+      await document.fonts.ready;
+
+      if (api) {
+        api.setGridOption('domLayout', 'print');
+
+        // Wait for ResizeObserver + any triggered sizeColumnsToFit() to settle,
+        // then restore column widths before measurement.
+        await new Promise<void>(resolve =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        );
+
+        if (visibleColumnState.length > 0) {
+          api.applyColumnState?.({
+            state: visibleColumnState.map(col => ({
+              colId: col.colId,
+              width: col.width,
+              flex: null,
+            })),
+            applyOrder: false,
+          });
+        }
+
+        // Rows never scrolled into view have stale cached heights; remeasure all.
+        api.resetRowHeights?.();
+
+        // 5 polls × POLL_INTERVAL_MS = 500 ms; autoHeight rows batch-measure slowly.
+        await waitForStableScrollHeight(agRootWrapper, 5000, 5);
+      }
+
+      agRootWrapper.querySelectorAll('.ag-cell').forEach(cell => {
+        const el = cell as HTMLElement;
+        const rowHeight = (el.parentElement as HTMLElement)?.offsetHeight ?? 0;
+        // scrollHeight catches any cells where resetRowHeights lagged behind.
+        const minH = Math.max(rowHeight, el.scrollHeight);
+        cellFixups.push({
+          el,
+          minHeight: el.style.minHeight,
+          overflow: el.style.overflow,
+        });
+        el.style.minHeight = minH > 0 ? `${minH}px` : '0px';
+        el.style.overflow = 'hidden';
+      });
+
+      const imageHeight = agRootWrapper.scrollHeight;
+
+      return await encode(agRootWrapper, {
+        bgcolor: theme?.colorBgContainer,
+        filter,
+        quality: IMAGE_DOWNLOAD_QUALITY,
+        height: imageHeight,
+        width: originalWidth,
+        cacheBust: true,
+      });
+    } finally {
+      cellFixups.forEach(({ el, minHeight, overflow }) => {
+        el.style.minHeight = minHeight;
+        el.style.overflow = overflow;
+      });
+      if (api) {
+        api.setGridOption('domLayout', 'normal');
+        if (savedColumnState) {
+          api.applyColumnState?.({
+            state: savedColumnState,
+            applyOrder: false,
+          });
+        }
+      }
+    }
+  }
+
+  // "Visible area only": render the live element as it stands. Nothing is
+  // rebuilt, so the frame is exactly what is on screen — at the cost of
+  // whatever is scrolled out of view. The clone path below is the opposite
+  // trade: it re-lays-out the content to reach hidden rows.
+  if (visibleOnly) {
+    await document.fonts.ready;
+    const el = elementToPrint as HTMLElement;
+    return encode(elementToPrint, {
+      bgcolor: theme?.colorBgContainer,
+      filter,
+      quality: IMAGE_DOWNLOAD_QUALITY,
+      cacheBust: true,
+      height: el.clientHeight || undefined,
+      width: el.clientWidth || undefined,
+    });
+  }
+
+  // All other chart types: use the clone-based approach
+  let cleanup: (() => void) | null = null;
+
+  try {
+    const { clone, cleanup: cleanupFn } = createEnhancedClone(
+      elementToPrint,
+      theme,
+    );
+    cleanup = cleanupFn;
+
+    return await encode(clone, {
+      bgcolor: theme?.colorBgContainer,
+      filter,
+      quality: IMAGE_DOWNLOAD_QUALITY,
+      height: clone.scrollHeight,
+      width: clone.scrollWidth,
+      cacheBust: true,
+    });
+  } finally {
+    if (cleanup) cleanup();
+  }
+}
+
 export default function downloadAsImageOptimized(
   selector: string,
   description: string,
   isExactSelector = false,
   theme?: SupersetTheme,
+  // Whole page by default; visible-only skips the clone path and captures the
+  // frame as it stands on screen.
+  visibleOnly = false,
 ) {
   return async (event: SyntheticEvent) => {
     const elementToPrint = isExactSelector
@@ -326,170 +550,28 @@ export default function downloadAsImageOptimized(
       return;
     }
 
-    const filter = (node: Element) =>
-      typeof node.className === 'string'
-        ? !node.className.includes('mapboxgl-control-container') &&
-          !node.className.includes('header-controls')
-        : true;
-
-    // Only apply ag-grid path for single-chart captures.
-    // Skip entirely for dashboard-level exports (selector targets the .dashboard root).
-    const isDashboardCapture = (
-      elementToPrint as HTMLElement
-    ).classList.contains('dashboard');
-    const agContainers = isDashboardCapture
-      ? []
-      : elementToPrint.querySelectorAll('[data-themed-ag-grid]');
-    const agContainer =
-      agContainers.length === 1
-        ? (agContainers[0] as AgGridContainerElement)
-        : null;
-    const agRootWrapper = agContainer
-      ? (agContainer.querySelector('.ag-root-wrapper') as HTMLElement | null)
-      : null;
-
-    if (agContainer && agRootWrapper) {
-      const api = agContainer._agGridApi;
-      const isFirstDataRendered = agContainer._agGridFirstDataRendered === true;
-
-      if (!isFirstDataRendered) {
-        addWarningToast(
-          t('The chart is still loading. Please wait a moment and try again.'),
-        );
-        return;
-      }
-
-      // Capture resolved pixel widths before print layout can re-trigger sizeColumnsToFit.
-      // sizeColumnsToFit() sets flex (not pixel widths), so after print layout expands the
-      // container it recalculates column widths wider. We restore with flex: null to force
-      // pixel widths when calling applyColumnState after the layout switch.
-      const savedColumnState = api?.getColumnState?.();
-      const visibleColumnState =
-        savedColumnState?.filter(col => !col.hide) ?? [];
-      const originalWidth =
-        visibleColumnState.reduce((sum, col) => sum + (col.width ?? 0), 0) ||
-        agRootWrapper.offsetWidth;
-
-      // Chrome SVG foreignObject bug: % min-height resolves against canvas height,
-      // causing cells to expand to full image height and overlap adjacent rows.
-      const cellFixups: CellFixup[] = [];
-
-      try {
-        await document.fonts.ready;
-
-        if (api) {
-          api.setGridOption('domLayout', 'print');
-
-          // Wait for ResizeObserver + any triggered sizeColumnsToFit() to settle,
-          // then restore column widths before measurement.
-          await new Promise<void>(resolve =>
-            requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
-          );
-
-          if (visibleColumnState.length > 0) {
-            api.applyColumnState?.({
-              state: visibleColumnState.map(col => ({
-                colId: col.colId,
-                width: col.width,
-                flex: null,
-              })),
-              applyOrder: false,
-            });
-          }
-
-          // Rows never scrolled into view have stale cached heights; remeasure all.
-          api.resetRowHeights?.();
-
-          // 5 polls × POLL_INTERVAL_MS = 500 ms; autoHeight rows batch-measure slowly.
-          await waitForStableScrollHeight(agRootWrapper, 5000, 5);
-        }
-
-        agRootWrapper.querySelectorAll('.ag-cell').forEach(cell => {
-          const el = cell as HTMLElement;
-          const rowHeight =
-            (el.parentElement as HTMLElement)?.offsetHeight ?? 0;
-          // scrollHeight catches any cells where resetRowHeights lagged behind.
-          const minH = Math.max(rowHeight, el.scrollHeight);
-          cellFixups.push({
-            el,
-            minHeight: el.style.minHeight,
-            overflow: el.style.overflow,
-          });
-          el.style.minHeight = minH > 0 ? `${minH}px` : '0px';
-          el.style.overflow = 'hidden';
-        });
-
-        const imageHeight = agRootWrapper.scrollHeight;
-
-        const dataUrl = await domToImage.toJpeg(agRootWrapper, {
-          bgcolor: theme?.colorBgContainer,
-          filter,
-          quality: IMAGE_DOWNLOAD_QUALITY,
-          height: imageHeight,
-          width: originalWidth,
-          cacheBust: true,
-        });
-
-        const link = document.createElement('a');
-        link.download = `${generateFileStem(description)}.jpg`;
-        link.href = dataUrl;
-        link.click();
-      } catch (error) {
-        console.error('Creating image failed', error);
-        addWarningToast(
-          t('Image download failed, please refresh and try again.'),
-        );
-      } finally {
-        cellFixups.forEach(({ el, minHeight, overflow }) => {
-          el.style.minHeight = minHeight;
-          el.style.overflow = overflow;
-        });
-        if (api) {
-          api.setGridOption('domLayout', 'normal');
-          if (savedColumnState) {
-            api.applyColumnState?.({
-              state: savedColumnState,
-              applyOrder: false,
-            });
-          }
-        }
-      }
-      return;
-    }
-
-    // All other chart types: use the clone-based approach
-    let cleanup: (() => void) | null = null;
-
     try {
-      const { clone, cleanup: cleanupFn } = createEnhancedClone(
+      const dataUrl = await captureElementAsDataUrl(
         elementToPrint,
+        'jpeg',
         theme,
+        { visibleOnly },
       );
-      cleanup = cleanupFn;
-
-      const dataUrl = await domToImage.toJpeg(clone, {
-        bgcolor: theme?.colorBgContainer,
-        filter,
-        quality: IMAGE_DOWNLOAD_QUALITY,
-        height: clone.scrollHeight,
-        width: clone.scrollWidth,
-        cacheBust: true,
-      });
-
-      cleanup();
-      cleanup = null;
-
       const link = document.createElement('a');
       link.download = `${generateFileStem(description)}.jpg`;
       link.href = dataUrl;
       link.click();
     } catch (error) {
+      if (error instanceof ChartNotReadyError) {
+        addWarningToast(
+          t('The chart is still loading. Please wait a moment and try again.'),
+        );
+        return;
+      }
       console.error('Creating image failed', error);
       addWarningToast(
         t('Image download failed, please refresh and try again.'),
       );
-    } finally {
-      if (cleanup) cleanup();
     }
   };
 }

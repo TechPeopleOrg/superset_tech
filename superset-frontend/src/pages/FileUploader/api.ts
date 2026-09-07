@@ -57,8 +57,15 @@ interface FileListEnvelope {
 }
 
 export const fetchFiles = async (folder = ''): Promise<StorageFile[]> => {
+  // Report snapshots live in the same storage but belong to the report log,
+  // which has its own page; they are excluded server-side so they never eat
+  // into this listing's page size.
+  const params = new URLSearchParams({ exclude_category: 'report' });
+  if (folder) {
+    params.set('folder', folder);
+  }
   const { json } = await SupersetClient.get({
-    endpoint: `${BASE}/files${folder ? `?folder=${encodeURIComponent(folder)}` : ''}`,
+    endpoint: `${BASE}/files?${params.toString()}`,
   });
   const list = Array.isArray(json)
     ? json

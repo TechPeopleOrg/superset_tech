@@ -19,6 +19,7 @@
 import domToImage from 'dom-to-image-more';
 import { addWarningToast } from 'src/components/MessageToasts/actions';
 import downloadAsImageOptimized, {
+  captureElementAsDataUrl,
   waitForStableScrollHeight,
 } from './downloadAsImage';
 
@@ -681,5 +682,122 @@ test('clone path falls back to white background when theme is absent', async () 
     expect.objectContaining({ bgcolor: undefined }),
   );
 
+  document.body.removeChild(container);
+});
+
+test('a zero-sized canvas does not abort the capture', async () => {
+  // The 3D viewer keeps a canvas that can still measure 0x0 when the capture
+  // runs; drawImage throws on it, which used to fail the whole snapshot.
+  const container = document.createElement('div');
+  const zeroCanvas = document.createElement('canvas');
+  zeroCanvas.width = 0;
+  zeroCanvas.height = 0;
+  container.appendChild(zeroCanvas);
+  document.body.appendChild(container);
+
+  const dataUrl = await captureElementAsDataUrl(container, 'jpeg');
+
+  expect(mockToJpeg).toHaveBeenCalled();
+  expect(dataUrl).toBeDefined();
+  document.body.removeChild(container);
+});
+
+test('an unreadable canvas is skipped rather than failing the capture', async () => {
+  const container = document.createElement('div');
+  const canvas = document.createElement('canvas');
+  canvas.width = 10;
+  canvas.height = 10;
+  container.appendChild(canvas);
+  document.body.appendChild(container);
+
+  const realGetContext = HTMLCanvasElement.prototype.getContext;
+  HTMLCanvasElement.prototype.getContext = function patched(
+    this: HTMLCanvasElement,
+    ...args: unknown[]
+  ) {
+    const ctx = (realGetContext as never as (...a: unknown[]) => unknown).apply(
+      this,
+      args,
+    );
+    if (ctx && typeof ctx === 'object') {
+      (ctx as { drawImage: () => void }).drawImage = () => {
+        throw new Error('tainted canvas');
+      };
+    }
+    return ctx;
+  } as never;
+
+  await expect(
+    captureElementAsDataUrl(container, 'jpeg'),
+  ).resolves.toBeDefined();
+
+  HTMLCanvasElement.prototype.getContext = realGetContext;
+  document.body.removeChild(container);
+});
+
+test('the clone keeps the original width instead of shrink-wrapping', async () => {
+  // An absolutely positioned off-screen container imposes no width, so without
+  // pinning it the clone collapses and the whole layout reflows — the capture
+  // then looks nothing like the screen.
+  const container = document.createElement('div');
+  container.style.width = '900px';
+  Object.defineProperty(container, 'getBoundingClientRect', {
+    value: () => ({
+      width: 900,
+      height: 400,
+      top: 0,
+      left: 0,
+      right: 900,
+      bottom: 400,
+    }),
+  });
+  document.body.appendChild(container);
+
+  await captureElementAsDataUrl(container, 'jpeg');
+
+  const [clonePassedToEncoder] = mockToJpeg.mock.calls.at(-1);
+  expect(clonePassedToEncoder.style.width).toBe('900px');
+  document.body.removeChild(container);
+});
+
+test('hidden tab panes stay out of the capture', async () => {
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+
+  await captureElementAsDataUrl(container, 'jpeg');
+
+  const [, options] = mockToJpeg.mock.calls.at(-1);
+  const hiddenTab = document.createElement('div');
+  hiddenTab.className = 'ant-tabs-tabpane ant-tabs-tabpane-hidden';
+  expect(options.filter(hiddenTab)).toBe(false);
+  document.body.removeChild(container);
+});
+
+test('visible-only capture renders the live element, not a rebuilt clone', async () => {
+  // Rebuilding the DOM is what distorts a rendering; visible-only mode hands
+  // the real node to the encoder, so what is on screen is what gets saved.
+  const container = document.createElement('div');
+  container.className = 'live-element';
+  document.body.appendChild(container);
+
+  await captureElementAsDataUrl(container, 'jpeg', undefined, {
+    visibleOnly: true,
+  });
+
+  const [nodePassedToEncoder] = mockToJpeg.mock.calls.at(-1);
+  expect(nodePassedToEncoder).toBe(container);
+  document.body.removeChild(container);
+});
+
+test('the default capture keeps the clone path so scrolled-out rows are included', async () => {
+  // A table taller than its scroll box must not be cropped to the visible part.
+  const container = document.createElement('div');
+  container.className = 'chart-with-table';
+  document.body.appendChild(container);
+
+  await captureElementAsDataUrl(container, 'jpeg');
+
+  const [nodePassedToEncoder] = mockToJpeg.mock.calls.at(-1);
+  expect(nodePassedToEncoder).not.toBe(container);
   document.body.removeChild(container);
 });

@@ -370,6 +370,7 @@ export interface SliceEntitiesState {
 
 export enum MenuKeys {
   DownloadAsImage = 'download_as_image',
+  DownloadAsImageShort = 'download_as_image_short',
   ExploreChart = 'explore_chart',
   ExportCsv = 'export_csv',
   ExportPivotCsv = 'export_pivot_csv',
@@ -388,6 +389,7 @@ export enum MenuKeys {
   CopyLink = 'copy_link',
   Download = 'download',
   SaveModal = 'save_modal',
+  SaveReport = 'save_report',
   RefreshDashboard = 'refresh_dashboard',
   AutorefreshModal = 'autorefresh_modal',
   SetFilterMapping = 'set_filter_mapping',

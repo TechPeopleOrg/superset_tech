@@ -38,6 +38,7 @@ import {
 import { useToasts } from 'src/components/MessageToasts/withToasts';
 
 import { MenuItemTooltip } from 'src/components/Chart/DisabledMenuItemTooltip';
+import SaveReportMenuItem from 'src/features/storageReports/SaveReportMenuItem';
 import { DownloadScreenshotFormat } from './types';
 
 export interface UseDownloadMenuItemsProps {
@@ -86,9 +87,15 @@ export const useDownloadMenuItems = (
     logEvent?.(LOG_ACTIONS_DASHBOARD_DOWNLOAD_AS_PDF);
   };
 
-  const onDownloadImage = async (e: SyntheticEvent) => {
+  const onDownloadImage = async (e: SyntheticEvent, visibleOnly = false) => {
     try {
-      downloadAsImage(SCREENSHOT_NODE_SELECTOR, dashboardTitle, true)(e);
+      downloadAsImage(
+        SCREENSHOT_NODE_SELECTOR,
+        dashboardTitle,
+        true,
+        undefined,
+        visibleOnly,
+      )(e);
     } catch (error) {
       logging.error(error);
       addDangerToast(t('Sorry, something went wrong. Try again later.'));
@@ -195,6 +202,12 @@ export const useDownloadMenuItems = (
           disabled: imageDisabled,
           onClick: (e: any) => onDownloadImage(e.domEvent),
         },
+        {
+          key: MenuKeys.DownloadAsImageShort,
+          label: imageExportLabel(t('Download as image (visible area)')),
+          disabled: imageDisabled,
+          onClick: (e: any) => onDownloadImage(e.domEvent, true),
+        },
       ];
 
   const exportMenuItems: MenuItem[] = [
@@ -216,6 +229,17 @@ export const useDownloadMenuItems = (
 
   const children: MenuItem[] = [
     ...screenshotMenuItems,
+    {
+      key: MenuKeys.SaveReport,
+      label: (
+        <SaveReportMenuItem
+          selector={SCREENSHOT_NODE_SELECTOR}
+          source={{ type: 'dashboard', id: dashboardId, name: dashboardTitle }}
+          addSuccessToast={addSuccessToast}
+          addDangerToast={addDangerToast}
+        />
+      ),
+    },
     { type: 'divider', key: 'export-divider' },
     ...exportMenuItems,
   ];
