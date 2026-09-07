@@ -18333,3 +18333,7 @@ msgstr "Файл обновлён."
 #: superset-frontend/src/pages/FileUploader
 msgid "Updates the contents of \"%s\". The link stays the same."
 msgstr "Обновляет содержимое «%s». Ссылка останется прежней."
+
+#: superset-frontend/src/pages/FileUploader
+msgid "Updated"
+msgstr "Обновлён"

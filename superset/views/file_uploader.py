@@ -29,12 +29,30 @@ from flask_appbuilder import expose
 from flask_appbuilder.security.decorators import has_access, has_access_api
 
 from superset.superset_typing import FlaskResponse
+from superset.utils.core import get_username
 from superset.views.base import BaseSupersetView, common_bootstrap_payload
 from superset.views.utils import bootstrap_user_data
 
 logger = logging.getLogger(__name__)
 
 _HOP_BY_HOP = {"host", "cookie", "content-length", "connection"}
+
+
+def with_author(raw_metadata: str | None) -> str:
+    """Stamp the logged-in user onto a record's metadata.
+
+    Set server-side and overwriting whatever the browser sent, so the author is
+    the session that actually uploaded or updated the file. The storage service
+    merges metadata, so sending this alone leaves the other fields intact.
+    """
+    try:
+        metadata = json.loads(raw_metadata) if raw_metadata else {}
+    except ValueError:
+        metadata = {}
+    if not isinstance(metadata, dict):
+        metadata = {}
+    metadata["author"] = get_username() or ""
+    return json.dumps(metadata)
 
 
 def proxy_to_storage(
@@ -154,6 +172,8 @@ class FileUploaderView(BaseSupersetView):
             # Rebuild the multipart body from the already-parsed form/files
             # instead, letting `requests` generate a fresh boundary.
             data = dict(request.form)
+            # Records who uploaded the file, and who replaced its contents.
+            data["metadata"] = with_author(data.get("metadata"))
             files = [
                 (key, (fs.filename, fs.stream, fs.mimetype))
                 for key, fs in request.files.items(multi=True)

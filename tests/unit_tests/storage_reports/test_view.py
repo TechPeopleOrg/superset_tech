@@ -17,12 +17,13 @@
 import json
 from unittest.mock import patch
 
-from superset.views.storage_reports import _with_author, StorageReportsView
+from superset.views.file_uploader import with_author
+from superset.views.storage_reports import StorageReportsView
 
 
 def test_author_is_stamped_from_the_session():
-    with patch("superset.views.storage_reports.get_username", return_value="ada"):
-        metadata = json.loads(_with_author(json.dumps({"description": "leak"})))
+    with patch("superset.views.file_uploader.get_username", return_value="ada"):
+        metadata = json.loads(with_author(json.dumps({"description": "leak"})))
     assert metadata == {"description": "leak", "author": "ada"}
 
 
@@ -30,17 +31,17 @@ def test_author_from_the_browser_is_overwritten():
     # A client that sends its own author must not be able to attribute a
     # report to someone else.
     payload = json.dumps({"description": "leak", "author": "someone-else"})
-    with patch("superset.views.storage_reports.get_username", return_value="ada"):
-        metadata = json.loads(_with_author(payload))
+    with patch("superset.views.file_uploader.get_username", return_value="ada"):
+        metadata = json.loads(with_author(payload))
     assert metadata["author"] == "ada"
 
 
 def test_malformed_metadata_does_not_break_the_upload():
-    with patch("superset.views.storage_reports.get_username", return_value="ada"):
-        assert json.loads(_with_author("not json")) == {"author": "ada"}
-        assert json.loads(_with_author(None)) == {"author": "ada"}
+    with patch("superset.views.file_uploader.get_username", return_value="ada"):
+        assert json.loads(with_author("not json")) == {"author": "ada"}
+        assert json.loads(with_author(None)) == {"author": "ada"}
         # A JSON scalar is valid JSON but not a metadata object.
-        assert json.loads(_with_author("42")) == {"author": "ada"}
+        assert json.loads(with_author("42")) == {"author": "ada"}
 
 
 def test_is_report_accepts_only_the_report_category():

@@ -25,6 +25,10 @@ export interface StorageFile {
   file_name: string;
   // 1 until the content is replaced; the uuid stays the same across versions.
   version?: number;
+  // Who uploaded or last updated the file, stamped server-side.
+  metadata?: { author?: string; [key: string]: unknown };
+  // Touched on upload and on every content update.
+  updated_at?: string;
   category?: string;
   folder?: string;
   tags?: string[];
@@ -83,6 +87,9 @@ export const uploadFile = (formData: FormData) =>
 export const replaceFileContent = (id: string, file: File) => {
   const formData = new FormData();
   formData.append('file', file);
+  // Empty on purpose: the proxy fills in the author, and the storage service
+  // merges it into whatever the record already holds.
+  formData.append('metadata', '{}');
   return SupersetClient.put({
     endpoint: `${BASE}/files/${id}/content`,
     postPayload: formData,

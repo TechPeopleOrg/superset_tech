@@ -34,30 +34,13 @@ from flask_appbuilder import expose
 from flask_appbuilder.security.decorators import has_access, has_access_api
 
 from superset.superset_typing import FlaskResponse
-from superset.utils.core import get_username
 from superset.views.base import BaseSupersetView, common_bootstrap_payload
-from superset.views.file_uploader import proxy_to_storage
+from superset.views.file_uploader import proxy_to_storage, with_author
 from superset.views.utils import bootstrap_user_data
 
 logger = logging.getLogger(__name__)
 
 REPORT_CATEGORY = "report"
-
-
-def _with_author(raw_metadata: str | None) -> str:
-    """Stamp the logged-in user onto a report's metadata.
-
-    Set server-side and overwriting whatever the browser sent, so a report's
-    author is the session that actually saved it.
-    """
-    try:
-        metadata = json.loads(raw_metadata) if raw_metadata else {}
-    except ValueError:
-        metadata = {}
-    if not isinstance(metadata, dict):
-        metadata = {}
-    metadata["author"] = get_username() or ""
-    return json.dumps(metadata)
 
 
 def _forbidden(message: str) -> Response:
@@ -147,7 +130,7 @@ class StorageReportsView(BaseSupersetView):
             # An upload may only ever land in the report category, whatever the
             # browser asked for.
             data["category"] = REPORT_CATEGORY
-            data["metadata"] = _with_author(data.get("metadata"))
+            data["metadata"] = with_author(data.get("metadata"))
             files = [
                 (key, (fs.filename, fs.stream, fs.mimetype))
                 for key, fs in request.files.items(multi=True)

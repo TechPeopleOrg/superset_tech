@@ -384,6 +384,20 @@ function FileUploader({ addSuccessToast, addDangerToast }: ToastProps) {
       key: 'tags',
       render: (value: string[]) => (value ?? []).join(', '),
     },
+    {
+      title: t('Author'),
+      key: 'author',
+      // Whoever uploaded the file, or last updated its contents.
+      render: (_: unknown, file: StorageFile) => file.metadata?.author ?? '',
+    },
+    {
+      title: t('Updated'),
+      dataIndex: 'updated_at',
+      key: 'updated_at',
+      // Upload time until the file is updated, then the time of that update.
+      render: (value: string | undefined) =>
+        value ? value.slice(0, 16).replace('T', ' ') : '',
+    },
   ];
 
   // This component already returns early above when `!hasView`, so every
